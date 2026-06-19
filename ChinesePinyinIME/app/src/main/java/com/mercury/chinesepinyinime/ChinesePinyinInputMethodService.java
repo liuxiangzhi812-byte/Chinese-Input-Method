@@ -1,44 +1,63 @@
 package com.mercury.chinesepinyinime;
 
 import android.inputmethodservice.InputMethodService;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ChinesePinyinInputMethodService extends InputMethodService {
-    private static final Map<String, String[]> CANDIDATE_WORDS = createCandidateWords();
+    private static final int MAX_CANDIDATES_PER_PINYIN = 20;
+    private static final int DELETE_LONG_PRESS_DELAY_MS = 500;
+    private static final int DELETE_REPEAT_INTERVAL_MS = 80;
+    private static Map<String, String[]> candidateWords;
 
     private final StringBuilder composingPinyin = new StringBuilder();
-    private boolean chineseMode = false;
+    private final List<Integer> candidatePageStarts = new ArrayList<>();
+    private final Handler deleteRepeatHandler = new Handler(Looper.getMainLooper());
+    private boolean chineseMode = true;
+    private int candidatePageIndex = 0;
+    private int candidateListContainerWidthPx = 0;
+    private boolean deleteRepeatStarted;
+    private Runnable deleteRepeatRunnable;
     private LinearLayout candidateBar;
-    private TextView[] candidateViews;
+    private LinearLayout candidateListContainer;
+    private TextView candidatePagePrev;
+    private TextView candidatePageNext;
     private TextView keyboardStatus;
     private Button modeButton;
 
     @Override
     public View onCreateInputView() {
+        ensureCandidateWordsLoaded();
         View keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
         candidateBar = keyboardView.findViewById(R.id.candidate_bar);
-        candidateViews = new TextView[]{
-                keyboardView.findViewById(R.id.candidate_1),
-                keyboardView.findViewById(R.id.candidate_2),
-                keyboardView.findViewById(R.id.candidate_3),
-                keyboardView.findViewById(R.id.candidate_4),
-                keyboardView.findViewById(R.id.candidate_5)
-        };
+        candidateListContainer = keyboardView.findViewById(R.id.candidate_list_container);
+        candidatePagePrev = keyboardView.findViewById(R.id.candidate_page_prev);
+        candidatePageNext = keyboardView.findViewById(R.id.candidate_page_next);
         keyboardStatus = keyboardView.findViewById(R.id.keyboard_status);
         modeButton = keyboardView.findViewById(R.id.key_mode);
         bindKeyboardButtons(keyboardView);
-        bindCandidateViews();
+        bindCandidatePageButtons();
+        bindCandidateListContainerWidthListener(keyboardView);
         updateKeyboardStatus();
         return keyboardView;
     }
@@ -52,10 +71,16 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     @Override
     public void onFinishInput() {
         super.onFinishInput();
+        stopDeleteRepeat();
         clearComposingPinyin();
     }
 
     private void bindKeyboardButtons(View view) {
+        if (view.getId() == R.id.key_delete) {
+            bindDeleteKeyLongPress(view);
+            return;
+        }
+
         if (view instanceof Button) {
             view.setOnClickListener(this::handleKeyClick);
             return;
@@ -67,6 +92,53 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
                 bindKeyboardButtons(group.getChildAt(i));
             }
         }
+    }
+
+    private void bindDeleteKeyLongPress(View deleteView) {
+        deleteView.setOnTouchListener((view, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    startDeleteRepeatCountdown();
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    boolean wasRepeating = deleteRepeatStarted;
+                    stopDeleteRepeat();
+                    if (!wasRepeating) {
+                        InputConnection inputConnection = getCurrentInputConnection();
+                        if (inputConnection != null) {
+                            handleDelete(inputConnection);
+                        }
+                    }
+                    return true;
+                default:
+                    return false;
+            }
+        });
+    }
+
+    private void startDeleteRepeatCountdown() {
+        deleteRepeatStarted = false;
+        deleteRepeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                deleteRepeatStarted = true;
+                InputConnection inputConnection = getCurrentInputConnection();
+                if (inputConnection != null) {
+                    handleDelete(inputConnection);
+                }
+                deleteRepeatHandler.postDelayed(this, DELETE_REPEAT_INTERVAL_MS);
+            }
+        };
+        deleteRepeatHandler.postDelayed(deleteRepeatRunnable, DELETE_LONG_PRESS_DELAY_MS);
+    }
+
+    private void stopDeleteRepeat() {
+        if (deleteRepeatRunnable != null) {
+            deleteRepeatHandler.removeCallbacks(deleteRepeatRunnable);
+            deleteRepeatRunnable = null;
+        }
+        deleteRepeatStarted = false;
     }
 
     private void handleKeyClick(View view) {
@@ -109,6 +181,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void handleLetterKey(InputConnection inputConnection, String letter) {
         if (chineseMode) {
             composingPinyin.append(letter);
+            candidatePageIndex = 0;
             updateKeyboardStatus();
             return;
         }
@@ -128,6 +201,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void handleDelete(InputConnection inputConnection) {
         if (chineseMode && composingPinyin.length() > 0) {
             composingPinyin.deleteCharAt(composingPinyin.length() - 1);
+            candidatePageIndex = 0;
             updateKeyboardStatus();
             return;
         }
@@ -153,12 +227,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void commitComposingPinyin(InputConnection inputConnection) {
         inputConnection.commitText(composingPinyin.toString(), 1);
         composingPinyin.setLength(0);
+        candidatePageIndex = 0;
         updateKeyboardStatus();
     }
 
     private void commitFirstCandidate(InputConnection inputConnection) {
-        inputConnection.commitText(getCandidatesForCurrentPinyin()[0], 1);
+        inputConnection.commitText(getCandidatesForCurrentPage()[0], 1);
         composingPinyin.setLength(0);
+        candidatePageIndex = 0;
         updateKeyboardStatus();
     }
 
@@ -170,12 +246,28 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
         inputConnection.commitText(candidate, 1);
         composingPinyin.setLength(0);
+        candidatePageIndex = 0;
         updateKeyboardStatus();
     }
 
     private void clearComposingPinyin() {
         composingPinyin.setLength(0);
+        candidatePageIndex = 0;
         updateKeyboardStatus();
+    }
+
+    private void goToPreviousCandidatePage() {
+        if (candidatePageIndex > 0) {
+            candidatePageIndex--;
+            updateKeyboardStatus();
+        }
+    }
+
+    private void goToNextCandidatePage() {
+        if (candidatePageIndex + 1 < candidatePageStarts.size()) {
+            candidatePageIndex++;
+            updateKeyboardStatus();
+        }
     }
 
     private void updateKeyboardStatus() {
@@ -196,60 +288,187 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void updateCandidateBar() {
-        if (candidateBar == null || candidateViews == null) {
+        if (candidateBar == null || candidateListContainer == null) {
             return;
         }
 
         boolean showCandidates = chineseMode && composingPinyin.length() > 0;
         candidateBar.setVisibility(showCandidates ? View.VISIBLE : View.GONE);
         if (!showCandidates) {
-            clearCandidateTexts();
+            candidateListContainer.removeAllViews();
+            updateCandidatePageButtons(false, false);
             return;
         }
 
-        String[] candidates = getCandidatesForCurrentPinyin();
+        String[] allCandidates = getCandidatesForCurrentPinyin();
+        recomputeCandidatePages(allCandidates);
+        if (candidatePageIndex >= candidatePageStarts.size()) {
+            candidatePageIndex = candidatePageStarts.size() - 1;
+        }
 
-        for (int i = 0; i < candidateViews.length; i++) {
-            if (i < candidates.length) {
-                candidateViews[i].setText(candidates[i]);
-                candidateViews[i].setVisibility(View.VISIBLE);
-            } else {
-                candidateViews[i].setText("");
-                candidateViews[i].setVisibility(View.INVISIBLE);
+        int pageStart = candidatePageStarts.get(candidatePageIndex);
+        int pageEnd = candidatePageIndex + 1 < candidatePageStarts.size()
+                ? candidatePageStarts.get(candidatePageIndex + 1)
+                : allCandidates.length;
+
+        candidateListContainer.removeAllViews();
+        for (int i = pageStart; i < pageEnd; i++) {
+            candidateListContainer.addView(createCandidateView(allCandidates[i]));
+        }
+
+        boolean hasPrevPage = candidatePageIndex > 0;
+        boolean hasNextPage = candidatePageIndex + 1 < candidatePageStarts.size();
+        updateCandidatePageButtons(hasPrevPage, hasNextPage);
+    }
+
+    private void recomputeCandidatePages(String[] allCandidates) {
+        candidatePageStarts.clear();
+        if (allCandidates.length == 0) {
+            candidatePageStarts.add(0);
+            return;
+        }
+
+        int availableWidth = candidateListContainerWidthPx > 0
+                ? candidateListContainerWidthPx
+                : getResources().getDisplayMetrics().widthPixels;
+
+        int index = 0;
+        while (index < allCandidates.length) {
+            candidatePageStarts.add(index);
+            int usedWidth = 0;
+            int pageStart = index;
+            while (index < allCandidates.length) {
+                int candidateWidth = measureCandidateViewWidth(allCandidates[index]);
+                if (usedWidth + candidateWidth > availableWidth && index > pageStart) {
+                    break;
+                }
+                usedWidth += candidateWidth;
+                index++;
             }
         }
     }
 
-    private void clearCandidateTexts() {
-        for (TextView candidateView : candidateViews) {
-            candidateView.setText("");
-            candidateView.setVisibility(View.INVISIBLE);
+    private int measureCandidateViewWidth(String text) {
+        TextView measuringView = createCandidateView(text);
+        measuringView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        LinearLayout.MarginLayoutParams params =
+                (LinearLayout.MarginLayoutParams) measuringView.getLayoutParams();
+        return measuringView.getMeasuredWidth() + params.leftMargin + params.rightMargin;
+    }
+
+    private TextView createCandidateView(String text) {
+        TextView candidateView = new TextView(this, null, 0, R.style.CandidateText);
+        candidateView.setText(text);
+        int marginPx = (int) (3 * getResources().getDisplayMetrics().density);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT);
+        params.setMargins(marginPx, marginPx, marginPx, marginPx);
+        candidateView.setLayoutParams(params);
+        candidateView.setOnClickListener(view -> commitCandidate(text));
+        return candidateView;
+    }
+
+    private void updateCandidatePageButtons(boolean hasPrevPage, boolean hasNextPage) {
+        if (candidatePagePrev != null) {
+            candidatePagePrev.setVisibility(hasPrevPage ? View.VISIBLE : View.INVISIBLE);
+        }
+        if (candidatePageNext != null) {
+            candidatePageNext.setVisibility(hasNextPage ? View.VISIBLE : View.INVISIBLE);
         }
     }
 
-    private void bindCandidateViews() {
-        if (candidateViews == null) {
-            return;
+    private void bindCandidatePageButtons() {
+        if (candidatePagePrev != null) {
+            candidatePagePrev.setOnClickListener(view -> goToPreviousCandidatePage());
         }
+        if (candidatePageNext != null) {
+            candidatePageNext.setOnClickListener(view -> goToNextCandidatePage());
+        }
+    }
 
-        for (TextView candidateView : candidateViews) {
-            candidateView.setOnClickListener(view -> {
-                CharSequence text = ((TextView) view).getText();
-                commitCandidate(text == null ? "" : text.toString());
-            });
-        }
+    private void bindCandidateListContainerWidthListener(View keyboardView) {
+        keyboardView.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            int newWidth = candidateListContainer.getWidth();
+            if (newWidth > 0 && newWidth != candidateListContainerWidthPx) {
+                candidateListContainerWidthPx = newWidth;
+                updateCandidateBar();
+            }
+        });
     }
 
     private String[] getCandidatesForCurrentPinyin() {
         String pinyin = composingPinyin.toString();
-        String[] candidates = CANDIDATE_WORDS.get(pinyin);
+        String[] candidates = getCandidateWords().get(pinyin);
         if (candidates == null) {
             return new String[]{pinyin};
         }
         return candidates;
     }
 
-    private static Map<String, String[]> createCandidateWords() {
+    private String[] getCandidatesForCurrentPage() {
+        String[] allCandidates = getCandidatesForCurrentPinyin();
+        recomputeCandidatePages(allCandidates);
+        int pageIndex = Math.min(candidatePageIndex, candidatePageStarts.size() - 1);
+        int start = candidatePageStarts.get(pageIndex);
+        int end = pageIndex + 1 < candidatePageStarts.size()
+                ? candidatePageStarts.get(pageIndex + 1)
+                : allCandidates.length;
+        String[] pageCandidates = new String[end - start];
+        System.arraycopy(allCandidates, start, pageCandidates, 0, pageCandidates.length);
+        return pageCandidates;
+    }
+
+    private Map<String, String[]> getCandidateWords() {
+        ensureCandidateWordsLoaded();
+        return candidateWords;
+    }
+
+    private void ensureCandidateWordsLoaded() {
+        if (candidateWords != null) {
+            return;
+        }
+
+        Map<String, String[]> loadedWords = loadCandidateWordsFromAssets();
+        candidateWords = loadedWords.isEmpty() ? createFallbackCandidateWords() : loadedWords;
+    }
+
+    private Map<String, String[]> loadCandidateWordsFromAssets() {
+        Map<String, String[]> words = new HashMap<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                getAssets().open("pinyin_dict.txt"), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+
+                int separatorIndex = line.indexOf('=');
+                if (separatorIndex <= 0 || separatorIndex == line.length() - 1) {
+                    continue;
+                }
+
+                String pinyin = line.substring(0, separatorIndex).trim();
+                String candidateText = line.substring(separatorIndex + 1).trim();
+                if (pinyin.isEmpty() || candidateText.isEmpty()) {
+                    continue;
+                }
+
+                String[] rawCandidates = candidateText.split(",");
+                int candidateCount = Math.min(rawCandidates.length, MAX_CANDIDATES_PER_PINYIN);
+                String[] candidates = new String[candidateCount];
+                for (int i = 0; i < candidateCount; i++) {
+                    candidates[i] = rawCandidates[i].trim();
+                }
+                words.put(pinyin, candidates);
+            }
+        } catch (IOException ignored) {
+            return Collections.emptyMap();
+        }
+        return Collections.unmodifiableMap(words);
+    }
+
+    private static Map<String, String[]> createFallbackCandidateWords() {
         Map<String, String[]> words = new HashMap<>();
         words.put("a", new String[]{"啊", "阿"});
         words.put("ai", new String[]{"爱", "哎", "唉"});
