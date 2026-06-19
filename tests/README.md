@@ -1,0 +1,110 @@
+# tests/ — 真机测试归档目录
+
+本目录用于存放 ChinesePinyinIME 的**真机 / 模拟器测试记录**，与源码、CHANGELOG 分离，便于按版本回溯「当时测了什么、结果如何」。
+
+## 目录用途
+
+| 内容 | 说明 |
+|------|------|
+| 测试报告 | 每个会话文件夹内的 `REPORT.md` |
+| 截图证据 | `screenshots/` 下按轮次分子目录 |
+| UI 层级导出 | `ui_dumps/`（`uiautomator dump` 的 XML） |
+| 构建 / 安装产物引用 | `artifacts/`（可选：APK 路径、adb 命令日志等） |
+
+**不要**把 Android Studio / Gradle 生成物（`build/`、`.gradle/`）放进这里；只放与测试直接相关的材料。
+
+## 文件夹命名规范
+
+每次测试会话在 `tests/` 下新建**一级子文件夹**，命名格式：
+
+```text
+v{版本号}_{YYYY-MM-DD}_{HHMMSS}
+```
+
+示例：
+
+```text
+tests/v0.01.0010_2026-06-19_235900/
+```
+
+- **版本号**：与 `strings.xml` 中 `app_version_display` 一致（如 `v0.01.0010`）
+- **日期**：测试开始日期（本地时间）
+- **时间**：测试开始时刻 `HHMMSS`（24 小时制，无分隔符）
+
+同一次会话内若跨日，仍以**开始时间**为准，勿拆成两个文件夹。
+
+## 推荐子目录结构
+
+```text
+tests/v0.01.0010_2026-06-19_235900/
+├── REPORT.md                 # 本次测试报告（必填）
+├── screenshots/
+│   ├── 01_install_and_baseline/
+│   ├── 02_xxx/               # 按测试轮次或场景命名
+│   └── ...
+├── ui_dumps/                 # 可选
+└── artifacts/                # 可选：adb_log.txt、安装命令等
+```
+
+`screenshots` 子目录建议用**两位序号 + 简短英文**描述场景，例如 `05_round4_bottom_anchored`。
+
+## 如何记录一次新测试
+
+### 1. 测试前
+
+1. 确认 `app_version_display` 与待测功能（查 `CHANGELOG.md`）
+2. 编译：`ChinesePinyinIME/gradlew assembleDebug`
+3. 创建文件夹：`tests/v{版本}_{日期}_{时间}/`
+4. 复制本结构中的空子目录（`screenshots/`、`ui_dumps/`、`artifacts/`）
+
+### 2. 测试中
+
+- 每个**关键步骤**截屏一张，文件名见名知意（如 `f04_123.png` = 符号键盘布局）
+- 若用 adb 自动化，把完整命令写入 `artifacts/adb_commands.txt`
+- 设备信息写入报告：型号、Android 版本、屏幕分辨率、当前默认 IME
+
+常用 adb（路径按本机 SDK 调整）：
+
+```powershell
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+& $adb devices -l
+& $adb install -r ChinesePinyinIME\app\build\outputs\apk\debug\app-debug.apk
+& $adb shell screencap -p /sdcard/test.png
+& $adb pull /sdcard/test.png tests\vX.XX.XXXX_...\screenshots\...
+```
+
+### 3. 测试后（必填 REPORT.md）
+
+报告至少包含：
+
+1. **元信息**：版本、日期时间、执行者、设备
+2. **测试范围**：对应 CHANGELOG / handoff 哪条功能
+3. **环境与步骤**：安装是否成功、IME 是否已启用
+4. **结果表**：用例 ID、操作、期望、实际、通过/失败/待人工
+5. **证据索引**：截图路径对照表
+6. **问题与建议**：失败项、坐标/自动化限制、下一步
+
+结果判定：
+
+- **通过**：与期望一致，有截图或日志佐证
+- **失败**：行为错误或可复现崩溃
+- **待人工**：已安装/部分自动化，需人在机上确认手感或候选排序
+
+### 4. 与项目文档联动
+
+- 功能变更 → 更新根目录 `CHANGELOG.md`
+- 里程碑 / 待办 → 更新 `PROJECT_HANDOFF.md`
+- 本目录只负责**测试证据**，不替代 CHANGELOG
+
+## 历史会话索引
+
+| 文件夹 | 版本 | 摘要 |
+|--------|------|------|
+| [v0.01.0010_2026-06-19_235900](v0.01.0010_2026-06-19_235900/REPORT.md) | v0.01.0010 | 真机安装 + 123 符号模式 + 全角/半角；ADB 部分自动化 |
+| [v0.01.0010_2026-06-20_001406](v0.01.0010_2026-06-20_001406/REPORT.md) | v0.01.0010 | 补测 ni 空格提交、候选分页、DEL 长按、123/ABC、全角/半角 |
+
+## 注意事项
+
+- 截图可能含短信、号码等隐私：分享仓库前请脱敏或勿提交敏感会话
+- 自定义 IME 的按键通常**不会**出现在 `uiautomator` 层级里，自动化点击需按屏幕坐标校准（见各次 REPORT）
+- 测试文件体积较大时，可考虑 Git LFS；当前默认随仓库保存便于交接

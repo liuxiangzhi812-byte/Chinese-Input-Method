@@ -1,0 +1,22 @@
+# ADB commands for v0.01.0010 test session 2026-06-20_001406
+# Key ADB commands used
+adb devices -l
+adb install -r ChinesePinyinIME/app/build/outputs/apk/debug/app-debug.apk
+adb shell settings get secure default_input_method
+adb shell am start -n com.mercury.chinesepinyinime/.MainActivity
+adb shell am start -a android.intent.action.SENDTO -d sms:10086
+adb shell input tap 820 3010
+adb shell input swipe 1330 2790 1330 2790 1800
+adb shell input tap 1005 2790
+adb shell input tap 1065 2390
+adb shell input tap 690 2990
+adb shell input tap 790 2390
+adb shell input tap 1065 2390
+adb shell input tap 1330 2215
+adb shell input tap 150 2990
+adb shell input tap 95 2390
+adb shell input tap 150 2990
+adb shell input tap 95 2790
+adb shell input tap 150 2990
+adb shell input tap 95 2390
+adb shell uiautomator dump /sdcard/after_symbol_text.xml

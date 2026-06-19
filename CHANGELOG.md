@@ -4,6 +4,42 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0010 — 2026-06-19
+
+执行者: Grok (Cursor Agent)
+
+### 新增
+
+- 123 / ABC 符号数字键盘切换：
+  - 底栏 `123` 键进入符号/数字键盘，按钮文案变为 `ABC`；点击 `ABC` 返回 QWERTY 字母键盘。
+  - 新增 `symbol_keyboard_section`（数字 0-9 + 常用英文符号 3 行），与 `letter_keyboard_section` 通过可见性切换。
+  - 符号键直接提交到输入框，不经过拼音缓冲；切换布局时清空组字状态。
+  - **ZH 模式**下符号/数字输出为**全角**（如 `１`、`＠`、`（`）；**EN 模式**下输出为**半角**（如 `1`、`@`、`(`）。符号区键面固定显示半角，实际宽度由 `chineseMode` 决定。
+  - 符号模式下保留 ZH/EN 切换、DEL（含长按连删）、space、enter 行为；切换 123/ABC 时保留当前语言模式。
+
+### 修改
+
+- DEL 键绑定改为按 `action:delete` 标签识别（不再仅依赖 `R.id.key_delete`），使符号键盘区的 DEL 也支持长按连删。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `PROJECT_HANDOFF.md`
+- `tests/`（真机测试归档，见 `tests/v0.01.0010_2026-06-19_235900/REPORT.md`）
+
+### 验证
+
+- 使用项目 Gradle Wrapper + JDK 21 运行 `assembleDebug`，编译/打包成功。
+- 真机（OnePlus 7 Pro，`7fbf2094`）：`adb install -r` 安装成功；启动页版本 `v0.01.0010` 正确；IME 已启用并可弹出。
+- 真机 ADB 半自动验证（详见 `tests/v0.01.0010_2026-06-19_235900/REPORT.md`）：
+  - **通过**：123/ABC 符号键盘切换（截图 `f04_123.png`）。
+  - **基本通过**：ZH 全角 / EN 半角符号输出（截图 `f05_fw1.png`、`f06_hw1.png`）。
+  - **待人工**：拼音 `ni` + 空格提交候选（ADB 坐标点击不稳定）；DEL 长按、候选分页本次未专门复测。
+
+---
+
 ## v0.01.0009 — 2026-06-19
 
 执行者: Claude Code (Sonnet 4.6)

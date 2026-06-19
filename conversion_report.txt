@@ -1,0 +1,16 @@
+input_path: /mnt/data/dict.txt
+output_path: /mnt/data/jieba_dict_converted/dict.txt
+input_lines_total_nonempty: 349046
+parsed_entries: 349046
+kept_entries_with_chinese: 349040
+skipped_entries_without_chinese: 5
+skipped_bad_entries: 1
+unique_pinyin_keys: 268353
+total_output_candidates: 349039
+max_candidates_key: yi
+max_candidates_count: 197
+max_line_len_key: yi
+max_line_len_chars: 396
+elapsed_seconds: 17.99
+examples_bad: [(226673, '瓧 111 zg', 'empty_key')]
+sample_candidates: {'ni': ['你', '泥', '尼', '拟', '逆', '暱', '腻', '妮', '孴', '霓', '倪', '溺', '棿', '铌', '匿', '睨', '昵', '伲', '儗', '鲵'], 'hao': ['好', '号', '灏', '豪', '浩', '鎬', '蒿', '耗', '壕', '毫', '皓', '郝', '滈', '嚎', '濠', '悎', '昊', '貉', '皥', '儫'], 'nihao': ['你好'], 'zhongguo': ['中国', '种果', '种过'], 'shurufa': ['输入法'], 'rengongzhineng': ['人工智能'], 'xuexi': ['学习', '学系', '血洗'], 'yinhang': ['银行', '引航'], 'chongqing': ['重庆', '崇庆', '虫情'], 'cyuyan': ['C语言']}

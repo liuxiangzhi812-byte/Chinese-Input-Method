@@ -34,6 +34,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private final List<Integer> candidatePageStarts = new ArrayList<>();
     private final Handler deleteRepeatHandler = new Handler(Looper.getMainLooper());
     private boolean chineseMode = true;
+    private boolean symbolMode = false;
     private int candidatePageIndex = 0;
     private int candidateListContainerWidthPx = 0;
     private boolean deleteRepeatStarted;
@@ -44,6 +45,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private TextView candidatePageNext;
     private TextView keyboardStatus;
     private Button modeButton;
+    private Button symbolToggleButton;
+    private LinearLayout letterKeyboardSection;
+    private LinearLayout symbolKeyboardSection;
 
     @Override
     public View onCreateInputView() {
@@ -55,9 +59,13 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         candidatePageNext = keyboardView.findViewById(R.id.candidate_page_next);
         keyboardStatus = keyboardView.findViewById(R.id.keyboard_status);
         modeButton = keyboardView.findViewById(R.id.key_mode);
+        symbolToggleButton = keyboardView.findViewById(R.id.key_symbol_toggle);
+        letterKeyboardSection = keyboardView.findViewById(R.id.letter_keyboard_section);
+        symbolKeyboardSection = keyboardView.findViewById(R.id.symbol_keyboard_section);
         bindKeyboardButtons(keyboardView);
         bindCandidatePageButtons();
         bindCandidateListContainerWidthListener(keyboardView);
+        updateKeyboardLayout();
         updateKeyboardStatus();
         return keyboardView;
     }
@@ -76,7 +84,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void bindKeyboardButtons(View view) {
-        if (view.getId() == R.id.key_delete) {
+        if ("action:delete".equals(view.getTag())) {
             bindDeleteKeyLongPress(view);
             return;
         }
@@ -158,6 +166,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
+        if (tag.startsWith("sym:")) {
+            handleSymbolKey(inputConnection, tag.substring(4));
+            return;
+        }
+
         switch (tag) {
             case "action:space":
                 handleSpace(inputConnection);
@@ -172,10 +185,87 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
                 toggleInputMode();
                 break;
             case "action:symbol":
+                toggleSymbolMode();
                 break;
             default:
                 break;
         }
+    }
+
+    private void handleSymbolKey(InputConnection inputConnection, String halfWidthSymbol) {
+        clearComposingPinyin();
+        inputConnection.commitText(toSymbolForCurrentMode(halfWidthSymbol), 1);
+    }
+
+    private void toggleSymbolMode() {
+        symbolMode = !symbolMode;
+        clearComposingPinyin();
+        updateKeyboardLayout();
+    }
+
+    private void updateKeyboardLayout() {
+        if (letterKeyboardSection != null) {
+            letterKeyboardSection.setVisibility(symbolMode ? View.GONE : View.VISIBLE);
+        }
+        if (symbolKeyboardSection != null) {
+            symbolKeyboardSection.setVisibility(symbolMode ? View.VISIBLE : View.GONE);
+        }
+        if (symbolToggleButton != null) {
+            symbolToggleButton.setText(symbolMode ? "ABC" : "123");
+        }
+    }
+
+    private String toSymbolForCurrentMode(String halfWidthSymbol) {
+        if (!chineseMode) {
+            return halfWidthSymbol;
+        }
+        return convertToFullWidth(halfWidthSymbol);
+    }
+
+    private String convertToFullWidth(String halfWidthSymbol) {
+        if (halfWidthSymbol.isEmpty()) {
+            return halfWidthSymbol;
+        }
+
+        StringBuilder fullWidth = new StringBuilder(halfWidthSymbol.length());
+        for (int i = 0; i < halfWidthSymbol.length(); i++) {
+            char character = halfWidthSymbol.charAt(i);
+            if (character >= '0' && character <= '9') {
+                fullWidth.append((char) ('\uFF10' + (character - '0')));
+                continue;
+            }
+
+            Character mapped = FULL_WIDTH_SYMBOL_MAP.get(character);
+            fullWidth.append(mapped != null ? mapped : character);
+        }
+        return fullWidth.toString();
+    }
+
+    private static final Map<Character, Character> FULL_WIDTH_SYMBOL_MAP = createFullWidthSymbolMap();
+
+    private static Map<Character, Character> createFullWidthSymbolMap() {
+        Map<Character, Character> map = new HashMap<>();
+        map.put('@', '\uFF20');
+        map.put('#', '\uFF03');
+        map.put('$', '\uFF04');
+        map.put('%', '\uFF05');
+        map.put('&', '\uFF06');
+        map.put('*', '\uFF0A');
+        map.put('-', '\uFF0D');
+        map.put('+', '\uFF0B');
+        map.put('=', '\uFF1D');
+        map.put('/', '\uFF0F');
+        map.put('(', '\uFF08');
+        map.put(')', '\uFF09');
+        map.put(':', '\uFF1A');
+        map.put(';', '\uFF1B');
+        map.put('\'', '\uFF07');
+        map.put('"', '\uFF02');
+        map.put('?', '\uFF1F');
+        map.put('!', '\uFF01');
+        map.put('.', '\uFF0E');
+        map.put(',', '\uFF0C');
+        return Collections.unmodifiableMap(map);
     }
 
     private void handleLetterKey(InputConnection inputConnection, String letter) {

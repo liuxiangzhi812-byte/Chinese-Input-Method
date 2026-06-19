@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0009`
+- Current display version: `v0.01.0010`
 
 The project is currently in early test stage. The goal is to build a simple, local-first Chinese Pinyin IME before considering advanced features.
 
@@ -28,6 +28,8 @@ Important paths:
 - `conversion_report.txt`: dictionary conversion report
 - `third_party/jieba/`: downloaded jieba source dictionary and MIT license
 - `pinyin_dictionary_sample.txt`: sample / starter pinyin dictionary format
+- `CHANGELOG.md`: version-by-version change log (check before starting new work)
+- `tests/`: on-device test archives (`tests/README.md` explains naming and how to record)
 
 GitHub remote:
 
@@ -67,12 +69,16 @@ Important note:
 These files are manually created project notes, not Android system files:
 
 - `PROJECT_HANDOFF.md`
+- `CHANGELOG.md`
 - `pinyin_dictionary_sample.txt`
+- `tests/` (and `tests/README.md`)
 
 Meaning:
 
 - `PROJECT_HANDOFF.md` is the current handoff document for another AI or engineer.
+- `CHANGELOG.md` records each testable version change (version, date, what changed, who changed it).
 - `pinyin_dictionary_sample.txt` is a human-readable sample / draft dictionary format. It is not currently loaded by the Android app.
+- `tests/` stores real-device test sessions. Each session folder is named `v{version}_{YYYY-MM-DD}_{HHMMSS}` and contains `REPORT.md`, screenshots, and optional UI dumps. See `tests/README.md`.
 
 ### Third-Party Source Data
 
@@ -163,12 +169,20 @@ Current behavior:
 - Tapping any visible candidate commits that candidate.
 - If no dictionary match exists, the raw pinyin itself is used as a fallback candidate.
 - Holding the `DEL` key for more than ~500ms starts continuous deletion every ~80ms until released; a normal tap still deletes once.
+- `123` / `ABC` symbol and number keyboard toggle:
+  - Tapping `123` shows a 3-row symbol/number layout (0-9 and common ASCII symbols).
+  - Tapping `ABC` returns to the letter keyboard.
+  - Symbol keys commit directly (not through the pinyin buffer).
+  - In `ZH` mode, symbols and numbers are output as full-width characters (e.g. `１`, `＠`, `（`).
+  - In `EN` mode, symbols and numbers are output as half-width characters (e.g. `1`, `@`, `(`).
+  - Language mode (`ZH`/`EN`) is preserved when switching between letter and symbol keyboards.
+  - Both letter-keyboard and symbol-keyboard `DEL` keys support long-press repeat-delete (bound by `action:delete` tag).
 
 ## Current Work Node
 
-The project is currently at the stage of integrating a larger local dictionary.
+The large local dictionary has been integrated into the Android app. The project is now in **early on-device testing**, polishing input behavior before calling the first prototype usable.
 
-A converted dictionary file has been added to the Android app:
+Active dictionary in the app:
 
 - `ChinesePinyinIME/app/src/main/assets/pinyin_dict.txt`
 
@@ -213,14 +227,23 @@ Summary from conversion report:
 - Total output candidates: `349039`
 - Longest candidate key: `yi`
 
+Latest on-device verification (v0.01.0010, see `tests/v0.01.0010_2026-06-19_235900/REPORT.md`):
+
+- Device: OnePlus 7 Pro (`GM1910`, `7fbf2094`), 1440×3120
+- `assembleDebug` + `adb install -r`: success; launch page shows `v0.01.0010`
+- IME enabled and shown in SMS compose
+- **Passed (ADB + screenshots):** `123`/`ABC` symbol keyboard toggle
+- **Mostly passed:** ZH full-width / EN half-width symbol output
+- **Needs manual check:** pinyin `ni` + space candidate commit; DEL long-press; candidate paging (not re-tested in v0.01.0010 session)
+- **Not yet measured:** dictionary load time on first keyboard open
+
 ## Known Limitations
 
 The current IME is usable for early testing, but still very basic.
 
 Known limitations:
 
-- There is no punctuation layout.
-- `123` key is only a placeholder.
+- There is no Chinese punctuation layout (`，。？！` etc.).
 - There is no shift / uppercase behavior.
 - There is no full stop, comma, question mark, or Chinese punctuation key.
 - Enter behavior is basic.
@@ -237,7 +260,7 @@ Known limitations:
 
 These are the recommended required features before calling the first prototype usable.
 
-Done so far: candidate paging (width-adaptive), default Chinese mode on open, DEL long-press repeat-delete. See `CHANGELOG.md` for details of each change.
+Done so far: candidate paging (width-adaptive), default Chinese mode on open, DEL long-press repeat-delete, symbol/number mode (`123`/`ABC`). See `CHANGELOG.md` for details of each change.
 
 1. Chinese punctuation
 
@@ -247,9 +270,7 @@ Done so far: candidate paging (width-adaptive), default Chinese mode on open, DE
    ， 。 ？ ！ ： ； 、 “ ” （ ）
    ```
 
-2. Symbol / number mode
-
-   Implement the current `123` placeholder key.
+2. ~~Symbol / number mode~~ (done in v0.01.0010)
 
 3. Better space behavior
 
@@ -305,16 +326,16 @@ Done so far: candidate paging (width-adaptive), default Chinese mode on open, DE
     Current version format:
 
     ```text
-    v0.01.0009
+    v0.01.0010
     ```
 
     Suggested meaning:
 
     - major version: `0`
     - minor version: `01`
-    - debug version: `0009`
+    - debug version: `0010`
 
-    Increment debug version for every testable change, and record each change in `CHANGELOG.md` (version, date, what changed, who made the change).
+    Increment debug version for every testable change, and record each change in `CHANGELOG.md` (version, date, what changed, who made the change). After on-device testing, add a session under `tests/` per `tests/README.md`.
 
 ## Possible Future Features
 
@@ -354,20 +375,19 @@ Explicitly not planned for early versions:
 
 Recommended next task:
 
-Implement Chinese punctuation, then the `123` symbol/number mode.
+Implement Chinese punctuation.
 
 Reason:
 
-- Candidate paging is now done (width-adaptive, see `CHANGELOG.md` v0.01.0008 / v0.01.0009).
-- Without punctuation, users cannot type normal Chinese sentences (commas, periods, question marks, quotes).
-- The `123` key is currently a dead placeholder.
+- Candidate paging and symbol/number mode are now done (see `CHANGELOG.md` v0.01.0008–v0.01.0010).
+- Without Chinese punctuation, users cannot type normal Chinese sentences (commas, periods, question marks, quotes).
 
 Suggested behavior for punctuation:
 
 - Add a punctuation row or a long-press popup on existing keys for common marks: `， 。 ？ ！ ： ； 、 “ ” （ ）`.
 - In `ZH` mode, punctuation should commit directly (it should not go through the pinyin composing buffer).
 
-After punctuation, implement the `123` mode, then revisit dictionary loading performance (see Must-Do item 5).
+After punctuation, revisit dictionary loading performance (see Must-Do item 5).
 
 ## Testing Checklist
 
@@ -390,6 +410,10 @@ After any IME change, test on a real Android phone:
 15. Test holding `DEL` for 1+ second to confirm continuous delete, and that it stops as soon as released.
 16. Test enter key.
 17. Confirm the keyboard opens in `ZH` (Chinese) mode by default on a fresh input session.
+18. Test `123` / `ABC`: tap `123` to open symbol/number keyboard; tap `ABC` to return to letters; language mode (`ZH`/`EN`) should stay the same.
+19. Test symbol output width: in `ZH` + symbol keyboard, `1` → `１`, `@` → `＠`; in `EN` + symbol keyboard, `1` → `1`, `@` → `@`.
+20. Test `DEL` on the symbol keyboard (short tap and long-press repeat-delete).
+21. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
 
 Useful test inputs:
 
@@ -417,11 +441,12 @@ This project is intentionally being built one small step at a time:
 5. show candidates
 6. commit candidates
 7. use large local dictionary
-8. add width-adaptive candidate paging, default Chinese mode, and DEL long-press repeat-delete (done, see `CHANGELOG.md`)
-9. add punctuation and `123` mode
+8. add width-adaptive candidate paging, default Chinese mode, and DEL long-press repeat-delete (done, see `CHANGELOG.md` v0.01.0008–v0.01.0009)
+9. add `123` symbol/number mode with ZH full-width / EN half-width output (done, see `CHANGELOG.md` v0.01.0010)
+10. add Chinese punctuation (still pending)
 
 Avoid adding networking, cloud, AI prediction, skins, handwriting, or voice input until the local IME is stable.
 
-Always record what you changed in `CHANGELOG.md` (version, date, what changed, who/which AI made the change) and update this handoff document so the next engineer or AI has an accurate picture.
+Always record what you changed in `CHANGELOG.md` (version, date, what changed, who/which AI made the change) and update this handoff document so the next engineer or AI has an accurate picture. After on-device testing, file a report under `tests/`.
 
-The highest-value next work is Chinese punctuation, `123` mode, and dictionary loading performance.
+The highest-value next work is Chinese punctuation and dictionary loading performance (first-open latency on real hardware).
