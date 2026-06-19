@@ -1,0 +1,33 @@
+# ChinesePinyinIME local dictionary sample
+# Format:
+# pinyin=candidate1,candidate2,candidate3
+#
+# Rules:
+# 1. Use lowercase pinyin without tone marks.
+# 2. Put the most common candidate first. Space key will select the first candidate.
+# 3. Separate candidates with English commas.
+# 4. Lines starting with # are comments.
+
+a=啊,阿
+ai=爱,哎,唉
+an=安,按,案
+ba=吧,把,爸
+baba=爸爸
+bu=不,部,步
+de=的,得,地
+hao=好,号,浩
+ni=你,呢,尼
+nihao=你好
+wo=我,握,窝
+women=我们
+shi=是,时,事,十
+shenme=什么
+shijian=时间
+shouji=手机
+ta=他,她,它
+tamen=他们,她们
+xiexie=谢谢
+zaijian=再见
+zhong=中,种,重
+guo=国,过,果
+zhongguo=中国

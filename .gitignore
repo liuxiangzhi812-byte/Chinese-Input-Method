@@ -1,0 +1,18 @@
+# Android and Gradle generated files
+ChinesePinyinIME/.gradle/
+ChinesePinyinIME/.gradle-user-home/
+ChinesePinyinIME/build/
+ChinesePinyinIME/app/build/
+ChinesePinyinIME/local.properties
+
+# Android Studio local state
+ChinesePinyinIME/.idea/caches/
+ChinesePinyinIME/.idea/libraries/
+ChinesePinyinIME/.idea/modules.xml
+ChinesePinyinIME/.idea/workspace.xml
+ChinesePinyinIME/.idea/navEditor.xml
+ChinesePinyinIME/.idea/assetWizardSettings.xml
+
+# General local files
+*.iml
+.DS_Store
