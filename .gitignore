@@ -4,6 +4,7 @@ ChinesePinyinIME/.gradle-user-home/
 ChinesePinyinIME/build/
 ChinesePinyinIME/app/build/
 ChinesePinyinIME/local.properties
+ChinesePinyinIME/gradle/gradle-daemon-jvm.properties
 
 # Android Studio local state
 ChinesePinyinIME/.idea/caches/

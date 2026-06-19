@@ -4,6 +4,46 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0011 — 2026-06-20
+
+执行者: Codex
+
+### 修改
+
+- 优化大词库加载：
+  - `InputMethodService.onCreateInputView()` 不再同步解析 `assets/pinyin_dict.txt`。
+  - 新增 `PinyinDictionary`，键盘先使用内置小词库立即可用，再在后台线程加载大词库；加载完成后刷新候选栏。
+- 优化候选栏宽度监听：
+  - 候选栏 `OnGlobalLayoutListener` 现在会在键盘视图 detach 或服务销毁时移除，降低旧视图引用和重复监听风险。
+- 拆分主服务职责：
+  - 新增 `CandidatePager` 负责候选词按实际宽度分页。
+  - `ChinesePinyinInputMethodService` 主要保留输入交互、键盘状态和 UI 绑定。
+- 更新启动页版本号为 `v0.01.0011`。
+- 明确设计：符号模式下不直接提供 `ZH`/`EN` 切换；需要先点 `ABC` 返回字母键盘再切换语言模式。
+- 优化本地构建配置：
+  - 移除 Foojay 自动工具链解析插件和生成的 Gradle Daemon JVM 下载配置，避免在已有本地 JDK 21 的机器上被迫联网下载工具链。
+  - 将 `gradle/gradle-daemon-jvm.properties` 加入忽略规则，避免 Android Studio 重新生成后误提交。
+
+### 修改文件
+
+- `.gitignore`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidatePager.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/PinyinDictionary.java`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `ChinesePinyinIME/settings.gradle.kts`
+- `ChinesePinyinIME/gradle/gradle-daemon-jvm.properties`（删除）
+- `CHANGELOG.md`
+- `PROJECT_HANDOFF.md`
+
+### 验证
+
+- `git diff --check` 通过。
+- 已尝试使用本地 JDK 21 + 工作区 Gradle 缓存运行 `assembleDebug`；构建推进到 Android SDK 解析阶段后，当前 Codex 沙盒无法读取 `C:\Users\76556\AppData\Local\Android\Sdk\platforms\android-36.1\package.xml`，因此未能完成本机编译验证。
+- 待真机测试：重点观察键盘首次弹出速度、输入 `ni`/`yi` 候选刷新、候选分页、123/ABC、DEL 长按。
+
+---
+
 ## v0.01.0010 — 2026-06-19
 
 执行者: Grok (Cursor Agent)
@@ -15,7 +55,7 @@ Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
   - 新增 `symbol_keyboard_section`（数字 0-9 + 常用英文符号 3 行），与 `letter_keyboard_section` 通过可见性切换。
   - 符号键直接提交到输入框，不经过拼音缓冲；切换布局时清空组字状态。
   - **ZH 模式**下符号/数字输出为**全角**（如 `１`、`＠`、`（`）；**EN 模式**下输出为**半角**（如 `1`、`@`、`(`）。符号区键面固定显示半角，实际宽度由 `chineseMode` 决定。
-  - 符号模式下保留 ZH/EN 切换、DEL（含长按连删）、space、enter 行为；切换 123/ABC 时保留当前语言模式。
+  - 符号模式下保留 DEL（含长按连删）、space、enter 行为；切换 123/ABC 时保留当前语言模式。符号模式下不直接提供 ZH/EN 切换，需要先点 `ABC` 返回字母键盘再切换。
 
 ### 修改
 
