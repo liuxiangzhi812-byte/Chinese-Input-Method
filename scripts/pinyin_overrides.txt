@@ -1,0 +1,25 @@
+# Manual candidate ordering overrides for high-impact pinyin keys.
+# Format: pinyin=candidate1,candidate2,candidate3
+
+ni=你,泥,尼,拟,逆
+hao=好,号,浩,毫
+shi=是,时,事,十,实
+yi=一,以,已,意,易
+de=的,得,地
+wo=我,握,窝
+ta=他,她,它,塔
+ma=吗,妈,马,嘛
+le=了,乐
+bu=不,部,步,布
+zai=在,再,载
+you=有,又,右,由
+shuo=说,硕
+ren=人,认,任
+dou=都,斗,豆
+hen=很,狠
+ne=呢,讷
+ba=吧,把,爸,八
+ge=个,各,哥,歌
+nihao=你好
+zhongguo=中国
+shurufa=输入法

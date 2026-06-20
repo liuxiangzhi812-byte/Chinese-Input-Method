@@ -3,6 +3,7 @@ package com.mercury.chinesepinyinime;
 import android.inputmethodservice.InputMethodService;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -14,6 +15,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.util.Locale;
+
 public class ChinesePinyinInputMethodService extends InputMethodService {
     private static final int DELETE_LONG_PRESS_DELAY_MS = 500;
     private static final int DELETE_REPEAT_INTERVAL_MS = 80;
@@ -24,7 +27,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private final CandidatePager candidatePager = new CandidatePager();
     private boolean chineseMode = true;
     private boolean symbolMode = false;
+    private boolean shiftOneShot = false;
     private int candidatePageIndex = 0;
+    private EditorInfo currentEditorInfo;
     private int candidateListContainerWidthPx = 0;
     private boolean deleteRepeatStarted;
     private Runnable deleteRepeatRunnable;
@@ -34,6 +39,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private TextView candidatePageNext;
     private TextView keyboardStatus;
     private Button modeButton;
+    private Button shiftButton;
     private Button symbolToggleButton;
     private LinearLayout letterKeyboardSection;
     private LinearLayout symbolKeyboardSection;
@@ -52,6 +58,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         candidatePageNext = keyboardView.findViewById(R.id.candidate_page_next);
         keyboardStatus = keyboardView.findViewById(R.id.keyboard_status);
         modeButton = keyboardView.findViewById(R.id.key_mode);
+        shiftButton = keyboardView.findViewById(R.id.key_shift);
         symbolToggleButton = keyboardView.findViewById(R.id.key_symbol_toggle);
         letterKeyboardSection = keyboardView.findViewById(R.id.letter_keyboard_section);
         symbolKeyboardSection = keyboardView.findViewById(R.id.symbol_keyboard_section);
@@ -70,12 +77,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     public void onDestroy() {
         removeCandidateListContainerWidthListener();
         stopDeleteRepeat();
+        UserFrequencyStore.getInstance().flush();
         super.onDestroy();
     }
 
     @Override
     public void onStartInput(EditorInfo attribute, boolean restarting) {
         super.onStartInput(attribute, restarting);
+        currentEditorInfo = attribute;
         clearComposingPinyin();
     }
 
@@ -84,6 +93,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         super.onFinishInput();
         stopDeleteRepeat();
         clearComposingPinyin();
+        UserFrequencyStore.getInstance().flush();
     }
 
     private void bindKeyboardButtons(View view) {
@@ -192,6 +202,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             case "action:mode":
                 toggleInputMode();
                 break;
+            case "action:shift":
+                toggleShiftOneShot();
+                break;
             case "action:symbol":
                 toggleSymbolMode();
                 break;
@@ -236,6 +249,30 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (symbolToggleButton != null) {
             symbolToggleButton.setText(symbolMode ? "ABC" : "123");
         }
+        if (shiftButton != null) {
+            shiftButton.setVisibility(chineseMode || symbolMode ? View.GONE : View.VISIBLE);
+        }
+        updateShiftButtonLabel();
+    }
+
+    private void toggleShiftOneShot() {
+        if (chineseMode || symbolMode) {
+            return;
+        }
+        shiftOneShot = !shiftOneShot;
+        updateShiftButtonLabel();
+    }
+
+    private void updateShiftButtonLabel() {
+        if (shiftButton == null) {
+            return;
+        }
+        shiftButton.setText(shiftOneShot ? "SHIFT" : "shift");
+    }
+
+    private void resetShiftOneShot() {
+        shiftOneShot = false;
+        updateShiftButtonLabel();
     }
 
     private void handleLetterKey(InputConnection inputConnection, String letter) {
@@ -246,7 +283,12 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
-        inputConnection.commitText(letter, 1);
+        String output = letter;
+        if (shiftOneShot && letter.length() == 1 && Character.isLetter(letter.charAt(0))) {
+            output = letter.toUpperCase(Locale.ROOT);
+            resetShiftOneShot();
+        }
+        inputConnection.commitText(output, 1);
     }
 
     private void handleSpace(InputConnection inputConnection) {
@@ -275,12 +317,43 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
+        if (isMultiLineField()) {
+            inputConnection.commitText("\n", 1);
+            return;
+        }
+
+        int imeAction = getImeAction();
+        if (shouldPerformEditorAction(imeAction)) {
+            inputConnection.performEditorAction(imeAction);
+            return;
+        }
+
         inputConnection.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
         inputConnection.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER));
     }
 
+    private int getImeAction() {
+        if (currentEditorInfo == null) {
+            return EditorInfo.IME_ACTION_UNSPECIFIED;
+        }
+        return currentEditorInfo.imeOptions & EditorInfo.IME_MASK_ACTION;
+    }
+
+    private boolean isMultiLineField() {
+        if (currentEditorInfo == null) {
+            return false;
+        }
+        return (currentEditorInfo.inputType & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
+    }
+
+    private boolean shouldPerformEditorAction(int imeAction) {
+        return imeAction != EditorInfo.IME_ACTION_NONE
+                && imeAction != EditorInfo.IME_ACTION_UNSPECIFIED;
+    }
+
     private void toggleInputMode() {
         chineseMode = !chineseMode;
+        resetShiftOneShot();
         clearComposingPinyin();
         updateKeyboardLayout();
     }
@@ -293,10 +366,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void commitFirstCandidate(InputConnection inputConnection) {
-        inputConnection.commitText(getCandidatesForCurrentPage()[0], 1);
-        composingPinyin.setLength(0);
-        candidatePageIndex = 0;
-        updateKeyboardStatus();
+        String[] pageCandidates = getCandidatesForCurrentPage();
+        if (pageCandidates.length == 0) {
+            return;
+        }
+        commitCandidateInternal(inputConnection, pageCandidates[0]);
     }
 
     private void commitCandidate(String candidate) {
@@ -304,8 +378,15 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (inputConnection == null || candidate.isEmpty()) {
             return;
         }
+        commitCandidateInternal(inputConnection, candidate);
+    }
 
+    private void commitCandidateInternal(InputConnection inputConnection, String candidate) {
+        String pinyin = composingPinyin.toString();
         inputConnection.commitText(candidate, 1);
+        if (!pinyin.isEmpty()) {
+            UserFrequencyStore.getInstance().recordSelection(pinyin, candidate);
+        }
         composingPinyin.setLength(0);
         candidatePageIndex = 0;
         updateKeyboardStatus();

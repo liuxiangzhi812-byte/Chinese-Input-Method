@@ -4,6 +4,94 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0018 — 2026-06-20
+
+执行者: Codex
+
+### 修改
+
+- 优化本地用户词频存储：
+  - `user_frequency.tsv` 明确使用三列格式：`pinyin<TAB>candidate<TAB>count`。
+  - 读取时遇到坏行只跳过该行，不再清空全部学习记录。
+  - 内部 map key 改用不可见分隔符，避免和文件中的 tab 列格式混在一起。
+  - 输入结束和服务销毁时主动 flush 一次，降低刚选词后退出导致学习记录尚未写入的风险。
+- 优化候选排序权重：
+  - 降低手动覆盖表的权重，使其仍能保护常用词，但不再完全压制本地用户选择。
+  - 提高本地词频最大加分，让用户多次选择的候选能逐步前移；单次误触影响仍然较小。
+- 更新启动页版本号为 `v0.01.0018`。
+- 新增 `ENVIRONMENT_SETUP.md`，记录本机 SDK/JDK/Gradle/测试目录等环境信息，避免后续重复排查。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidateRanker.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserFrequencyStore.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `ENVIRONMENT_SETUP.md`
+- `CHANGELOG.md`
+- `PROJECT_HANDOFF.md`
+
+### 验证
+
+- `git diff --check` 通过（仅有 Windows 换行提示）。
+- 已尝试运行 `compileDebugJavaWithJavac`：
+  - 普通权限下可访问 SDK 受限，并提示找不到 Build Tools 36.0.0。
+  - 授权后 SDK 访问问题解除，但当前可用 JetBrains JBR 缺少 `jlink.exe`，Android Gradle 的 JDK image transform 无法完成，因此本机命令行编译未完成。
+- 待真机测试：重点验证候选学习是否能稳定前移，以及坏数据不会清空已有学习记录。
+
+---
+
+## v0.01.0017 — 2026-06-20
+
+执行者: Grok (Cursor Agent)
+
+### 新增
+
+- **EN 模式 Shift / 大小写**：
+  - 字母键盘第三行新增 `shift` 键（仅 `EN` 字母键盘显示）。
+  - 单次大写：点 `shift` 后下一字母大写，随后自动恢复小写；按钮文案在 `shift` / `SHIFT` 间切换。
+  - `ZH` 模式与符号键盘下不显示 Shift，不影响拼音输入。
+- **Enter 行为细化**：
+  - `ZH` 组字中按 Enter 仍上屏原始拼音。
+  - 多行输入框插入换行 `\n`。
+  - 单行字段按 `EditorInfo.imeOptions` 执行 `performEditorAction`（如发送、搜索、完成）。
+  - 无特殊 action 时保持发送 Enter 键事件。
+- **候选排序优化**：
+  - 新增 `CandidateRanker`：综合词库顺序、词长偏好、手动覆盖表（`ni`/`shi`/`yi`/`de` 等）与本地词频加分重排候选。
+- **本地用户词频学习**：
+  - 新增 `UserFrequencyStore`：候选提交时记录 `(pinyin, candidate)` 选择次数，持久化至应用私有目录 `user_frequency.tsv`。
+  - 本地加分有上限，避免误触永久置顶。
+- **词库转换脚本**：
+  - 新增 `scripts/convert_jieba_dict.py`：从 `third_party/jieba/dict.txt` 可重复生成 `assets/pinyin_dict.txt` 与 `conversion_report.txt`。
+  - 新增 `scripts/pinyin_overrides.txt` 手动排序覆盖表；`scripts/requirements.txt` 声明 `pypinyin` 依赖。
+
+### 修改
+
+- `PinyinDictionary.getCandidates()` 返回经 `CandidateRanker` 重排后的候选列表。
+- 空格/点击候选提交时写入本地词频记录。
+- 更新启动页版本号为 `v0.01.0017`。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/PinyinDictionary.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidateRanker.java`（新增）
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserFrequencyStore.java`（新增）
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `scripts/convert_jieba_dict.py`（新增）
+- `scripts/pinyin_overrides.txt`（新增）
+- `scripts/requirements.txt`（新增）
+- `CHANGELOG.md`
+- `PROJECT_HANDOFF.md`
+
+### 验证
+
+- 使用项目 Gradle Wrapper + JDK 21 运行 `compileDebugJavaWithJavac`，编译通过。
+- 未进行真机测试。
+
+---
+
 ## v0.01.0016 — 2026-06-20
 
 执行者: Grok (Cursor Agent)

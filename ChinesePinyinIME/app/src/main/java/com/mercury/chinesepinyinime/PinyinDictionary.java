@@ -38,6 +38,7 @@ public class PinyinDictionary {
 
     public void loadAsync(Context context, Runnable onLoaded) {
         Context appContext = context.getApplicationContext();
+        UserFrequencyStore.getInstance().load(appContext);
         boolean shouldStartLoad = false;
         synchronized (lock) {
             if (loadFinished) {
@@ -59,7 +60,11 @@ public class PinyinDictionary {
     }
 
     public String[] getCandidates(String pinyin) {
-        return candidateWords.get(pinyin);
+        String[] candidates = candidateWords.get(pinyin);
+        if (candidates == null) {
+            return null;
+        }
+        return CandidateRanker.rank(pinyin, candidates);
     }
 
     private void finishLoad(Map<String, String[]> loadedWords) {
