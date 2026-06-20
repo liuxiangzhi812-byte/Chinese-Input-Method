@@ -4,6 +4,44 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0024 — 2026-06-20
+
+执行者: Claude Code (Sonnet 4.6)
+
+开发基于 `main`/`origin/main`（即 v0.01.0022 状态），**不基于** `codex-experiment-dict-load-v0.01.0023` 分支——该分支的词库加载优化实验已被 Grok 实测证明没有改善真机性能，不在这次改动范围内，也没有被合并进来。
+
+### 新增
+
+- **9 键左侧竖向拼音选择栏**（任务 1，已完成）：
+  - 把原来在候选栏上方的横向 `pinyin_choice_bar` 整体移除，改为 9 键数字键盘区域左侧的竖向列表（`t9_pinyin_choice_list`，外面包一层 `ScrollView`，宽度固定 64dp）。
+  - 列表展示当前数字串匹配到的全部拼音（例如 `64 -> ni / mi`），当前生效的拼音用蓝色高亮背景标出（复用 `keyboard_shift_active_background`）。
+  - 候选拼音数量超过可视高度时可以上下滚动（`ScrollView` 原生支持，未手写滚动逻辑）。
+  - 点击某个拼音后切换 `t9ActivePinyin`，立刻刷新汉字候选——这部分逻辑完全复用已有的 `selectPinyinChoice`/`getActiveResolvedPinyinForDigits`，没有改动。
+  - 追加数字、删除数字、点"重输"清空整个数字串时，都会清空显式选择，按新数字串重新计算拼音列表——复用的也是已有的 `t9ActivePinyin = null` 清空时机（`handleT9DigitKey`/`handleDelete` 的 T9 分支/`clearComposingState`），没有新增清空点。
+  - **布局稳定性处理**：左侧列表所在的列宽度固定为 64dp，**永远不隐藏/显示**，只改变列表内容（无候选时列表为空、留白）。这样数字键盘右侧 3×4 区域的按钮宽度永远不会因为"有没有拼音候选"而跳动或挤压；这是题目里"更稳定、布局不跳动"那条要求下我做的选择，舍弃了"只有一个候选时隐藏列表"的方案。
+  - 整个 9 键区域（左侧列表列 + 右侧数字键）固定高度 144dp，和改动前 3 行×48dp 的总高度完全一致，键盘总高度不变。
+  - 只动了 `t9_keyboard_section` 内部结构，`letter_keyboard_section`（26 键）完全没有改动；候选排序逻辑（`CandidateRanker`/`buildDigitIndex` 的排序）也没有改动，只是把已有的横向展示换成了竖向展示。
+  - 没有实现前缀拼音匹配、没有实现模糊拼音——按要求明确排除。
+
+### 延后
+
+- **汉字候选展开面板（任务 2）延后到 v0.01.0025**。原因：评估后认为这是和"竖向拼音选择栏"量级相当、但完全独立的一块新 UI 工作——需要新的展开/收起状态机、覆盖 9 键区域的面板视图、以及至少 6 个不同位置（DEL、重输、切换符号、提交候选、清空 composing state、切换模式）的"关闭面板"挂载点，在同一版本里和竖向拼音栏一起做风险偏高，容易两头都做不稳。按题目里给的"范围过大就先只做任务 1"的指引，本版本不实现，需求和实现要点已经写进 `PROJECT_HANDOFF.md` 的 P0 任务里，留给下一版本。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+- `PROJECT_HANDOFF.md`
+
+### 验证
+
+- 本机 JDK 21（`.gradle-user-home/jdks/`）`--offline` 运行 `compileDebugJavaWithJavac` 与 `assembleDebug`，均编译打包通过。
+- **本版本未做真机测试**（按任务要求，测试交给 Grok）。重点测试项见 `PROJECT_HANDOFF.md` 当前节点和 P0 任务的"Testing brief for Grok"。
+
+---
+
 ## v0.01.0022 — 2026-06-20
 
 执行者: Claude Code (Sonnet 4.6)

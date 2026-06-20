@@ -12,9 +12,9 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0022`
+- Current display version: `v0.01.0024`
 
-The project is still in early on-device testing. The goal is a simple, reliable, local Chinese Pinyin IME before advanced features such as fuzzy pinyin, cloud sync, skins, or AI prediction.
+The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
 Detailed implemented behavior has been moved out of this handoff to keep handoff reading short:
 
@@ -58,45 +58,40 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0022 — 9-key pinyin-choice UI + dictionary loading performance measurement**
+Latest functional node: **v0.01.0024 — 9-key vertical pinyin selection list**
 
-Implementation:
+Implementation (Claude Code, committed locally on top of `main`/`origin/main` — **not based on `codex-experiment-dict-load-v0.01.0023`**, not pushed, no device test run per task instruction — testing assigned to Grok):
 
-- Claude Code implemented 9-key pinyin-choice UI and committed locally.
-- Per user instruction, Claude did not run real-device tests immediately.
-- `pinyin_choice_bar` appears above the Chinese candidate bar when a digit sequence maps to multiple pinyin keys, for example `64 -> ni / mi`.
-- Tapping a pinyin label changes active pinyin and refreshes Chinese candidates.
-- Editing the digit buffer clears the explicit pinyin choice.
+- Replaced the old horizontal `pinyin_choice_bar` (a row above the candidate bar) with a **fixed-width (64dp) vertical scrollable list** to the left of the 9-key digit grid, inside `t9_keyboard_section`. New view id: `t9_pinyin_choice_list`, wrapped in a plain `ScrollView`.
+- The list shows every pinyin key the current digit buffer matches (e.g. `64 -> ni / mi`), highlights the active one (reuses `keyboard_shift_active_background`), and tapping an entry calls the existing `selectPinyinChoice()` — no change to how the active pinyin or candidate refresh logic works, only how the choices are presented.
+- **Layout stability decision**: the 64dp column is never hidden or resized — only its contents change (empty when unambiguous or no digits yet). This was chosen over "hide the column when there's only one match" specifically to stop the 9-key digit grid's button width from jumping every time the digit buffer edges in/out of an ambiguous match. The whole 9-key row (list column + digit grid) is a fixed 144dp tall, matching the previous 3×48dp total exactly, so the keyboard's overall height is unchanged.
+- Explicit-choice clearing on digit-buffer edits (append/delete/`重输`) reuses the existing `t9ActivePinyin = null` reset points already in `handleT9DigitKey`, the T9 branch of `handleDelete`, and `clearComposingState()` — no new clearing logic was needed, since those reset points already existed from the v0.01.0022 horizontal-bar version.
+- 26-key (`letter_keyboard_section`) was not touched at all. Candidate ranking (`CandidateRanker`, `buildDigitIndex`'s tie-break order) was not touched — this is purely a presentation change (horizontal row -> vertical scrollable column) for the same underlying pinyin-choice data.
+- No prefix pinyin matching, no fuzzy pinyin added (out of scope, confirmed not implemented).
 
-Testing:
+Deferred to v0.01.0025 (see P0 task below): the **expandable Chinese candidate panel**. Reasoning: it's an independently-sized chunk of new UI work (expand/collapse state, a panel view covering the 9-key area, and close-triggers at ~6 different call sites) that would have added real risk if rushed alongside the vertical pinyin list in the same version. Not implemented this round; full brief is in section 8.
 
-- Grok (Cursor Agent) later ran the real-device pass.
-- Report: `tests/v0.01.0022_2026-06-20_145553/REPORT.md`
-- Device: OnePlus 7 Pro (`7fbf2094`), 1440 x 3120
-- Result: v0.01.0022 pinyin-choice UI passed.
-- Also passed: v0.01.0021 deferred empty-buffer `0` key space insertion.
-- Dictionary cold-start performance was measured: **622-977 ms** across 5 cold-process runs in Edge search/address bar.
+Previous shipped node on `main`: **v0.01.0022 — 9-key pinyin-choice UI + dictionary loading performance measurement**
 
-Important follow-up:
+- Claude Code implemented the (now-replaced) horizontal pinyin-choice bar; Grok ran the real-device pass and it passed. Report: `tests/v0.01.0022_2026-06-20_145553/REPORT.md`.
+- Dictionary cold-start performance baseline measured: **622-977 ms** (OnePlus 7 Pro). The v0.01.0023 optimization attempt on top of this did not help and lives on `codex-experiment-dict-load-v0.01.0023`, not merged into `main`. Dictionary loading is **not** the current priority — see P2 task in section 8.
 
-- The temporary `PinyinDictPerf` logging used for measurement should not remain in production source.
-- Dictionary loading performance is now a confirmed optimization target, not an unmeasured risk.
+Next step: Grok device-tests v0.01.0024 (see the P0 task's testing brief in section 8) before anyone pushes.
 
 ## 5. Current Repository State Notes
 
 At the time of this handoff update:
 
-- `main` is ahead of `origin/main`.
-- v0.01.0022 test archive should be committed and pushed.
+- The failed v0.01.0023 dictionary-loading experiment is preserved on branch `codex-experiment-dict-load-v0.01.0023` and should not be merged into `main`.
 - `.idea/` is local IDE state and should not be committed.
-- `tests/README.md` should include the v0.01.0022 test archive entry.
+- v0.01.0024 (vertical pinyin chooser) was built directly on top of `main`/`origin/main`, confirmed not based on the experiment branch — it does not contain any `PinyinDictPerf` logging or HashMap pre-sizing changes.
+- `main` is now ahead of `origin/main` by the v0.01.0024 commit; it has **not** been pushed and has **not** been device-tested — both intentional per this round's task instructions.
 
 Recommended immediate repository action:
 
-1. Ensure temporary performance logging is removed.
-2. Commit `PROJECT_HANDOFF.md`, `CHANGELOG.md`, `tests/README.md`, and `tests/v0.01.0022_2026-06-20_145553/`.
-3. Do not commit `ChinesePinyinIME/.idea/`.
-4. Push after the test record and cleanup are committed.
+1. Grok device-tests v0.01.0024 (see the P0 task's testing brief in section 8) and archives a report under `tests/`.
+2. Once that test passes and is committed, push `main` to `origin/main`.
+3. Keep `ChinesePinyinIME/.idea/` uncommitted.
 
 ## 6. Collaboration Workflow
 
@@ -169,87 +164,195 @@ Watch-outs:
 
 ## 8. Near-Term Development Plan
 
-### P0 — Repository And Documentation Closure
+### P0 — 9-Key Vertical Pinyin Selection List
 
-Difficulty: Low
-Depth: Shallow
-Recommended engineer: Codex
-
-Tasks:
-
-- Ensure v0.01.0022 test archive is recorded.
-- Keep `PROJECT_HANDOFF.md` concise.
-- Move detailed completed behavior into `docs/FEATURE_DETAILS.md`.
-- Mark `docs/FEATURE_DETAILS.md` as chief-engineer-maintained; other engineers should not edit it during ordinary implementation handoff.
-- Ensure `CHANGELOG.md` no longer says v0.01.0022 is untested.
-- Ensure temporary performance logging is removed before push.
-
-Acceptance:
-
-- GitHub has clean v0.01.0022 source + tests.
-- No `.idea/` local state committed.
-- Handoff is short enough for the next engineer to read quickly.
-
-### P0 — Dictionary Loading Optimization
-
-Difficulty: High
-Depth: Deep
-Recommended implementation engineer: Claude Code or another senior Android/Java engineer
-Recommended tester: Grok
-
-Problem:
-
-- Current dictionary load + 9-key digit-index build measured **622-977 ms** on OnePlus 7 Pro.
-- A fast user can type during the fallback-dictionary window.
-
-Implementation brief:
-
-- First split performance timing into phases: asset read, line parsing, candidate map construction, `buildDigitIndex()`.
-- Do not jump directly to SQLite or binary format before phase timing.
-- Candidate options, in increasing effort:
-  - improve fallback coverage and show loading state if needed
-  - reduce parsed dictionary size
-  - generate a pre-indexed/loading-friendly asset at build/conversion time
-  - consider SQLite only if profiling supports it
-  - consider compact binary format only if text parsing is proven to dominate
-
-Testing brief for Grok:
-
-- Repeat v0.01.0022 Edge search/address-bar cold-process method.
-- Run at least 5 cold-process runs.
-- Record raw log lines, screenshots, device info, and report range/mean.
-- If possible, repeat on a slower device or throttled emulator.
-
-Acceptance:
-
-- OnePlus 7 Pro cold load target: ideally under 300 ms.
-- If not under 300 ms, report bottleneck and next optimization recommendation.
-- No temporary measurement logging left in production source unless deliberately designed as diagnostics.
-
-### P1 — 9-Key Ranking And Learning Polish
-
-Difficulty: Medium-High
+Target version: `v0.01.0024`
+Status: **code-complete, not yet device-tested.** Implemented on top of `main`/`origin/main` (confirmed not based on `codex-experiment-dict-load-v0.01.0023`); compiled and packaged locally (`compileDebugJavaWithJavac` + `assembleDebug`), committed locally, not pushed. This task is not closed until Grok reports a passing device test.
+Difficulty: Medium
 Depth: Medium
 Recommended implementation engineer: Claude Code
 Recommended tester: Grok
 
+Problem:
+
+- Current 9-key pinyin-choice UI is a horizontal top row.
+- When a digit sequence maps to more than a few pinyin keys, the pinyin labels cannot all be displayed or selected smoothly.
+- User wants a Sogou-like 9-key interaction: pinyin choices appear on the left side of the 9-key digit area and can scroll vertically.
+
 Implementation brief:
 
-- Verify repeated 9-key selections can move candidates forward.
-- Decide whether digit-to-pinyin ordering should learn from user choices, not only candidate ordering after pinyin is resolved.
-- Keep 26-key learning behavior unchanged.
+- Only change 9-key mode in this version. Keep 26-key behavior unchanged.
+- Replace the current horizontal `pinyin_choice_bar` behavior for 9-key with a **left-side vertical pinyin selection list** beside the 9-key digit grid.
+- The list should:
+  - appear only in 9-key mode when the current digit buffer maps to multiple pinyin keys;
+  - support vertical scrolling when pinyin choices exceed visible space;
+  - highlight the active pinyin;
+  - switch active pinyin on tap and refresh Chinese candidates immediately;
+  - clear explicit selection when the digit buffer changes, preserving current behavior.
+- Layout goal:
+  - left column: vertical pinyin choices;
+  - right area: 9-key digit grid;
+  - do not make the keyboard taller than necessary;
+  - keep key sizes stable and text readable on the OnePlus 7 Pro test device.
+- Do **not** implement prefix pinyin matching in this version.
+- Do **not** implement fuzzy pinyin in this version.
 
-Testing brief:
+Testing brief for Grok:
 
-- In 9-key, repeatedly choose a non-default candidate for `64 -> ni/mi`.
-- Reopen keyboard and app process; confirm learning survives.
-- Confirm 26-key lookup for the same pinyin shares learning where intended.
-- Regress 26-key `ni`, candidate paging, symbols, delete, and settings layout toggle.
+- Enable 9-key mode from settings.
+- In Edge search/address bar, type `64`; confirm a vertical list appears in a ~64dp-wide column to the **left** of the digit grid (not a horizontal row above the candidates anymore), showing `ni` and `mi` with `ni` highlighted (blue background), and tapping `mi` refreshes the Chinese candidates below.
+- Type a single-digit or otherwise unambiguous sequence (e.g. `9` `3` `6` for `wen`); confirm the left column area is present but **empty/blank** (this is intentional — the column is always reserved, never hidden, see Current Work Node's layout-stability note; it should look like blank keyboard background, not an error or a stray empty button).
+- Find or create a digit sequence with more than ~3 pinyin matches (enough to overflow the 144dp-tall column); confirm the list scrolls vertically and every visible entry is tappable, including ones reached only by scrolling.
+- Confirm digit append/delete and `重输` clear the explicit pinyin choice and recompute the list for the new digit sequence.
+- Confirm `DEL` (short tap and long-press), `重输`, `0` space, and the symbol-keyboard round trip (digit `1` in, `9键` back) still work exactly as before.
+- Confirm the keyboard's overall height looks the same as the previous (v0.01.0022) 9-key build — no visible growth/shrink when switching between ambiguous and unambiguous digit sequences.
+- Smoke-test 26-key `ni -> 你`, candidate paging, and symbol keyboard to confirm 26-key was not disturbed (no code in `letter_keyboard_section` changed, but worth a real confirmation).
+- On OnePlus 7 Pro 1440x3120 specifically: check for any text overlap, squeezed/unreadable digit-key labels, or unclickable list entries — these were the explicit risks called out for this device.
+- Archive screenshots and report under `tests/v0.01.0024_{date}_{time}/`.
 
 Acceptance:
 
-- User learning is visible, bounded, and restart-safe.
-- No regression to existing 26-key behavior.
+- 9-key pinyin selection is no longer limited by one horizontal row.
+- Pinyin choices beyond the visible area can be reached by vertical scrolling.
+- Active pinyin highlight and candidate refresh are reliable.
+- Digit grid button size/position never visibly changes regardless of how many pinyin matches exist.
+- 26-key behavior is unchanged.
+- Claude committed locally but did not push; Grok tests before any push.
+
+### P0 — Expandable Chinese Candidate Panel
+
+Target version: `v0.01.0025` (**deferred from v0.01.0024** — see Current Work Node for reasoning: implementing this alongside the vertical pinyin list in the same version was judged too much independent new-UI surface for one safe round)
+Difficulty: Medium
+Depth: Medium
+Recommended implementation engineer: Claude Code
+Recommended tester: Grok
+
+Problem:
+
+- The Chinese candidate row can show only a limited number of words.
+- Paging arrows work but are not as fluid as opening a larger candidate panel.
+- User wants the main row to keep compact candidates, with a small arrow on the far right that opens a larger candidate menu covering roughly the 9-key keyboard area.
+
+Implementation brief:
+
+- Add a small expand arrow at the far right of the Chinese candidate row.
+- When tapped, show an expanded candidate panel that overlays or replaces the 9-key digit grid area.
+- The expanded panel should show more Chinese candidates than the compact row and allow scrolling if needed.
+- Tapping a candidate commits it through the existing candidate commit path and closes the panel.
+- Tapping the arrow again, pressing `DEL`, committing a candidate, clearing composition, or switching modes should close the panel.
+- Keep the compact candidate row usable when the panel is closed.
+- Avoid changing candidate ranking in this version.
+
+Testing brief for Grok:
+
+- Type a pinyin/digit sequence with many Chinese candidates, such as `yi`, `shi`, or T9 `94/94664` depending on available candidates.
+- Confirm the compact row shows candidates and a far-right expand arrow.
+- Tap the arrow; confirm the expanded candidate panel appears over the keyboard area and shows more candidates.
+- Tap a candidate from the expanded panel; confirm it commits and panel closes.
+- Confirm `DEL`, `重输`, mode/symbol toggles, and composition clearing close the panel cleanly.
+- Confirm 26-key still works; if the panel is shared across 26-key and 9-key, test both.
+
+Acceptance:
+
+- User can access more than the compact candidate row without repeated page-arrow tapping.
+- Expanded candidate panel does not permanently cover the keyboard or leave stale state.
+- Candidate commit behavior and learning path remain unchanged.
+- If this becomes too large while implementing v0.01.0024, split it into the next version rather than rushing.
+
+### P0 — Prefix Pinyin Matching
+
+Target version: `v0.01.0025`
+Difficulty: Medium-High
+Depth: Deep
+Recommended implementation engineer: Claude Code
+Recommended tester: Grok
+
+Problem:
+
+- Current lookup is mostly exact-key based.
+- 26-key and 9-key are not yet comfortable because the user often must type complete pinyin before useful Chinese candidates appear.
+- The user can spell pinyin and is building this IME for personal use; fuzzy pinyin is not urgent, but incomplete pinyin should work.
+
+Implementation brief:
+
+- Add prefix matching for both 26-key and 9-key.
+- 26-key examples:
+  - `zho` should be able to suggest `zhong` candidates such as `中`;
+  - `sh` should surface useful pinyin/candidate options such as `shi`, `shang`, `shen`, `shuo`;
+  - exact matches must still rank first.
+- 9-key examples:
+  - short digit prefixes should show possible pinyin choices instead of requiring the full digit sequence;
+  - the vertical pinyin selection list from v0.01.0024 should be reused for prefix pinyin choices.
+- Add or derive prefix indexes:
+  - `pinyinPrefix -> pinyinKeys`;
+  - `digitPrefix -> pinyinKeys`;
+  - cap result counts so UI stays responsive.
+- Ranking order should prefer:
+  - exact pinyin/digit match;
+  - common/manual-override pinyin;
+  - pinyin with more/high-quality candidates;
+  - stable alphabetical fallback.
+- Keep true fuzzy pinyin out of this version.
+
+Testing brief:
+
+- 26-key: type partial pinyin like `zho`, `sh`, `zhongg`; confirm useful candidates or pinyin choices appear before the full spelling is complete.
+- 9-key: type partial digit sequences and confirm pinyin choices appear in the vertical list.
+- Confirm exact full pinyin behavior remains unchanged.
+- Confirm candidate commit still records learning under the resolved pinyin, not raw prefix text.
+- Confirm performance is acceptable during typing; no noticeable stall per keypress.
+
+Acceptance:
+
+- User can get useful candidates before typing complete pinyin.
+- Exact matches remain stronger than prefix matches.
+- 9-key vertical pinyin list and expanded candidate panel still work.
+
+### P2 — Fuzzy Pinyin
+
+Difficulty: High
+Depth: Deep
+Recommended engineer: Not scheduled yet
+
+Current decision:
+
+- Fuzzy pinyin is useful in general, but the user can spell pinyin and this IME is being customized for personal use.
+- Do not implement fuzzy pinyin in the near term.
+- Keep it as a future possible feature after 9-key selection and prefix matching are comfortable.
+
+Possible future fuzzy groups:
+
+- `z/zh`
+- `c/ch`
+- `s/sh`
+- `n/l`
+- `en/eng`
+- `in/ing`
+- `an/ang`
+
+Important future rule:
+
+- Exact matches must rank before fuzzy matches to avoid disturbing correct pinyin input.
+
+### P2 — Dictionary Loading Optimization
+
+Difficulty: High
+Depth: Deep
+Recommended implementation engineer: Senior Android/Java engineer
+Recommended tester: Grok
+
+Current decision:
+
+- Not the next priority.
+- The user has manually tried the app and considers the keyboard-open stutter acceptable for now.
+- v0.01.0023 showed that a naive HashMap pre-sizing / two-pass read experiment did not improve load time; that experiment lives on branch `codex-experiment-dict-load-v0.01.0023`.
+- Revisit only after basic typing is comfortable.
+
+Future direction when revisited:
+
+- Avoid two-pass raw-line buffering.
+- Prioritize reducing or delaying `buildDigitIndex`.
+- Consider build-time pre-indexing rather than runtime full parsing.
 
 ### P1 — Automated Core Tests
 
@@ -302,13 +405,16 @@ Minimum regression set:
 - Launch/settings page version and dictionary status.
 - 26-key: `ni -> 你`, candidate paging, tap/space commit, delete, long-press delete, symbols, punctuation.
 - 9-key: layout toggle, `64 -> ni/mi`, tap `mi`, append digit resets choice, `94664 -> zhong`, `DEL`, `重输`, `0` empty-buffer space.
-- Performance-sensitive changes: repeat cold-process dictionary load measurement.
+- After v0.01.0024: verify the left-side vertical pinyin list scrolls, highlights the active pinyin, and the digit grid's size never changes regardless of match count. (The candidate expand panel was deferred to v0.01.0025, not part of this version.)
+- After v0.01.0025: verify the candidate expand panel opens/closes cleanly, and/or partial pinyin / digit-prefix matching before full spelling (whichever lands in that version).
+- Performance-sensitive changes only: repeat cold-process dictionary load measurement.
 
 ## 10. Known Limitations
 
-- Dictionary cold-start loading is too slow for a polished prototype.
+- Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
-- No fuzzy pinyin.
+- No prefix pinyin matching yet; this is the next major usability feature after the 9-key UI work.
+- No fuzzy pinyin; intentionally deferred because the user can spell pinyin and wants exact/prefix behavior first.
 - No mistyped-pinyin correction.
 - No tone support.
 - No custom user dictionary UI.
@@ -323,3 +429,4 @@ Minimum regression set:
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
 - Latest device report: `tests/v0.01.0022_2026-06-20_145553/REPORT.md`
+- Failed dictionary-loading experiment branch: `codex-experiment-dict-load-v0.01.0023`

@@ -2,7 +2,7 @@
     <string name="app_name">ChinesePinyinIME</string>
     <string name="ime_name">ChinesePinyinIME</string>
     <string name="ime_subtype_zh">中文</string>
-    <string name="app_version_display">v0.01.0022</string>
+    <string name="app_version_display">v0.01.0024</string>
     <string name="settings_section_status">状态</string>
     <string name="settings_section_actions">操作</string>
     <string name="settings_section_layout">键盘布局</string>

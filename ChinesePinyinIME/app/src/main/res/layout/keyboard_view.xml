@@ -18,16 +18,6 @@
         android:textSize="14sp" />
 
     <LinearLayout
-        android:id="@+id/pinyin_choice_bar"
-        android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
-        android:visibility="gone" />
-
-    <LinearLayout
         android:id="@+id/candidate_bar"
         android:layout_width="match_parent"
         android:layout_height="40dp"
@@ -134,47 +124,85 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="144dp"
             android:orientation="horizontal">
 
-            <Button style="@style/T9Key" android:tag="action:symbol" android:text="1\n符号" />
-            <Button style="@style/T9Key" android:tag="t9:2" android:text="2\nABC" />
-            <Button style="@style/T9Key" android:tag="t9:3" android:text="3\nDEF" />
+            <!--
+                Fixed-width column, always present (never toggled), so the digit
+                grid's width never changes when pinyin choices appear/disappear -
+                only the list contents inside change. This keeps the digit keys at
+                a stable size instead of jumping every time the digit buffer edges
+                in/out of an ambiguous match.
+            -->
+            <LinearLayout
+                android:layout_width="64dp"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
 
-            <Button
-                style="@style/KeyboardKey"
-                android:tag="action:delete"
-                android:text="DEL" />
-        </LinearLayout>
+                <ScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scrollbars="none">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:orientation="horizontal">
+                    <LinearLayout
+                        android:id="@+id/t9_pinyin_choice_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </ScrollView>
+            </LinearLayout>
 
-            <Button style="@style/T9Key" android:tag="t9:4" android:text="4\nGHI" />
-            <Button style="@style/T9Key" android:tag="t9:5" android:text="5\nJKL" />
-            <Button style="@style/T9Key" android:tag="t9:6" android:text="6\nMNO" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <Button
-                style="@style/KeyboardKey"
-                android:tag="action:retype"
-                android:text="重输" />
-        </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:orientation="horizontal">
+                    <Button style="@style/T9Key" android:tag="action:symbol" android:text="1\n符号" />
+                    <Button style="@style/T9Key" android:tag="t9:2" android:text="2\nABC" />
+                    <Button style="@style/T9Key" android:tag="t9:3" android:text="3\nDEF" />
 
-            <Button style="@style/T9Key" android:tag="t9:7" android:text="7\nPQRS" />
-            <Button style="@style/T9Key" android:tag="t9:8" android:text="8\nTUV" />
-            <Button style="@style/T9Key" android:tag="t9:9" android:text="9\nWXYZ" />
+                    <Button
+                        style="@style/KeyboardKey"
+                        android:tag="action:delete"
+                        android:text="DEL" />
+                </LinearLayout>
 
-            <Button
-                style="@style/KeyboardKey"
-                android:tag="action:space"
-                android:text="0" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal">
+
+                    <Button style="@style/T9Key" android:tag="t9:4" android:text="4\nGHI" />
+                    <Button style="@style/T9Key" android:tag="t9:5" android:text="5\nJKL" />
+                    <Button style="@style/T9Key" android:tag="t9:6" android:text="6\nMNO" />
+
+                    <Button
+                        style="@style/KeyboardKey"
+                        android:tag="action:retype"
+                        android:text="重输" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal">
+
+                    <Button style="@style/T9Key" android:tag="t9:7" android:text="7\nPQRS" />
+                    <Button style="@style/T9Key" android:tag="t9:8" android:text="8\nTUV" />
+                    <Button style="@style/T9Key" android:tag="t9:9" android:text="9\nWXYZ" />
+
+                    <Button
+                        style="@style/KeyboardKey"
+                        android:tag="action:space"
+                        android:text="0" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

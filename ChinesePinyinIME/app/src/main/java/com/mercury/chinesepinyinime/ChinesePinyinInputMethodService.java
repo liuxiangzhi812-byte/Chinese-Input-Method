@@ -4,6 +4,9 @@ import android.inputmethodservice.InputMethodService;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
+import android.text.TextUtils;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -43,7 +46,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private Runnable deleteRepeatRunnable;
     private LinearLayout candidateBar;
     private LinearLayout candidateListContainer;
-    private LinearLayout pinyinChoiceBar;
+    private LinearLayout t9PinyinChoiceList;
     private TextView candidatePagePrev;
     private TextView candidatePageNext;
     private TextView keyboardStatus;
@@ -64,7 +67,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         View keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
         candidateBar = keyboardView.findViewById(R.id.candidate_bar);
         candidateListContainer = keyboardView.findViewById(R.id.candidate_list_container);
-        pinyinChoiceBar = keyboardView.findViewById(R.id.pinyin_choice_bar);
+        t9PinyinChoiceList = keyboardView.findViewById(R.id.t9_pinyin_choice_list);
         candidatePagePrev = keyboardView.findViewById(R.id.candidate_page_prev);
         candidatePageNext = keyboardView.findViewById(R.id.candidate_page_next);
         keyboardStatus = keyboardView.findViewById(R.id.keyboard_status);
@@ -561,45 +564,57 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             modeButton.setText(chineseMode ? "ZH" : "EN");
         }
 
-        updatePinyinChoiceBar();
+        updateT9PinyinChoiceList();
         updateCandidateBar();
     }
 
-    private void updatePinyinChoiceBar() {
-        if (pinyinChoiceBar == null) {
+    /**
+     * Populates the fixed-width vertical pinyin-choice column to the left of the
+     * 9-key digit grid. The column itself is never hidden/shown (see
+     * keyboard_view.xml comment) - only its contents change, so the digit grid
+     * next to it never resizes. Empty (no children) whenever 9-key isn't active,
+     * the digit buffer is empty, or the digit sequence is unambiguous.
+     */
+    private void updateT9PinyinChoiceList() {
+        if (t9PinyinChoiceList == null) {
             return;
         }
 
         if (keyboardLayoutMode != KeyboardLayoutMode.T9_9 || composingDigits.length() == 0) {
-            pinyinChoiceBar.removeAllViews();
-            pinyinChoiceBar.setVisibility(View.GONE);
+            t9PinyinChoiceList.removeAllViews();
             return;
         }
 
         List<String> matches = pinyinDictionary.getPinyinKeysForDigits(composingDigits.toString());
         if (matches.size() <= 1) {
-            pinyinChoiceBar.removeAllViews();
-            pinyinChoiceBar.setVisibility(View.GONE);
+            t9PinyinChoiceList.removeAllViews();
             return;
         }
 
         String activePinyin = getActiveResolvedPinyinForDigits();
-        pinyinChoiceBar.removeAllViews();
+        t9PinyinChoiceList.removeAllViews();
         for (String pinyin : matches) {
-            pinyinChoiceBar.addView(createPinyinChoiceView(pinyin, pinyin.equals(activePinyin)));
+            t9PinyinChoiceList.addView(createPinyinChoiceListItem(pinyin, pinyin.equals(activePinyin)));
         }
-        pinyinChoiceBar.setVisibility(View.VISIBLE);
     }
 
-    private TextView createPinyinChoiceView(String pinyin, boolean active) {
-        TextView choiceView = new TextView(this, null, 0, R.style.CandidateText);
+    private TextView createPinyinChoiceListItem(String pinyin, boolean active) {
+        TextView choiceView = new TextView(this);
         choiceView.setText(pinyin);
+        choiceView.setGravity(Gravity.CENTER);
+        choiceView.setMaxLines(1);
+        choiceView.setEllipsize(TextUtils.TruncateAt.END);
+        choiceView.setTextColor(0xFF20242C);
+        choiceView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         choiceView.setBackgroundResource(active
                 ? R.drawable.keyboard_shift_active_background
                 : R.drawable.keyboard_key_background);
-        int marginPx = (int) (3 * getResources().getDisplayMetrics().density);
+
+        float density = getResources().getDisplayMetrics().density;
+        int marginPx = (int) (3 * density);
+        int heightPx = (int) (40 * density);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT);
+                LinearLayout.LayoutParams.MATCH_PARENT, heightPx);
         params.setMargins(marginPx, marginPx, marginPx, marginPx);
         choiceView.setLayoutParams(params);
         choiceView.setOnClickListener(view -> selectPinyinChoice(pinyin));
