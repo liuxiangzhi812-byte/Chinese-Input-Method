@@ -1,0 +1,22 @@
+# ADB commands used for v0.01.0019 test session
+$ADB = $LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe
+
+adb devices -l
+adb install -r ChinesePinyinIME/app/build/outputs/apk/debug/app-debug.apk
+adb shell settings get secure default_input_method
+adb shell settings get secure enabled_input_methods
+adb shell am start -n com.mercury.chinesepinyinime/.MainActivity
+adb shell am start -a android.intent.action.SENDTO -d sms:
+adb shell input tap <x> <y>            # key taps, coordinates derived from keyboard_view.xml geometry + IME window frame (dumpsys window: InsetsSource ITYPE_IME frame=[0,2116][1440,3120])
+adb shell input swipe <x> <y> <x> <y> <duration_ms>   # long-press simulation for DEL repeat-delete
+adb shell screencap -p /sdcard/X.png && adb pull /sdcard/X.png <dest>
+adb shell uiautomator dump /sdcard/X.xml && adb pull /sdcard/X.xml <dest>
+adb shell dumpsys window | grep -A3 "InputMethod"   # used to find IME window frame for tap coordinate math
+adb shell input keyevent KEYCODE_BACK  # exit SMS compose at end of session
+
+Key coordinate reference (OnePlus 7 Pro, 1440x3120, density 4, IME frame [0,2116]-[1440,3120]):
+- candidate bar row center y ~ 2188 (prev/next page buttons at x~110 / x~1330)
+- letter row1 (qwertyuiop) center y ~ 2364
+- letter row2 (asdfghjkl) center y ~ 2556
+- letter row3 (shift/zxcvbnm/DEL) center y ~ 2748; shift x~79, DEL x~1312
+- bottom row (123/ZH-EN/space/enter) center y ~ 2940; 123 x~131, ZH/EN x~329, space x~764, enter x~1262

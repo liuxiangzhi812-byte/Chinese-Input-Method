@@ -4,6 +4,37 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0019 — 2026-06-20
+
+执行者: Grok (Cursor Agent)
+
+### 修改
+
+- **Shift 键图标化**：
+  - 将文字 `shift`/`SHIFT` 改为 `⇧` 上箭头符号，缩小按键宽度（`layout_weight` 0.65）。
+  - 按下后图标变为实心 `▲`，并高亮蓝色背景；松开后单次大写逻辑不变。
+  - Shift 激活时，26 个字母键面同步显示大写；恢复小写后键面回到小写。
+- **语言切换键位置调整**：
+  - `ZH/EN` 从第三行移至底栏，顺序为 `123` | `ZH/EN` | `space` | `enter`。
+  - 第三行仅保留 `⇧`、字母区与 `DEL`，字母键获得更多宽度。
+- 切换符号键盘时自动重置 Shift 状态。
+- 更新启动页版本号为 `v0.01.0019`。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/themes.xml`
+- `ChinesePinyinIME/app/src/main/res/drawable/keyboard_shift_active_background.xml`（新增）
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+
+### 验证
+
+- 待真机测试：Shift 图标切换、全键面大写显示、底栏 `ZH/EN` 位置。
+
+---
+
 ## v0.01.0018 — 2026-06-20
 
 执行者: Codex

@@ -31,6 +31,10 @@
         <item name="android:textSize">18sp</item>
     </style>
 
+    <style name="KeyboardShiftKey" parent="KeyboardKey">
+        <item name="android:textSize">22sp</item>
+    </style>
+
     <style name="PunctuationKey" parent="KeyboardKey">
         <item name="android:textSize">15sp</item>
     </style>

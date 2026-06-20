@@ -92,18 +92,11 @@
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/key_mode"
-                style="@style/KeyboardKey"
-                android:layout_weight="1.1"
-                android:tag="action:mode"
-                android:text="ZH" />
-
-            <Button
                 android:id="@+id/key_shift"
-                style="@style/KeyboardKey"
-                android:layout_weight="0.9"
+                style="@style/KeyboardShiftKey"
+                android:layout_weight="0.65"
                 android:tag="action:shift"
-                android:text="shift" />
+                android:text="⇧" />
 
             <Button style="@style/KeyboardKey" android:tag="key:z" android:text="z" />
             <Button style="@style/KeyboardKey" android:tag="key:x" android:text="x" />
@@ -259,13 +252,20 @@
         <Button
             android:id="@+id/key_symbol_toggle"
             style="@style/KeyboardKey"
-            android:layout_weight="1.4"
+            android:layout_weight="1.2"
             android:tag="action:symbol"
             android:text="123" />
 
         <Button
+            android:id="@+id/key_mode"
             style="@style/KeyboardKey"
-            android:layout_weight="5"
+            android:layout_weight="1.0"
+            android:tag="action:mode"
+            android:text="ZH" />
+
+        <Button
+            style="@style/KeyboardKey"
+            android:layout_weight="4.2"
             android:tag="action:space"
             android:text="space" />
 

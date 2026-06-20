@@ -20,6 +20,8 @@ import java.util.Locale;
 public class ChinesePinyinInputMethodService extends InputMethodService {
     private static final int DELETE_LONG_PRESS_DELAY_MS = 500;
     private static final int DELETE_REPEAT_INTERVAL_MS = 80;
+    private static final String SHIFT_LABEL_OFF = "⇧";
+    private static final String SHIFT_LABEL_ON = "▲";
 
     private final StringBuilder composingPinyin = new StringBuilder();
     private final Handler deleteRepeatHandler = new Handler(Looper.getMainLooper());
@@ -225,6 +227,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private void toggleSymbolMode() {
         symbolMode = !symbolMode;
+        resetShiftOneShot();
         clearComposingPinyin();
         updateKeyboardLayout();
     }
@@ -252,7 +255,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (shiftButton != null) {
             shiftButton.setVisibility(chineseMode || symbolMode ? View.GONE : View.VISIBLE);
         }
-        updateShiftButtonLabel();
+        updateShiftKeyAppearance();
     }
 
     private void toggleShiftOneShot() {
@@ -260,19 +263,50 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
         shiftOneShot = !shiftOneShot;
-        updateShiftButtonLabel();
+        updateShiftKeyAppearance();
     }
 
-    private void updateShiftButtonLabel() {
-        if (shiftButton == null) {
+    private void updateShiftKeyAppearance() {
+        if (shiftButton != null) {
+            shiftButton.setText(shiftOneShot ? SHIFT_LABEL_ON : SHIFT_LABEL_OFF);
+            shiftButton.setBackgroundResource(shiftOneShot
+                    ? R.drawable.keyboard_shift_active_background
+                    : R.drawable.keyboard_key_background);
+        }
+        updateLetterKeyLabels();
+    }
+
+    private void updateLetterKeyLabels() {
+        if (letterKeyboardSection == null) {
             return;
         }
-        shiftButton.setText(shiftOneShot ? "SHIFT" : "shift");
+        boolean uppercase = !chineseMode && shiftOneShot;
+        updateLetterKeyLabelsInGroup(letterKeyboardSection, uppercase);
+    }
+
+    private void updateLetterKeyLabelsInGroup(ViewGroup group, boolean uppercase) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof ViewGroup) {
+                updateLetterKeyLabelsInGroup((ViewGroup) child, uppercase);
+            } else if (child instanceof Button) {
+                Object tag = child.getTag();
+                if (tag instanceof String) {
+                    String tagString = (String) tag;
+                    if (tagString.startsWith("key:")) {
+                        String letter = tagString.substring(4);
+                        ((Button) child).setText(uppercase
+                                ? letter.toUpperCase(Locale.ROOT)
+                                : letter);
+                    }
+                }
+            }
+        }
     }
 
     private void resetShiftOneShot() {
         shiftOneShot = false;
-        updateShiftButtonLabel();
+        updateShiftKeyAppearance();
     }
 
     private void handleLetterKey(InputConnection inputConnection, String letter) {
