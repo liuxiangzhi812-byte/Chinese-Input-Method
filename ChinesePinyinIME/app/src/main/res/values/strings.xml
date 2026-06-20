@@ -2,5 +2,19 @@
     <string name="app_name">ChinesePinyinIME</string>
     <string name="ime_name">ChinesePinyinIME</string>
     <string name="ime_subtype_zh">中文</string>
-    <string name="app_version_display">v0.01.0019</string>
+    <string name="app_version_display">v0.01.0020</string>
+    <string name="settings_section_status">状态</string>
+    <string name="settings_section_actions">操作</string>
+    <string name="settings_section_enable">启用输入法</string>
+    <string name="settings_section_privacy">隐私</string>
+    <string name="dictionary_status_loading">词库状态：读取中</string>
+    <string name="dictionary_status_ready">词库状态：已就绪，%1$d 个拼音条目，%2$d 个候选词</string>
+    <string name="dictionary_status_failed">词库状态：读取失败，将使用内置小词库</string>
+    <string name="learned_data_status_placeholder">已学习词频：读取中</string>
+    <string name="learned_data_status">已学习词频：%1$d 组候选，累计选择 %2$d 次</string>
+    <string name="clear_learned_data">清除已学习词频</string>
+    <string name="learned_data_cleared">已清除学习数据</string>
+    <string name="open_input_settings">打开系统输入法设置</string>
+    <string name="enable_ime_steps">在系统设置中启用 ChinesePinyinIME，然后打开任意输入框并切换到 ChinesePinyinIME。</string>
+    <string name="privacy_local_only">当前输入、词库和学习数据都保存在本机；本项目现阶段不联网、不同步、不做云端预测。</string>
 </resources>

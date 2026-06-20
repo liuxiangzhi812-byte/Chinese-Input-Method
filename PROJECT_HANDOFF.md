@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0019`
+- Current display version: `v0.01.0020`
 
 The project is currently in early test stage. The goal is to build a simple, local-first Chinese Pinyin IME before considering advanced features.
 
@@ -221,14 +221,22 @@ Current behavior:
 
 ## Current Work Node
 
-The latest work node is **Shift key UI polish and bottom-row layout rework** (v0.01.0019), device-tested and confirmed passing:
+The latest work node is **basic settings page and learned-data management** (v0.01.0020):
+
+- MainActivity is now a lightweight settings/status page instead of only showing app name and version.
+- It displays version, dictionary status, learned-frequency status, enablement guidance, and a local-only privacy note.
+- It can open Android system input-method settings.
+- It can clear learned user-frequency data through `UserFrequencyStore.clear()`.
+- v0.01.0020 is device-tested and confirmed passing; see `tests/v0.01.0020_2026-06-20_114254/REPORT.md`.
+
+Previous work node: **Shift key UI polish and bottom-row layout rework** (v0.01.0019), device-tested and confirmed passing:
 
 - Shift changed from text (`shift`/`SHIFT`) to an icon (`⇧` idle, `▲` armed with highlighted background); letter key faces switch to uppercase while Shift is armed.
 - `ZH`/`EN` mode key moved from the third letter-keyboard row to the bottom row, alongside `123`/`ABC`, `space`, `enter`.
 - Side effect (verified by device test, not originally planned): moving the mode key out of `letter_keyboard_section` means it now also works while the symbol keyboard is open — `ZH`/`EN` can be switched without first returning to `ABC`. See `tests/v0.01.0019_2026-06-20_105830/REPORT.md`.
 - Symbol mode resets Shift state when toggled.
 
-Previous work node: **candidate ranking and user-frequency hardening** (v0.01.0018):
+Earlier work node: **candidate ranking and user-frequency hardening** (v0.01.0018):
 
 - Hardened `UserFrequencyStore` storage and parsing.
 - Added explicit flush points for learned user-frequency writes.
@@ -304,6 +312,7 @@ Latest on-device verification:
 - **v0.01.0012** (`tests/v0.01.0012_2026-06-20_093708/REPORT.md`): punctuation direct commit and EN/symbol-mode layout checks passed; `ni` + space + `。` sentence test left for manual follow-up.
 - **v0.01.0013–v0.01.0018:** layout, ranking, Shift, Enter, conversion-script, and user-frequency hardening changes recorded in `CHANGELOG.md`; not individually device-tested at the time, but covered by the v0.01.0019 full regression below.
 - **v0.01.0019** (`tests/v0.01.0019_2026-06-20_105830/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), 1440×3120. Full regression pass — all cases passed: default `ZH` mode, pinyin composing/ranking/paging, space commit, Shift icon + one-shot uppercase, `DEL` long-press (letter and symbol keyboards), `123`/`ABC` symbol keyboards (`EN` ASCII, `ZH` numbers+punctuation), Chinese punctuation direct commit (verified actual committed codepoint is full-width U+FF0C, not half-width), and ZH/EN switching now working inside symbol mode (see Current Work Node above). Local `assembleDebug` also verified working with the project's own JDK 21 (`.gradle-user-home/jdks/`).
+- **v0.01.0020** (`tests/v0.01.0020_2026-06-20_114254/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), Android 12, 1440×3120. Passed: settings page launch/version display, dictionary status (`268353` pinyin keys / `349039` candidates), learned-frequency status, clear learned data (`2` groups / `2` selections → `0` / `0`, `user_frequency.tsv` removed), and Android system input-method settings jump.
 
 ## Known Limitations
 
@@ -314,19 +323,19 @@ Known limitations:
 - Shift is one-shot only; no caps lock yet.
 - Enter `imeOptions` handling is conservative and should be validated per app (SMS, search, browser, etc.).
 - Dictionary loading still reads a text asset at runtime, but now does so asynchronously. Startup performance should still be tested on device.
-- Local personalized frequency learning exists, but there is no settings UI yet to inspect, reset, import, or export learned data.
+- Local personalized frequency learning exists, and the settings page can show basic counts and clear learned data. There is still no import/export or detailed inspection UI.
 - No user dictionary management UI.
 - No fuzzy pinyin.
 - No correction for mistyped pinyin.
 - No tone support.
 - No cloud sync.
-- No privacy settings page.
+- Only a simple local-only privacy note exists; there is no detailed privacy settings page.
 
 ## Must-Do Next Features
 
 These are the recommended required features before calling the first prototype usable.
 
-Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyboards, Chinese punctuation, Shift/Enter refinement, candidate ranking, local user frequency, conversion script, user-frequency hardening, and Shift-icon/bottom-row UI rework (v0.01.0008–v0.01.0019, device-verified through v0.01.0019). See `CHANGELOG.md`.
+Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyboards, Chinese punctuation, Shift/Enter refinement, candidate ranking, local user frequency, conversion script, user-frequency hardening, Shift-icon/bottom-row UI rework, and a basic settings page with learned-data clearing (v0.01.0008–v0.01.0020, device-verified through v0.01.0020). See `CHANGELOG.md`.
 
 1. ~~Chinese punctuation~~ (done v0.01.0012–v0.01.0016)
 
@@ -355,7 +364,7 @@ Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyb
    python scripts/convert_jieba_dict.py
    ```
 
-9. ~~User dictionary and local frequency learning~~ (done v0.01.0017; hardened v0.01.0018: `UserFrequencyStore` three-column TSV, malformed rows skipped; no settings UI to clear data yet)
+9. ~~User dictionary and local frequency learning~~ (done v0.01.0017; hardened v0.01.0018; clear action added v0.01.0020)
 
 10. Dictionary loading performance check
 
@@ -375,28 +384,30 @@ Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyb
 
    The ranking should be tested and adjusted.
 
-12. Basic settings screen
+12. ~~Basic settings screen~~ (done v0.01.0020)
 
-   The app currently only shows name and version. Later it should show:
+   The app now shows:
 
    - current version
    - dictionary status
    - how to enable the IME
-   - simple test instructions
+   - simple local-only privacy note
+   - learned-frequency counts
+   - clear learned data action
 
 13. Version update habit
 
     Current version format:
 
     ```text
-    v0.01.0019
+    v0.01.0020
     ```
 
     Suggested meaning:
 
     - major version: `0`
     - minor version: `01`
-    - debug version: `0018`
+    - debug version: `0020`
 
     Increment debug version for every testable change, and record each change in `CHANGELOG.md` (version, date, what changed, who made the change). After on-device testing, add a session under `tests/` per `tests/README.md`.
 
@@ -438,16 +449,17 @@ Explicitly not planned for early versions:
 
 Recommended next task:
 
-Polish empty-buffer space behavior and add a basic settings screen (dictionary status, clear learned data).
+Polish empty-buffer space behavior, then review dictionary loading performance and candidate quality.
 
 Reason:
 
 - Shift, Enter refinement, candidate ranking, local frequency learning, conversion scripting, user-frequency hardening, and the Shift/bottom-row UI rework are implemented and device-verified (v0.01.0017–v0.01.0019; see `tests/v0.01.0019_2026-06-20_105830/REPORT.md` for the full regression pass).
-- Remaining high-value Must-Do items: space behavior polish, dictionary loading performance check (still not measured on device), dictionary quality review, settings page.
-- `UserFrequencyStore` has no way to inspect or clear learned data except deleting app storage; a settings page should expose at least a "clear learned data" action.
+- A basic settings page with dictionary status and learned-data clearing is implemented and device-verified in v0.01.0020.
+- Remaining high-value Must-Do items: space behavior polish, dictionary loading performance check (still not measured on device), dictionary quality review, and richer user dictionary management later.
 
 Verification focus carried over from v0.01.0019 (already passing, re-check after future changes touch these areas):
 
+- v0.01.0020 settings page opens, shows dictionary and learned-data status, clears learned data, and opens system input-method settings; already verified, re-check after future settings-page changes.
 - `EN` + `shift` → next letter uppercase → auto reset; works the same after the bottom-row layout change.
 - `ZH`/`EN` switch now works inside the symbol keyboard, not just on the letter keyboard.
 - Repeatedly pick a less common `ni` candidate and confirm it rises in later lookups; confirm it survives keyboard/app restart.
@@ -459,30 +471,33 @@ After any IME change, test on a real Android phone:
 
 1. Install / run app from Android Studio.
 2. Confirm launch page version changed.
-3. Enable ChinesePinyinIME in system keyboard settings if needed.
-4. Open any text field.
-5. Switch to ChinesePinyinIME.
-6. Test English mode.
-7. Test Chinese mode.
-8. Test pinyin composing display.
-9. Test candidate display, including a long candidate word (3+ characters) to confirm it is not truncated.
-10. Test candidate tap commit.
-11. Test space commits the first candidate of the current page.
-12. Test candidate paging: type a pinyin with many candidates (e.g. `yi`, `shi`) and confirm `›` appears, tapping it shows the next page, and `‹` appears once on page 2+.
-13. Test delete while composing.
-14. Test delete after composing is empty.
-15. Test holding `DEL` for 1+ second to confirm continuous delete, and that it stops as soon as released.
-16. Test enter key in `ZH` composing and non-composing states.
-17. Test enter in multi-line field (newline) and single-line fields with send/search/done actions.
-18. Test `EN` Shift: tap `shift`, next letter uppercase, then lowercase again; confirm `shift` hidden in `ZH`.
-19. Confirm the keyboard opens in `ZH` (Chinese) mode by default on a fresh input session.
-20. Test `123` / `ABC`: tap `123` to open symbol keyboard; tap `ABC` to return to letters; language mode (`ZH`/`EN`) should stay the same.
-21. Test `ZH` symbol keyboard: row 1 numbers output half-width (`1` not `１`); rows 2–3 Chinese punctuation commit directly; no `@#$%` English symbol row.
-22. Test `EN` symbol keyboard: three rows (numbers, symbols, punctuation) all half-width.
-23. Test punctuation while composing: type `ni`, tap `，` or `。`, confirm pinyin buffer clears and punctuation appears.
-24. Test candidate learning: pick a non-default candidate for `ni` several times; confirm it moves forward in later lookups.
-25. Test `DEL` on the symbol keyboard (short tap and long-press repeat-delete).
-26. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
+3. Confirm the settings page shows dictionary status and learned-data status.
+4. Test "clear learned data" after creating learned frequency data.
+5. Test "open system input method settings".
+6. Enable ChinesePinyinIME in system keyboard settings if needed.
+7. Open any text field.
+8. Switch to ChinesePinyinIME.
+9. Test English mode.
+10. Test Chinese mode.
+11. Test pinyin composing display.
+12. Test candidate display, including a long candidate word (3+ characters) to confirm it is not truncated.
+13. Test candidate tap commit.
+14. Test space commits the first candidate of the current page.
+15. Test candidate paging: type a pinyin with many candidates (e.g. `yi`, `shi`) and confirm `›` appears, tapping it shows the next page, and `‹` appears once on page 2+.
+16. Test delete while composing.
+17. Test delete after composing is empty.
+18. Test holding `DEL` for 1+ second to confirm continuous delete, and that it stops as soon as released.
+19. Test enter key in `ZH` composing and non-composing states.
+20. Test enter in multi-line field (newline) and single-line fields with send/search/done actions.
+21. Test `EN` Shift: tap `shift`, next letter uppercase, then lowercase again; confirm `shift` hidden in `ZH`.
+22. Confirm the keyboard opens in `ZH` (Chinese) mode by default on a fresh input session.
+23. Test `123` / `ABC`: tap `123` to open symbol keyboard; tap `ABC` to return to letters; language mode (`ZH`/`EN`) should stay the same.
+24. Test `ZH` symbol keyboard: row 1 numbers output half-width (`1` not `１`); rows 2–3 Chinese punctuation commit directly; no `@#$%` English symbol row.
+25. Test `EN` symbol keyboard: three rows (numbers, symbols, punctuation) all half-width.
+26. Test punctuation while composing: type `ni`, tap `，` or `。`, confirm pinyin buffer clears and punctuation appears.
+27. Test candidate learning: pick a non-default candidate for `ni` several times; confirm it moves forward in later lookups.
+28. Test `DEL` on the symbol keyboard (short tap and long-press repeat-delete).
+29. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
 
 Useful test inputs:
 
@@ -516,9 +531,10 @@ This project is intentionally being built one small step at a time:
 11. add Shift/Enter refinement, candidate ranking, local frequency learning, conversion script (done, see `CHANGELOG.md` v0.01.0017)
 12. harden local frequency storage and rebalance ranking weights (done, see `CHANGELOG.md` v0.01.0018)
 13. Shift icon + bottom-row layout rework, device-tested with full regression pass (done, see `CHANGELOG.md` v0.01.0019 and `tests/v0.01.0019_2026-06-20_105830/REPORT.md`)
+14. add basic settings page and learned-data clear action (done, see `CHANGELOG.md` v0.01.0020)
 
 Avoid adding networking, cloud, AI prediction, skins, handwriting, or voice input until the local IME is stable.
 
 Always record what you changed in `CHANGELOG.md` (version, date, what changed, who/which AI made the change) and update this handoff document so the next engineer or AI has an accurate picture. After on-device testing, file a report under `tests/`.
 
-The highest-value next work is space-behavior polish, dictionary loading performance (still not measured on device), dictionary quality review, and a basic settings page (dictionary status + clear learned data).
+The highest-value next work is space-behavior polish, dictionary loading performance (still not measured as a dedicated timing test), and dictionary quality review.

@@ -4,6 +4,47 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0020 — 2026-06-20
+
+执行者: Codex
+
+### 新增
+
+- **基础设置页**：
+  - 启动页从单纯名称/版本展示改为可滚动设置页。
+  - 显示当前版本号。
+  - 后台读取 `assets/pinyin_dict.txt`，显示拼音条目数和候选词总数。
+  - 显示本地已学习词频状态：候选组数和累计选择次数。
+  - 新增“清除已学习词频”按钮，调用 `UserFrequencyStore.clear()` 清空内存记录并删除应用私有目录中的 `user_frequency.tsv`。
+  - 新增“打开系统输入法设置”按钮，跳转 Android 系统输入法设置页。
+  - 增加本地隐私说明：当前不联网、不同步、不做云端预测。
+
+### 修改
+
+- 修正 `PROJECT_HANDOFF.md` 中当前版本为 `v0.01.0019` 时 debug version 仍写成 `0018` 的错误，并推进到 `v0.01.0020`。
+- 更新启动页版本号为 `v0.01.0020`。
+- 更新 `ENVIRONMENT_SETUP.md` 中的当前版本示例。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/MainActivity.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserFrequencyStore.java`
+- `ChinesePinyinIME/app/src/main/res/layout/activity_main.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `ChinesePinyinIME/app/src/main/res/values/themes.xml`
+- `CHANGELOG.md`
+- `PROJECT_HANDOFF.md`
+- `ENVIRONMENT_SETUP.md`
+
+### 验证
+
+- 使用项目内完整 JDK 21（`.gradle-user-home/jdks/`）离线运行 `compileDebugJavaWithJavac`，编译通过。
+- 使用同一环境运行 `assembleDebug`，打包通过。
+- 真机测试通过，详见 `tests/v0.01.0020_2026-06-20_114254/REPORT.md`。
+- 已验证：启动设置页、词库状态显示、学习数据状态显示、清除学习数据、跳转系统输入法设置。
+
+---
+
 ## v0.01.0019 — 2026-06-20
 
 执行者: Grok (Cursor Agent)
@@ -31,7 +72,8 @@ Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
 ### 验证
 
-- 待真机测试：Shift 图标切换、全键面大写显示、底栏 `ZH/EN` 位置。
+- 真机测试通过，详见 `tests/v0.01.0019_2026-06-20_105830/REPORT.md`。
+- 本机编译安装通过；Shift 图标切换、全键面大写显示、底栏 `ZH/EN` 位置、符号模式内 `ZH/EN` 切换均通过。
 
 ---
 

@@ -76,6 +76,40 @@ public class UserFrequencyStore {
         }
     }
 
+    public int getLearnedEntryCount(Context context) {
+        load(context);
+        synchronized (lock) {
+            return selectionCounts.size();
+        }
+    }
+
+    public int getTotalSelectionCount(Context context) {
+        load(context);
+        synchronized (lock) {
+            int total = 0;
+            for (int count : selectionCounts.values()) {
+                total += count;
+            }
+            return total;
+        }
+    }
+
+    public void clear(Context context) {
+        load(context);
+        File fileToDelete;
+        synchronized (lock) {
+            selectionCounts.clear();
+            dirty = false;
+            fileToDelete = storeFile;
+        }
+        executor.execute(() -> {
+            if (fileToDelete != null && fileToDelete.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                fileToDelete.delete();
+            }
+        });
+    }
+
     public void flush() {
         persistIfNeeded();
     }

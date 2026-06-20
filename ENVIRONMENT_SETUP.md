@@ -92,7 +92,7 @@ Recommended manual test flow:
 
 1. Open `D:\Study\InputMethod\ChinesePinyinIME` in Android Studio.
 2. Run the app on the connected Android phone.
-3. Confirm launch page version, currently `v0.01.0018`.
+3. Confirm launch page version, currently `v0.01.0020`.
 4. Enable ChinesePinyinIME in Android system input method settings if needed.
 5. Open any text field and switch to ChinesePinyinIME.
 6. Test the behavior listed in `PROJECT_HANDOFF.md` and record results under `tests/`.
@@ -120,7 +120,7 @@ tests/v{version}_{YYYY-MM-DD}_{HHMMSS}/
 Example:
 
 ```text
-tests/v0.01.0018_2026-06-20_120000/REPORT.md
+tests/v0.01.0020_2026-06-20_120000/REPORT.md
 ```
 
 ## Files That Are Environment Notes

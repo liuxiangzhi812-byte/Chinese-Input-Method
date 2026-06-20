@@ -1,37 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#F6F7F9"
+    android:fillViewport="true"
     tools:context=".MainActivity">
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
         android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:paddingStart="24dp"
+        android:paddingTop="28dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="32dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/app_name"
             android:textColor="#20242C"
-            android:textSize="24sp"
+            android:textSize="28sp"
             android:textStyle="bold" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/version_value"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:text="@string/app_version_display"
             android:textColor="#5A6472"
-            android:textSize="18sp" />
-    </LinearLayout>
+            android:textSize="16sp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
+            android:text="@string/settings_section_status" />
+
+        <TextView
+            android:id="@+id/dictionary_status"
+            style="@style/SettingsBodyText"
+            android:text="@string/dictionary_status_loading" />
+
+        <TextView
+            android:id="@+id/learned_data_status"
+            style="@style/SettingsBodyText"
+            android:layout_marginTop="10dp"
+            android:text="@string/learned_data_status_placeholder" />
+
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
+            android:text="@string/settings_section_actions" />
+
+        <Button
+            android:id="@+id/clear_learned_data_button"
+            style="@style/SettingsPrimaryButton"
+            android:text="@string/clear_learned_data" />
+
+        <Button
+            android:id="@+id/open_input_settings_button"
+            style="@style/SettingsSecondaryButton"
+            android:layout_marginTop="10dp"
+            android:text="@string/open_input_settings" />
+
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
+            android:text="@string/settings_section_enable" />
+
+        <TextView
+            style="@style/SettingsBodyText"
+            android:text="@string/enable_ime_steps" />
+
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
+            android:text="@string/settings_section_privacy" />
+
+        <TextView
+            style="@style/SettingsBodyText"
+            android:text="@string/privacy_local_only" />
+    </LinearLayout>
+</ScrollView>

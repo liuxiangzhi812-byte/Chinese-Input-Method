@@ -1,0 +1,42 @@
+# ADB commands used for v0.01.0020 settings-page test session
+
+$ADB = $env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe
+
+adb devices -l
+adb install -r ChinesePinyinIME/app/build/outputs/apk/debug/app-debug.apk
+adb shell getprop ro.product.model
+adb shell getprop ro.build.version.release
+adb shell wm size
+adb shell wm density
+adb shell settings get secure default_input_method
+adb shell settings get secure enabled_input_methods
+
+# Launch settings page.
+adb shell am force-stop com.mercury.chinesepinyinime
+adb shell am start -n com.mercury.chinesepinyinime/.MainActivity
+adb shell screencap -p /sdcard/v0020_settings_initial.png
+adb pull /sdcard/v0020_settings_initial.png tests/v0.01.0020_2026-06-20_114254/screenshots/01_settings/01_settings_initial.png
+adb shell uiautomator dump /sdcard/v0020_settings_initial.xml
+adb pull /sdcard/v0020_settings_initial.xml tests/v0.01.0020_2026-06-20_114254/ui_dumps/01_settings_initial.xml
+
+# Clear learned-frequency data from the settings page.
+adb shell input tap 720 1384
+adb shell screencap -p /sdcard/v0020_after_clear.png
+adb pull /sdcard/v0020_after_clear.png tests/v0.01.0020_2026-06-20_114254/screenshots/01_settings/02_after_clear.png
+adb shell uiautomator dump /sdcard/v0020_after_clear.xml
+adb pull /sdcard/v0020_after_clear.xml tests/v0.01.0020_2026-06-20_114254/ui_dumps/02_after_clear.xml
+adb shell run-as com.mercury.chinesepinyinime ls -la files
+
+# Open Android system input-method settings.
+adb shell input tap 720 1616
+adb shell screencap -p /sdcard/v0020_input_settings.png
+adb pull /sdcard/v0020_input_settings.png tests/v0.01.0020_2026-06-20_114254/screenshots/01_settings/03_input_settings.png
+adb shell uiautomator dump /sdcard/v0020_input_settings.xml
+adb pull /sdcard/v0020_input_settings.xml tests/v0.01.0020_2026-06-20_114254/ui_dumps/03_input_settings.xml
+adb shell dumpsys window
+adb shell input keyevent KEYCODE_BACK
+
+Notes:
+- Clear button coordinates came from UI dump bounds: `[96,1288][1344,1480]`.
+- Input-settings button coordinates came from UI dump bounds: `[96,1520][1344,1712]`.
+- An attempted scripted write of extra learned-frequency data had quoting issues and was not used as evidence. Existing learned data on device showed `2` groups and `2` total selections before clearing; the clear test used that real app state.

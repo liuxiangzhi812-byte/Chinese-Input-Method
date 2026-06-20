@@ -49,4 +49,42 @@
         <item name="android:textColor">#20242C</item>
         <item name="android:textSize">18sp</item>
     </style>
+
+    <style name="SettingsSectionTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">#20242C</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="SettingsBodyText">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+        <item name="android:textColor">#4E5967</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="SettingsPrimaryButton" parent="@android:style/Widget.Material.Button">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_marginTop">10dp</item>
+        <item name="android:backgroundTint">#2F6FDB</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="SettingsSecondaryButton" parent="@android:style/Widget.Material.Button">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:backgroundTint">#E1E6EF</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">#20242C</item>
+        <item name="android:textSize">15sp</item>
+    </style>
 </resources>
