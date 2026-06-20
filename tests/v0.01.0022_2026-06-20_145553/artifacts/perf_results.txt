@@ -1,0 +1,21 @@
+﻿
+
+06-20 15:10:15.721  7220  7585 I PinyinDictPerf: load took 947ms
+
+
+
+06-20 15:10:27.549  7987  8077 I PinyinDictPerf: load took 977ms
+
+
+
+06-20 15:10:39.351  8463  8555 I PinyinDictPerf: load took 947ms
+
+
+
+06-20 15:10:51.054  8938  9024 I PinyinDictPerf: load took 622ms
+
+
+
+06-20 15:11:03.326  9415  9499 I PinyinDictPerf: load took 968ms
+
+

@@ -1,0 +1,127 @@
+# v0.01.0022 full device test — Edge search bar for input, corrected T9 coords
+$ErrorActionPreference = "Continue"
+$ADB = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+$PKG = "com.mercury.chinesepinyinime"
+$EDGE = "com.microsoft.emmx"
+$APK = "D:\Study\InputMethod\ChinesePinyinIME\app\build\outputs\apk\debug\app-debug.apk"
+$TEST_DIR = "D:\Study\InputMethod\tests\v0.01.0022_2026-06-20_145553"
+$DEVICE = "7fbf2094"
+
+# T9 grid (OnePlus 7 Pro, from v0.01.0021 REPORT)
+$R1Y = 2364; $R2Y = 2556; $R3Y = 2748
+$C0 = 198; $C1 = 546; $C2 = 894; $C3 = 1242
+$SPACE_Y = 2940; $SPACE_X = 665
+
+function Shot($name, $subdir) {
+    $remote = "/sdcard/$name"
+    $local = Join-Path $TEST_DIR "screenshots/$subdir/$name"
+    & $ADB -s $DEVICE shell screencap -p $remote | Out-Null
+    & $ADB -s $DEVICE pull $remote $local 2>&1 | Out-Null
+    Write-Host "screenshot: $subdir/$name"
+}
+
+function Tap($x, $y, $label) {
+    Write-Host "tap $label ($x,$y)"
+    & $ADB -s $DEVICE shell input tap $x $y | Out-Null
+    Start-Sleep -Milliseconds 650
+}
+
+function FocusEdgeSearch() {
+    & $ADB -s $DEVICE shell am force-stop $EDGE | Out-Null
+    Start-Sleep -Milliseconds 400
+    & $ADB -s $DEVICE shell monkey -p $EDGE -c android.intent.category.LAUNCHER 1 2>&1 | Out-Null
+    Start-Sleep -Seconds 2
+    # Dismiss Copilot onboarding sheet if present
+    Tap 720 1780 "dismiss copilot (later)"
+    # Edge address/search bar — calibrated on OnePlus 7 Pro NTP + restored tabs
+    Tap 720 200 "edge search/address bar"
+}
+
+function GetPerfLog() {
+    $out = & $ADB -s $DEVICE logcat -d -s PinyinDictPerf:I 2>&1
+    return ($out | Select-String "load took")
+}
+
+function ColdStartPerf([int]$run) {
+    & $ADB -s $DEVICE shell am force-stop $PKG | Out-Null
+    Start-Sleep -Milliseconds 900
+    & $ADB -s $DEVICE logcat -c | Out-Null
+    FocusEdgeSearch
+    Start-Sleep -Seconds 5
+    $line = GetPerfLog
+    $line | Out-File -Append -Encoding utf8 (Join-Path $TEST_DIR "artifacts/perf_results.txt")
+    Write-Host "perf run $run : $line"
+    Shot ("perf_run${run}.png") "02_dict_perf"
+}
+
+function EnsureT9Layout() {
+    & $ADB -s $DEVICE shell am start -n "$PKG/.MainActivity" | Out-Null
+    Start-Sleep -Seconds 2
+    & $ADB -s $DEVICE shell uiautomator dump /sdcard/settings_ui.xml | Out-Null
+    & $ADB -s $DEVICE pull /sdcard/settings_ui.xml (Join-Path $TEST_DIR "ui_dumps/settings_ui.xml") 2>&1 | Out-Null
+    $xml = Get-Content (Join-Path $TEST_DIR "ui_dumps/settings_ui.xml") -Raw
+    if ($xml -match '9 键') {
+        Write-Host "already on 9-key layout"
+        Shot "s02_t9_enabled.png" "01_baseline"
+        return
+    }
+    if ($xml -match 'keyboard_layout_toggle_button[^>]+bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"') {
+        $x = [int](([int]$Matches[1] + [int]$Matches[3]) / 2)
+        $y = [int](([int]$Matches[2] + [int]$Matches[4]) / 2)
+        Tap $x $y "toggle to 9-key (from dump)"
+    } else {
+        Tap 720 1180 "toggle to 9-key (fallback)"
+    }
+    Start-Sleep -Milliseconds 500
+    Shot "s02_t9_enabled.png" "01_baseline"
+}
+
+Write-Host "=== Install APK ==="
+& $ADB -s $DEVICE install -r $APK
+
+Write-Host "=== Baseline: settings page ==="
+& $ADB -s $DEVICE shell am start -n "$PKG/.MainActivity" | Out-Null
+Start-Sleep -Seconds 2
+Shot "s01_main_activity.png" "01_baseline"
+
+Write-Host "=== Dictionary load performance (5 cold process runs, Edge search) ==="
+"" | Out-File -Encoding utf8 (Join-Path $TEST_DIR "artifacts/perf_results.txt")
+1..5 | ForEach-Object { ColdStartPerf $_ }
+
+Write-Host "=== Ensure 9-key layout ==="
+EnsureT9Layout
+
+Write-Host "=== T9 pinyin choice bar tests (Edge search) ==="
+FocusEdgeSearch
+Tap $C2 $R2Y "digit 6"
+Tap $C0 $R2Y "digit 4"
+Start-Sleep -Milliseconds 500
+Shot "t01_digits_64_choice_bar.png" "03_t9_pinyin_choice"
+
+# pinyin choice bar: ni ~200px, mi ~400px from left; y ~2140 (calibrate after screenshot)
+Tap 400 2140 "pinyin choice mi"
+Start-Sleep -Milliseconds 500
+Shot "t02_mi_selected.png" "03_t9_pinyin_choice"
+
+Tap $C2 $R3Y "append digit 9 -> 649"
+Start-Sleep -Milliseconds 500
+Shot "t03_after_append_649.png" "03_t9_pinyin_choice"
+
+Tap $C3 $R2Y "重输 clear"
+Tap $C2 $R3Y "digit 9"
+Tap $C2 $R1Y "digit 3"
+Tap $C2 $R2Y "digit 6"
+Start-Sleep -Milliseconds 500
+Shot "t04_unambiguous_936.png" "03_t9_pinyin_choice"
+
+Write-Host "=== Deferred T13: empty buffer 0 key inserts space ==="
+Tap $C3 $R2Y "重输 clear"
+Start-Sleep -Milliseconds 300
+Tap $C3 $R3Y "digit 0 / space"
+Start-Sleep -Milliseconds 500
+Shot "t05_empty_buffer_zero_space.png" "04_deferred"
+
+Write-Host "=== Save adb commands log ==="
+Get-Content $MyInvocation.MyCommand.Path | Out-File -Encoding utf8 (Join-Path $TEST_DIR "artifacts/adb_commands.txt")
+
+Write-Host "=== Done ==="
