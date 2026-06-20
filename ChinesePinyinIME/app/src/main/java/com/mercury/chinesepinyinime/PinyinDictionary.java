@@ -72,18 +72,28 @@ public class PinyinDictionary {
     /**
      * Resolves a 9-key digit sequence (e.g. "64") to the best matching dictionary
      * pinyin key (e.g. "ni"), or null if no dictionary key maps to these digits.
-     * When a digit sequence is ambiguous, the shortest / alphabetically-first
-     * pinyin key wins; see {@link #buildDigitIndex}.
+     * When a digit sequence is ambiguous, the first entry of
+     * {@link #getPinyinKeysForDigits} wins; see {@link #buildDigitIndex} for the
+     * tie-break order.
      */
     public String resolveBestPinyinForDigits(String digits) {
+        List<String> matches = getPinyinKeysForDigits(digits);
+        return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    /**
+     * Returns every dictionary pinyin key that maps to {@code digits}, ordered by
+     * the same tie-break {@link #resolveBestPinyinForDigits} uses to pick its
+     * default. Used by the 9-key pinyin-choice UI to let the user pick a
+     * different pinyin than the default when a digit sequence is ambiguous
+     * (e.g. "64" matches both "ni" and "mi"). Empty if there is no match.
+     */
+    public List<String> getPinyinKeysForDigits(String digits) {
         if (digits == null || digits.isEmpty()) {
-            return null;
+            return Collections.emptyList();
         }
         List<String> matches = digitToPinyinIndex.get(digits);
-        if (matches == null || matches.isEmpty()) {
-            return null;
-        }
-        return matches.get(0);
+        return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
     }
 
     private void finishLoad(Map<String, String[]> loadedWords) {

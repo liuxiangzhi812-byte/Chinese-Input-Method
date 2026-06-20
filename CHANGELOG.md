@@ -4,6 +4,35 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0022 — 2026-06-20
+
+执行者: Claude Code (Sonnet 4.6)
+
+### 新增
+
+- **9 键拼音输入 — 第四阶段：歧义拼音选择 UI**（对应 `PROJECT_HANDOFF.md` 9-Key Pinyin Development Plan 阶段 4）：
+  - 候选栏上方新增 `pinyin_choice_bar`：当当前数字串对应多个拼音 key 时（例如 `64` 同时对应 `ni`/`mi`），显示每个候选拼音的可点击小标签；当前生效的拼音用蓝色高亮背景标出（复用 Shift 激活态的 `keyboard_shift_active_background`）。
+  - 数字串只对应唯一拼音（绝大多数情况）时，这一行整体隐藏，不占用额外空间，不影响现有体验。
+  - 点击某个拼音标签会把它设为"当前激活拼音"（`t9ActivePinyin`），候选栏立即刷新为该拼音对应的中文候选词；再次修改数字串（追加/删除数字）会清空这个选择，重新回到词典默认推荐。
+  - `PinyinDictionary` 新增 `getPinyinKeysForDigits(digits)`，返回某个数字串匹配到的全部拼音 key（按既有的"人工覆盖 > 候选词数量 > 字母序"顺序），供选择条读取；`resolveBestPinyinForDigits` 内部改为复用这个方法，避免重复实现排序逻辑。
+  - 选词时记录本地学习数据使用的是"用户最终选定的拼音"（无论是默认推荐还是手动切换过的），与候选词提交逻辑共享同一套 `UserFrequencyStore` 记录路径，不需要额外处理。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/PinyinDictionary.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+- `PROJECT_HANDOFF.md`
+
+### 验证
+
+- 本机 JDK 21（`.gradle-user-home/jdks/`）`--offline` 运行 `assembleDebug`，编译打包通过。
+- **本版本未做真机测试**（按用户要求跳过），仅完成代码读改+编译验证。下一次真机测试时，重点验证：`64` 候选条同时出现 `ni`/`mi`、点击 `mi` 后候选词刷新为"米/咪/迷..."、追加或删除数字后选择条自动清空回到默认值、数字串只对应单一拼音时选择条不显示。
+
+---
+
 ## v0.01.0021 — 2026-06-20
 
 执行者: Claude Code (Sonnet 4.6)

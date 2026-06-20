@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0021`
+- Current display version: `v0.01.0022`
 
 The project is currently in early test stage. The goal is to build a simple, local-first Chinese Pinyin IME before considering advanced features.
 
@@ -177,7 +177,7 @@ Implemented:
 - Candidate re-ranking via `CandidateRanker` and local `UserFrequencyStore`
 - Reproducible dictionary conversion script under `scripts/`
 - Basic settings page with dictionary status, learned-data status/clear action, and system input-method shortcut
-- **9-key (T9) pinyin input prototype, stage 1+2+3** (see "9-Key Pinyin Development Plan" below): settings-page layout switch, digit-grid keyboard UI, digit→pinyin dictionary index reusing the existing candidate ranking/paging/learning pipeline
+- **9-key (T9) pinyin input prototype, stages 1–4** (see "9-Key Pinyin Development Plan" below): settings-page layout switch, digit-grid keyboard UI, digit→pinyin dictionary index, and a pinyin-choice bar for ambiguous digit sequences — all reusing the existing candidate ranking/paging/learning pipeline
 
 Current behavior:
 
@@ -230,11 +230,18 @@ Current behavior:
   - `DEL` removes one digit at a time (long-press repeat-delete reuses the existing `action:delete` binding); `重输` clears the whole digit buffer in one tap; `0` is mapped to `action:space` (same as the bottom space bar); space/Enter with a non-empty digit buffer commit the current best candidate.
   - Digit key `1` reuses `action:symbol` to open the existing `ZH` symbol/punctuation keyboard (shared with 26-key); the bottom-left toggle shows `9键` instead of `ABC` to return.
   - The `ZH`/`EN` mode button is hidden while 9-key is active — **9-key currently only supports Chinese pinyin input**, not English. Switch back to 26-key (settings page) to type English.
-  - Not implemented yet (intentionally deferred, see "9-Key Pinyin Development Plan"): a pinyin-choice UI for ambiguous digit sequences (e.g. choosing `mi` instead of the default `ni` for `64`).
+  - **Pinyin-choice bar** (since v0.01.0022, `pinyin_choice_bar`): when the current digit buffer matches more than one dictionary pinyin key (e.g. `64` matches both `ni` and `mi`), a row of tappable pinyin labels appears above the candidate bar, with the currently-active one highlighted (reuses `keyboard_shift_active_background`). Tapping a label switches `t9ActivePinyin` and immediately refreshes the Chinese candidates for that pinyin. The bar is hidden whenever the digit sequence is unambiguous (the common case) or the digit buffer is empty. Any further digit append/delete clears the explicit choice and falls back to the dictionary's default pick for the new sequence. Selecting a candidate afterward records the *actually active* pinyin (chosen or default) in `UserFrequencyStore`, same as before. **This was implemented in v0.01.0022 without an on-device test pass (explicitly skipped per request) — verify on a real device before relying on it; see the Testing Checklist additions below.**
 
 ## Current Work Node
 
-The latest work node is **9-key (T9) pinyin prototype, stages 1–3 combined** (v0.01.0021), device-tested and confirmed passing:
+The latest work node is **9-key (T9) pinyin-choice UI, stage 4** (v0.01.0022) — **code-complete but NOT device-tested yet** (explicitly skipped per request; commit only, no push):
+
+- Added `pinyin_choice_bar` above the candidate bar: shows tappable pinyin labels when a digit sequence is ambiguous, hides itself otherwise.
+- `PinyinDictionary.getPinyinKeysForDigits(digits)` exposes the full ordered match list (previously only the single "best" pick was exposed via `resolveBestPinyinForDigits`, which now delegates to this new method).
+- `t9ActivePinyin` tracks the user's explicit choice; cleared whenever the digit buffer changes (append/delete/clear), so a stale choice never silently applies to a different digit sequence.
+- Compiles and packages cleanly (`assembleDebug` verified locally with the project's own JDK 21), but **no real-device verification has been done for this stage**. Whoever picks this up next should device-test it before trusting it, per the Testing Checklist additions below — pay particular attention to: does the bar actually show/hide at the right times, does tapping a label really change the candidates, does editing the digit buffer afterward correctly reset the choice.
+
+Previous work node: **9-key (T9) pinyin prototype, stages 1–3 combined** (v0.01.0021), device-tested and confirmed passing:
 
 - Settings-page switch between 26-key and 9-key, persisted via `KeyboardLayoutPreferences`.
 - 9-key digit-grid keyboard UI (`t9_keyboard_section`), reusing the candidate bar, symbol/punctuation keyboard, and bottom action row.
@@ -243,7 +250,7 @@ The latest work node is **9-key (T9) pinyin prototype, stages 1–3 combined** (
 - Two real bugs were found and fixed during device testing before shipping: a static-field-initialization-order crash (app crashed on every launch) and a dead tie-break comparator that picked an obscure word over a common one (`94664` resolved to "新密" instead of "中"). See `tests/v0.01.0021_2026-06-20_131827/REPORT.md` for details.
 - Not done yet: pinyin-choice UI for ambiguous digit sequences (stage 4 in the plan below), and any English input path for 9-key.
 
-Previous work node: **basic settings page and learned-data management** (v0.01.0020):
+Earlier work node: **basic settings page and learned-data management** (v0.01.0020):
 
 - MainActivity is now a lightweight settings/status page instead of only showing app name and version.
 - It displays version, dictionary status, learned-frequency status, enablement guidance, and a local-only privacy note.
@@ -336,6 +343,7 @@ Latest on-device verification:
 - **v0.01.0019** (`tests/v0.01.0019_2026-06-20_105830/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), 1440×3120. Full regression pass — all cases passed: default `ZH` mode, pinyin composing/ranking/paging, space commit, Shift icon + one-shot uppercase, `DEL` long-press (letter and symbol keyboards), `123`/`ABC` symbol keyboards (`EN` ASCII, `ZH` numbers+punctuation), Chinese punctuation direct commit (verified actual committed codepoint is full-width U+FF0C, not half-width), and ZH/EN switching now working inside symbol mode (see Current Work Node above). Local `assembleDebug` also verified working with the project's own JDK 21 (`.gradle-user-home/jdks/`).
 - **v0.01.0020** (`tests/v0.01.0020_2026-06-20_114254/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), Android 12, 1440×3120. Passed: settings page launch/version display, dictionary status (`268353` pinyin keys / `349039` candidates), learned-frequency status, clear learned data (`2` groups / `2` selections → `0` / `0`, `user_frequency.tsv` removed), and Android system input-method settings jump.
 - **v0.01.0021** (`tests/v0.01.0021_2026-06-20_131827/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), 1440×3120. Passed: settings-page 26-key/9-key toggle, 9-key digit grid rendering, digit composing (`64`→`ni`, `94664`→`zhong`, `936`→`wen`), space commit, single-tap and long-press `DEL`, `重输` clear-all, symbol-keyboard round trip (`1`/符号 in, `9键` back). Not conclusively verified: literal-space insertion via the `0` key when the digit buffer is empty (tooling-limited, low risk since it reuses the unchanged 26-key space fallback). Two bugs found and fixed during this session before they could ship — see Current Work Node above.
+- **v0.01.0022 — NOT YET DEVICE-TESTED.** Only `assembleDebug` was verified locally. The pinyin-choice bar (tap `64` → see `ni`/`mi` labels → tap `mi` → candidates refresh) needs a real-device pass before anyone relies on it. Given that v0.01.0021's testing alone caught a launch-crashing bug and a candidate-ranking bug that pure code review missed, treat this version as unverified until someone runs it on a phone.
 
 ## Known Limitations
 
@@ -353,14 +361,17 @@ Known limitations:
 - No tone support.
 - No cloud sync.
 - Only a simple local-only privacy note exists; there is no detailed privacy settings page.
-- 9-key mode has no pinyin-choice UI yet: ambiguous digit sequences (e.g. `64` for `ni`/`mi`) always resolve to one deterministic default; there is no way to pick the other one.
+- 9-key mode's pinyin-choice bar (v0.01.0022) has not been device-tested; treat it as unverified until someone runs it on a phone.
 - 9-key mode does not support English input at all; the `ZH`/`EN` switch is hidden while 9-key is active.
+- **Dictionary loading performance has never actually been measured on a device**, despite being a "Must-Do" item since v0.01.0011 (10+ versions ago). See the dedicated "Dictionary Loading Performance — Needs Real-Device Measurement" section below — this has been raised to the top priority Must-Do item.
 
 ## Must-Do Next Features
 
 These are the recommended required features before calling the first prototype usable.
 
-Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyboards, Chinese punctuation, Shift/Enter refinement, candidate ranking, local user frequency, conversion script, user-frequency hardening, Shift-icon/bottom-row UI rework, a basic settings page with learned-data clearing, and the first 9-key (T9) prototype stage (v0.01.0008–v0.01.0021, device-verified through v0.01.0021). See `CHANGELOG.md`.
+Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyboards, Chinese punctuation, Shift/Enter refinement, candidate ranking, local user frequency, conversion script, user-frequency hardening, Shift-icon/bottom-row UI rework, a basic settings page with learned-data clearing, and the 9-key (T9) prototype through its pinyin-choice UI (v0.01.0008–v0.01.0022; device-verified through v0.01.0021, v0.01.0022 itself is NOT yet device-tested). See `CHANGELOG.md`.
+
+**Top priority right now: item 10 below (dictionary loading performance) has been waiting since v0.01.0011 and has never been measured on a real device. It is the highest-priority open item in this list — see the dedicated section "Dictionary Loading Performance — Needs Real-Device Measurement" further down for the full investigation brief and test plan.**
 
 1. ~~Chinese punctuation~~ (done v0.01.0012–v0.01.0016)
 
@@ -391,13 +402,15 @@ Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyb
 
 9. ~~User dictionary and local frequency learning~~ (done v0.01.0017; hardened v0.01.0018; clear action added v0.01.0020)
 
-10. Dictionary loading performance check
+10. 🔴 **Dictionary loading performance check — HIGH PRIORITY, see detailed section below**
 
-   Test whether loading `assets/pinyin_dict.txt` causes delay when the keyboard first opens.
+   Test whether loading `assets/pinyin_dict.txt` causes a noticeable delay when the keyboard first opens, and whether the fallback-dictionary window (before the real dictionary finishes loading) is ever actually visible/usable to a user typing immediately after install.
 
-   If it feels slow, consider:
+   Full investigation brief, exact measurement method, and step-by-step test plan: see "Dictionary Loading Performance — Needs Real-Device Measurement" later in this document.
 
-   - loading lazily
+   If it turns out to be slow, candidate fixes (in increasing order of effort):
+
+   - loading lazily (already partially done via async load — verify it's actually effective)
    - limiting dictionary size
    - generating an indexed dictionary
    - using SQLite
@@ -425,22 +438,78 @@ Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyb
     Current version format:
 
     ```text
-    v0.01.0021
+    v0.01.0022
     ```
 
     Suggested meaning:
 
     - major version: `0`
     - minor version: `01`
-    - debug version: `0021`
+    - debug version: `0022`
 
     Increment debug version for every testable change, and record each change in `CHANGELOG.md` (version, date, what changed, who made the change). After on-device testing, add a session under `tests/` per `tests/README.md`.
+
+## Dictionary Loading Performance — Needs Real-Device Measurement
+
+**Priority: highest open item.** This has been on the Must-Do list since v0.01.0011 (10+ versions ago) and has never once been measured on an actual phone. Every other Must-Do item is either done or has a clear next step; this one has neither — just a hope that the async-loading change from v0.01.0011 made things fine. Whoever picks this up should produce an actual number, not another guess.
+
+### Background: what's actually happening right now
+
+- `PinyinDictionary` (singleton, lives for the lifetime of the IME process) starts with a small built-in fallback map (~100 entries, see `createFallbackCandidateWords()`).
+- `loadAsync(context, onLoaded)` is called from `ChinesePinyinInputMethodService.onCreateInputView()`. It kicks off `loadCandidateWordsFromAssets()` on a single background thread (`Executors.newSingleThreadExecutor()`), which:
+  - Opens `assets/pinyin_dict.txt` (currently **268,353 pinyin keys / 349,039 total candidates**, per `conversion_report.txt`).
+  - Reads it line by line with a `BufferedReader`, parses `pinyin=候选1,候选2,...` format, builds a `HashMap<String, String[]>`.
+  - Also builds the 9-key digit→pinyin reverse index (`buildDigitIndex`) over the same data — added in v0.01.0021, this is extra CPU work on top of the original parse that did not exist when the "async loading" fix originally shipped in v0.01.0011, so the old assumption that loading is "probably fine now" may no longer hold.
+- Once parsing finishes, `candidateWords` (and `digitToPinyinIndex`) are swapped atomically (`volatile` field), and `onLoaded` (which triggers `updateKeyboardStatus()`) is posted back to the main thread.
+- **This only happens once per process lifetime.** Because `PinyinDictionary` is a singleton and Android keeps an IME service process alive across many keyboard show/hide cycles, only the *very first* time a user opens the keyboard after installing (or after the IME process was killed and restarted, e.g. by low memory) does this loading path actually run. Every subsequent keyboard open in the same process reuses the already-loaded map instantly.
+- **This means the realistic risk window is narrow but real**: a user who installs the app, immediately opens a text field, and starts typing pinyin within the first second or so could be typing against the ~100-entry fallback dictionary instead of the real 268k-entry one, with no visual indication that this is happening (the candidate bar just shows whatever fallback candidates exist, or the raw pinyin if there's no match — it does not say "still loading").
+
+### What to actually measure
+
+1. **Cold-start load time**: time from `loadAsync()` being called to `onLoaded` firing (i.e. real dictionary ready), on a freshly installed app, on first keyboard open. This is the number that matters most.
+2. **Whether a user can "beat" the load**: on the test device, how long does it take a human to type a 1–2 character pinyin syllable and look at the candidate bar after first opening the keyboard post-install? If that's faster than (1), the fallback-dictionary window is real and user-visible, not just theoretical.
+3. **Device variance**: the only device tested so far for *anything* in this project is a OnePlus 7 Pro — a 2019 flagship with a fast CPU and storage. That is not representative of the low/mid-range Android devices many real users would have. If at all possible, repeat the measurement on at least one noticeably slower or older device (or an emulator throttled to a low-end profile) — a number that looks fine on a flagship can be very different on a budget device.
+
+### Suggested measurement method
+
+The cleanest way to get a real number without shipping permanent instrumentation:
+
+1. In `PinyinDictionary.loadAsync()`, temporarily wrap the `executor.execute(...)` call with timestamps, e.g.:
+   ```java
+   long startMs = System.currentTimeMillis();
+   executor.execute(() -> {
+       Map<String, String[]> loaded = loadCandidateWordsFromAssets(appContext);
+       Log.i("PinyinDictPerf", "load took " + (System.currentTimeMillis() - startMs) + "ms");
+       finishLoad(loaded);
+   });
+   ```
+   (Adjust to fit the existing lambda structure — the point is one `Log.i` line bracketing the actual parse + index-build work.)
+2. Uninstall any existing build, fresh-install the APK (`adb install`, not `adb install -r`, to guarantee a cold process), then immediately open a text field and switch to ChinesePinyinIME.
+3. Pull the timestamp with `adb logcat -d | grep PinyinDictPerf`.
+4. Repeat 3–5 times (cold install each time, or at least force-stop the app between runs to guarantee a fresh process) and report the range, not just one sample.
+5. Remove the temporary logging before committing — this is a measurement instrument, not a permanent feature. If ongoing visibility is wanted, that should be its own deliberate decision (e.g. surfaced in the settings page's dictionary status), not leftover debug logging.
+
+### What "slow" means here
+
+There's no hard number agreed yet — that's part of what this investigation should establish. As a starting reference point: anything under roughly 200–300ms is unlikely to be perceptible to a user who just installed the app and is still finding the text field to tap; anything in the range of several hundred ms to low seconds on a slower device would be the kind of result that justifies picking up one of the mitigation options below.
+
+### If it turns out to be slow
+
+In rough order of effort:
+
+1. **Verify the async path is actually buying anything** — confirm `onCreateInputView()` truly returns before the load finishes (it should, since the load is posted to an executor), and that the fallback dictionary is genuinely usable in the meantime (i.e., it's not producing confusing/empty results for the most common syllables a user would type first).
+2. **Limit dictionary size** — `MAX_CANDIDATES_PER_PINYIN = 20` already caps candidates per key; consider whether 268k pinyin keys is more than necessary, or whether the parse itself (not the size) is the bottleneck.
+3. **Generate an indexed/pre-sorted dictionary at build time** instead of parsing `pinyin=...` text and sorting at runtime — `scripts/convert_jieba_dict.py` already exists as the place to do this; output could be a more loading-friendly format directly.
+4. **SQLite** — trades parse time for disk I/O + query overhead; only worth it if profiling shows `HashMap` construction itself (not file I/O) is the bottleneck, since SQLite doesn't inherently fix slow file I/O.
+5. **Compact binary format** — most effort, most payoff if the bottleneck is genuinely parse-time-dominated (text parsing of 349k comma-separated candidate lists is not free).
+
+Do not jump straight to options 3–5 without first getting the actual number from the measurement above — it is entirely possible the existing async approach is already fine, and this whole item turns out to be "tested, confirmed fine, close it out" rather than "needs a rewrite."
 
 ## 9-Key Pinyin Development Plan
 
 This section is a design handoff for future 9-key work. The current IME is 26-key first. Add 9-key incrementally and keep 26-key stable as the default until 9-key has passed device testing.
 
-**Status as of v0.01.0021: stages 1–3 below are done (combined into a single version instead of three separate ones — see `CHANGELOG.md` v0.01.0021 and `tests/v0.01.0021_2026-06-20_131827/REPORT.md`). 26-key remains the default; 9-key is opt-in via the settings page. Stage 4 (pinyin-choice UI) and stage 5 (ranking/learning polish specific to 9-key) are not started.**
+**Status as of v0.01.0022: stages 1–4 below are code-complete. 26-key remains the default; 9-key is opt-in via the settings page. Stages 1–3 (v0.01.0021) are device-tested and passing — see `tests/v0.01.0021_2026-06-20_131827/REPORT.md`. Stage 4 (v0.01.0022, pinyin-choice UI) was implemented without a device-test pass per explicit request and is committed but not pushed — test it before trusting it. Stage 5 (ranking/learning polish specific to 9-key) is not started.**
 
 ### Core Principle
 
@@ -557,13 +626,14 @@ Use small testable versions:
    - Chinese candidates for the resolved pinyin reuse `PinyinDictionary.getCandidates` (and therefore `CandidateRanker`) unchanged.
    - No pinyin-choice UI yet (as planned).
 
-4. **v0.01.0022 (next) — pinyin-choice support**
+4. ~~**pinyin-choice support**~~ (code-complete in v0.01.0022, **not yet device-tested**)
 
-   - For ambiguous digit sequences such as `64`, allow choosing between pinyin keys like `ni` / `mi`.
-   - After choosing pinyin, show / refresh Chinese candidates.
-   - `PinyinDictionary` does not yet expose the full ordered list of matches for a digit string (only the resolved "best" one via `resolveBestPinyinForDigits`) — this will need a new method, e.g. `getPinyinKeysForDigits(digits)`, before a choice UI can be built.
+   - `pinyin_choice_bar` shows tappable pinyin labels (e.g. `ni` / `mi`) whenever the current digit sequence matches more than one dictionary pinyin key; hidden otherwise.
+   - `PinyinDictionary.getPinyinKeysForDigits(digits)` exposes the full ordered match list; `resolveBestPinyinForDigits` now delegates to it for its "first" pick instead of duplicating the lookup.
+   - Tapping a label sets `t9ActivePinyin` and immediately refreshes Chinese candidates for that pinyin; appending/deleting a digit clears the explicit choice.
+   - **Needs a real-device pass**: confirm the bar actually shows/hides correctly, tapping changes candidates, and editing digits afterward resets the choice. See Testing Checklist items below.
 
-5. **v0.01.0023 — ranking and learning polish for 9-key**
+5. **v0.01.0023 (next) — ranking and learning polish for 9-key**
 
    - Reuse local frequency to improve pinyin and candidate order.
    - Ensure repeated 9-key selections can move candidates forward.
@@ -585,6 +655,7 @@ Minimum tests:
 - `123` / `ABC` and `ZH` / `EN` behavior remain coherent. ✅ verified v0.01.0021 — `ZH`/`EN` is hidden in 9-key mode (by design); the `123` toggle correctly shows `9键` instead of `ABC` when returning from the symbol keyboard.
 - When digit-to-pinyin index exists, `64` should produce `ni` candidates (`你` first unless user learning changes it). ✅ verified v0.01.0021, after fixing the dead-tie-break bug described in Current Work Node.
 - User-frequency learning should still survive restart. Not explicitly re-tested for 9-key in this session, but the code path records the *resolved pinyin* through the same `UserFrequencyStore` already verified to survive restart for 26-key (v0.01.0018 testing).
+- ❌ **NOT TESTED — v0.01.0022 pinyin-choice bar**: tap `6` `4`, confirm a row with `ni` and `mi` (highlighted: `ni`) appears above the candidate bar; tap `mi`, confirm the highlight moves and Chinese candidates change to `mi`'s (米/咪/迷/...); tap `9` to append a digit, confirm the choice bar resets to the new digit sequence's default. Also confirm the bar stays hidden for unambiguous sequences (e.g. `936` for "wen").
 
 ### When To Add Fuzzy Pinyin
 
@@ -643,13 +714,17 @@ Explicitly not planned for early versions:
 
 Recommended next task:
 
-Continue the 9-key plan with **stage 4 — pinyin-choice support** (see "9-Key Pinyin Development Plan" above), or switch to general polish (empty-buffer space behavior, dictionary loading performance, candidate quality) if 9-key should pause here for a while as an experimental opt-in feature.
+**Top priority: dictionary loading performance measurement** — see the dedicated "Dictionary Loading Performance — Needs Real-Device Measurement" section above for the full brief and test plan. This has been deferred since v0.01.0011 and is now the highest-priority open item; another engineer should pick this up and produce a real measurement.
+
+Second priority: device-test the v0.01.0022 pinyin-choice bar (code-complete but unverified — see Current Work Node and the Testing Checklist additions below) before building anything further on top of 9-key.
+
+After those: stage 5 of the 9-key plan (ranking/learning polish), general polish (empty-buffer space behavior, dictionary quality review), or richer user dictionary management, in roughly that order of value.
 
 Reason:
 
-- Shift, Enter refinement, candidate ranking, local frequency learning, conversion scripting, user-frequency hardening, the Shift/bottom-row UI rework, the basic settings page, and the first 9-key stage (mode switch + digit buffer + digit→pinyin index) are all implemented and device-verified (v0.01.0017–v0.01.0021).
-- 9-key's biggest remaining gap is that ambiguous digit sequences silently pick one default pinyin with no way to choose the other (e.g. `64` always resolves to `ni`, never `mi`) — this is the next most visible limitation a real user would hit.
-- Remaining high-value Must-Do items outside 9-key: space behavior polish, dictionary loading performance check (still not measured on device), dictionary quality review, richer user dictionary management later.
+- Shift, Enter refinement, candidate ranking, local frequency learning, conversion scripting, user-frequency hardening, the Shift/bottom-row UI rework, the basic settings page, and 9-key stages 1–3 are all implemented and device-verified (v0.01.0017–v0.01.0021). Stage 4 (pinyin-choice UI, v0.01.0022) is code-complete but not device-tested.
+- Dictionary loading performance is the oldest unresolved Must-Do item (since v0.01.0011) and affects every user on every keyboard open, unlike 9-key which is an opt-in experimental feature — it should be measured before more effort goes into features that sit on top of the same dictionary-loading path.
+- Remaining high-value Must-Do items: space behavior polish, dictionary quality review, richer user dictionary management later.
 
 Verification focus carried over from v0.01.0021 (already passing, re-check after future changes touch these areas):
 
@@ -658,6 +733,10 @@ Verification focus carried over from v0.01.0021 (already passing, re-check after
 - `ZH`/`EN` switch works inside the symbol keyboard for 26-key, but is intentionally hidden for 9-key.
 - Repeatedly pick a less common `ni` candidate and confirm it rises in later lookups; confirm it survives keyboard/app restart.
 - Rebuild dictionary with `python scripts/convert_jieba_dict.py` if jieba source changes.
+
+Not yet verified, needs a device pass before being trusted (v0.01.0022):
+
+- Pinyin-choice bar shows for ambiguous digits (`64`), stays hidden for unambiguous ones (`936`), tapping a label switches the active pinyin and refreshes candidates, and editing the digit buffer resets the choice.
 
 ## Testing Checklist
 
@@ -696,7 +775,9 @@ After any IME change, test on a real Android phone:
 31. Test 9-key `DEL` (single tap removes one digit) and `重输` (clears the whole buffer in one tap).
 32. Test 9-key symbol-keyboard round trip: tap digit `1`/符号 to open the `ZH` symbol keyboard, confirm the bottom-left button reads `9键` (not `ABC`), tap it to return to the digit grid.
 33. Confirm `ZH`/`EN` mode button is hidden while 9-key is active.
-34. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
+34. **(v0.01.0022, not yet device-tested)** Test the 9-key pinyin-choice bar: type digits `6` `4`, confirm a row above the candidate bar shows `ni` and `mi` with `ni` highlighted; tap `mi`, confirm the highlight moves to `mi` and the candidate bar refreshes to `mi`'s candidates (米/咪/迷/...); append another digit, confirm the choice bar recomputes for the new sequence and the explicit choice is forgotten. Also confirm the bar stays hidden for an unambiguous sequence such as `936` ("wen").
+35. **(HIGH PRIORITY, never done)** Measure dictionary loading time on a cold install per the "Dictionary Loading Performance — Needs Real-Device Measurement" section above. Report actual numbers, not just "felt fine."
+36. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
 
 Useful test inputs:
 
@@ -731,7 +812,8 @@ This project is intentionally being built one small step at a time:
 12. harden local frequency storage and rebalance ranking weights (done, see `CHANGELOG.md` v0.01.0018)
 13. Shift icon + bottom-row layout rework, device-tested with full regression pass (done, see `CHANGELOG.md` v0.01.0019 and `tests/v0.01.0019_2026-06-20_105830/REPORT.md`)
 14. add basic settings page and learned-data clear action (done, see `CHANGELOG.md` v0.01.0020)
-15. add 9-key (T9) pinyin prototype stages 1–3: settings-page mode switch, digit-grid UI, digit→pinyin index reusing the existing ranking/paging/learning pipeline (done, see `CHANGELOG.md` v0.01.0021 and `tests/v0.01.0021_2026-06-20_131827/REPORT.md`); stage 4 (pinyin-choice UI for ambiguous digit sequences) is the next 9-key step
+15. add 9-key (T9) pinyin prototype stages 1–3: settings-page mode switch, digit-grid UI, digit→pinyin index reusing the existing ranking/paging/learning pipeline (done, see `CHANGELOG.md` v0.01.0021 and `tests/v0.01.0021_2026-06-20_131827/REPORT.md`)
+16. add 9-key stage 4, the pinyin-choice bar for ambiguous digit sequences (code-complete, see `CHANGELOG.md` v0.01.0022 — **not device-tested**, do that before building further on top of it)
 
 Avoid adding networking, cloud, AI prediction, skins, handwriting, or voice input until the local IME is stable.
 
@@ -739,4 +821,4 @@ Always record what you changed in `CHANGELOG.md` (version, date, what changed, w
 
 A reminder from this round of work: when building anything that buckets values by a derived key (like the digit→pinyin index bucketing by digit string), double-check whether a planned tie-break is actually reachable — a tie-break on pinyin length looked reasonable on paper but was dead code, because every key in the same digit bucket is the same length by construction. Real-device testing caught it; a code read-through alone would not have.
 
-The highest-value next work is 9-key stage 4 (pinyin-choice UI), or space-behavior polish / dictionary quality review if 9-key should pause as an experimental feature for now.
+The highest-value next work is the dictionary loading performance measurement (see the dedicated section above — this has been deferred since v0.01.0011 and is now top priority), followed by device-testing the v0.01.0022 pinyin-choice bar before trusting or extending it.

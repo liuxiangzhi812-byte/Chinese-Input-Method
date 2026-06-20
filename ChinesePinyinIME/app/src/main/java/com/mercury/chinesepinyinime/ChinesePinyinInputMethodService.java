@@ -15,6 +15,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.util.List;
 import java.util.Locale;
 
 public class ChinesePinyinInputMethodService extends InputMethodService {
@@ -35,12 +36,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private boolean symbolMode = false;
     private boolean shiftOneShot = false;
     private int candidatePageIndex = 0;
+    private String t9ActivePinyin;
     private EditorInfo currentEditorInfo;
     private int candidateListContainerWidthPx = 0;
     private boolean deleteRepeatStarted;
     private Runnable deleteRepeatRunnable;
     private LinearLayout candidateBar;
     private LinearLayout candidateListContainer;
+    private LinearLayout pinyinChoiceBar;
     private TextView candidatePagePrev;
     private TextView candidatePageNext;
     private TextView keyboardStatus;
@@ -61,6 +64,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         View keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
         candidateBar = keyboardView.findViewById(R.id.candidate_bar);
         candidateListContainer = keyboardView.findViewById(R.id.candidate_list_container);
+        pinyinChoiceBar = keyboardView.findViewById(R.id.pinyin_choice_bar);
         candidatePagePrev = keyboardView.findViewById(R.id.candidate_page_prev);
         candidatePageNext = keyboardView.findViewById(R.id.candidate_page_next);
         keyboardStatus = keyboardView.findViewById(R.id.keyboard_status);
@@ -253,6 +257,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private void handleT9DigitKey(String digit) {
         composingDigits.append(digit);
+        t9ActivePinyin = null;
         candidatePageIndex = 0;
         updateKeyboardStatus();
     }
@@ -386,6 +391,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void handleDelete(InputConnection inputConnection) {
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0) {
             composingDigits.deleteCharAt(composingDigits.length() - 1);
+            t9ActivePinyin = null;
             candidatePageIndex = 0;
             updateKeyboardStatus();
             return;
@@ -487,9 +493,27 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private String resolvePinyinForLearning() {
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
-            return pinyinDictionary.resolveBestPinyinForDigits(composingDigits.toString());
+            return getActiveResolvedPinyinForDigits();
         }
         return composingPinyin.toString();
+    }
+
+    /**
+     * The pinyin currently driving 9-key candidates: the user's explicit choice
+     * from the pinyin-choice bar if they tapped one, otherwise the dictionary's
+     * default pick for the current digit buffer.
+     */
+    private String getActiveResolvedPinyinForDigits() {
+        if (t9ActivePinyin != null) {
+            return t9ActivePinyin;
+        }
+        return pinyinDictionary.resolveBestPinyinForDigits(composingDigits.toString());
+    }
+
+    private void selectPinyinChoice(String pinyin) {
+        t9ActivePinyin = pinyin;
+        candidatePageIndex = 0;
+        updateKeyboardStatus();
     }
 
     private boolean isComposingActive() {
@@ -502,6 +526,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void clearComposingState() {
         composingPinyin.setLength(0);
         composingDigits.setLength(0);
+        t9ActivePinyin = null;
         candidatePageIndex = 0;
         updateKeyboardStatus();
     }
@@ -536,7 +561,49 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             modeButton.setText(chineseMode ? "ZH" : "EN");
         }
 
+        updatePinyinChoiceBar();
         updateCandidateBar();
+    }
+
+    private void updatePinyinChoiceBar() {
+        if (pinyinChoiceBar == null) {
+            return;
+        }
+
+        if (keyboardLayoutMode != KeyboardLayoutMode.T9_9 || composingDigits.length() == 0) {
+            pinyinChoiceBar.removeAllViews();
+            pinyinChoiceBar.setVisibility(View.GONE);
+            return;
+        }
+
+        List<String> matches = pinyinDictionary.getPinyinKeysForDigits(composingDigits.toString());
+        if (matches.size() <= 1) {
+            pinyinChoiceBar.removeAllViews();
+            pinyinChoiceBar.setVisibility(View.GONE);
+            return;
+        }
+
+        String activePinyin = getActiveResolvedPinyinForDigits();
+        pinyinChoiceBar.removeAllViews();
+        for (String pinyin : matches) {
+            pinyinChoiceBar.addView(createPinyinChoiceView(pinyin, pinyin.equals(activePinyin)));
+        }
+        pinyinChoiceBar.setVisibility(View.VISIBLE);
+    }
+
+    private TextView createPinyinChoiceView(String pinyin, boolean active) {
+        TextView choiceView = new TextView(this, null, 0, R.style.CandidateText);
+        choiceView.setText(pinyin);
+        choiceView.setBackgroundResource(active
+                ? R.drawable.keyboard_shift_active_background
+                : R.drawable.keyboard_key_background);
+        int marginPx = (int) (3 * getResources().getDisplayMetrics().density);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT);
+        params.setMargins(marginPx, marginPx, marginPx, marginPx);
+        choiceView.setLayoutParams(params);
+        choiceView.setOnClickListener(view -> selectPinyinChoice(pinyin));
+        return choiceView;
     }
 
     private void updateCandidateBar() {
@@ -669,11 +736,10 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private String[] getCandidatesForCurrentDigits() {
-        String digits = composingDigits.toString();
-        String resolvedPinyin = pinyinDictionary.resolveBestPinyinForDigits(digits);
+        String resolvedPinyin = getActiveResolvedPinyinForDigits();
         String[] candidates = resolvedPinyin == null ? null : pinyinDictionary.getCandidates(resolvedPinyin);
         if (candidates == null) {
-            return new String[]{digits};
+            return new String[]{composingDigits.toString()};
         }
         return candidates;
     }
