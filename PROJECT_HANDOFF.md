@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0020`
+- Current display version: `v0.01.0021`
 
 The project is currently in early test stage. The goal is to build a simple, local-first Chinese Pinyin IME before considering advanced features.
 
@@ -26,7 +26,8 @@ Important paths:
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidatePager.java`: candidate paging by measured width
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidateRanker.java`: candidate re-ranking (manual overrides + local frequency boost)
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserFrequencyStore.java`: local `(pinyin, candidate)` selection counts
-- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`: custom keyboard UI
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/KeyboardLayoutPreferences.java`: shared `SharedPreferences` helper for the 26-key/9-key layout choice (read by both the settings page and the IME service)
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`: custom keyboard UI (includes `letter_keyboard_section` for 26-key and `t9_keyboard_section` for the 9-key digit grid)
 - `scripts/convert_jieba_dict.py`: reproducible jieba → pinyin dictionary conversion
 - `scripts/pinyin_overrides.txt`: manual high-impact pinyin candidate ordering
 - `ChinesePinyinIME/app/src/main/assets/pinyin_dict.txt`: active pinyin dictionary loaded by the IME
@@ -175,6 +176,8 @@ Implemented:
 - Enter behavior respects multi-line fields and `EditorInfo.imeOptions`
 - Candidate re-ranking via `CandidateRanker` and local `UserFrequencyStore`
 - Reproducible dictionary conversion script under `scripts/`
+- Basic settings page with dictionary status, learned-data status/clear action, and system input-method shortcut
+- **9-key (T9) pinyin input prototype, stage 1+2+3** (see "9-Key Pinyin Development Plan" below): settings-page layout switch, digit-grid keyboard UI, digit→pinyin dictionary index reusing the existing candidate ranking/paging/learning pipeline
 
 Current behavior:
 
@@ -218,10 +221,29 @@ Current behavior:
   - Multi-line field (`TYPE_TEXT_FLAG_MULTI_LINE`): insert `\n`.
   - Single-line field with `imeOptions` action (send/search/done/go/…): `performEditorAction`.
   - Otherwise: send `KEYCODE_ENTER`.
+- **Settings page** (`MainActivity`): version, dictionary status (entry/candidate counts), learned-frequency status, "clear learned data" action, "open system input-method settings" shortcut, local-only privacy note, and (since v0.01.0021) a "键盘布局" section to switch between 26-key and 9-key (takes effect next time the keyboard opens).
+- **9-key (T9) pinyin input** (`keyboardLayoutMode = T9_9`, toggled via the settings page, persisted by `KeyboardLayoutPreferences`):
+  - Replaces the 26-key letter section with a 3×4 digit grid (`t9_keyboard_section`): row 1 `1 符号` / `2 ABC` / `3 DEF` / `DEL`, row 2 `4 GHI` / `5 JKL` / `6 MNO` / `重输`, row 3 `7 PQRS` / `8 TUV` / `9 WXYZ` / `0`.
+  - Tapping `2`–`9` appends to a digit buffer (`composingDigits`); status bar shows `中文 <digits>`.
+  - `PinyinDictionary` builds a digit→pinyin reverse index (`digitToPinyinIndex`) once the dictionary loads, by converting every dictionary pinyin key to digits with the standard phone-keypad letter mapping. `resolveBestPinyinForDigits(digits)` picks a single default pinyin when a digit string is ambiguous (e.g. `64` matches both `ni` and `mi`): prefer a key with a manual ranking override, then the key with more candidate words, then alphabetical order.
+  - Candidates for the resolved pinyin reuse the exact same `CandidateRanker` ranking, `CandidatePager` paging, and `UserFrequencyStore` learning as 26-key input — selecting a candidate records the *resolved pinyin* (not the raw digits), so learning is shared between 26-key and 9-key input of the same word.
+  - `DEL` removes one digit at a time (long-press repeat-delete reuses the existing `action:delete` binding); `重输` clears the whole digit buffer in one tap; `0` is mapped to `action:space` (same as the bottom space bar); space/Enter with a non-empty digit buffer commit the current best candidate.
+  - Digit key `1` reuses `action:symbol` to open the existing `ZH` symbol/punctuation keyboard (shared with 26-key); the bottom-left toggle shows `9键` instead of `ABC` to return.
+  - The `ZH`/`EN` mode button is hidden while 9-key is active — **9-key currently only supports Chinese pinyin input**, not English. Switch back to 26-key (settings page) to type English.
+  - Not implemented yet (intentionally deferred, see "9-Key Pinyin Development Plan"): a pinyin-choice UI for ambiguous digit sequences (e.g. choosing `mi` instead of the default `ni` for `64`).
 
 ## Current Work Node
 
-The latest work node is **basic settings page and learned-data management** (v0.01.0020):
+The latest work node is **9-key (T9) pinyin prototype, stages 1–3 combined** (v0.01.0021), device-tested and confirmed passing:
+
+- Settings-page switch between 26-key and 9-key, persisted via `KeyboardLayoutPreferences`.
+- 9-key digit-grid keyboard UI (`t9_keyboard_section`), reusing the candidate bar, symbol/punctuation keyboard, and bottom action row.
+- Digit→pinyin reverse index in `PinyinDictionary`, with a deterministic tie-break for ambiguous digit sequences.
+- Candidates fully reuse `CandidateRanker`, `CandidatePager`, and `UserFrequencyStore` — no duplicated logic.
+- Two real bugs were found and fixed during device testing before shipping: a static-field-initialization-order crash (app crashed on every launch) and a dead tie-break comparator that picked an obscure word over a common one (`94664` resolved to "新密" instead of "中"). See `tests/v0.01.0021_2026-06-20_131827/REPORT.md` for details.
+- Not done yet: pinyin-choice UI for ambiguous digit sequences (stage 4 in the plan below), and any English input path for 9-key.
+
+Previous work node: **basic settings page and learned-data management** (v0.01.0020):
 
 - MainActivity is now a lightweight settings/status page instead of only showing app name and version.
 - It displays version, dictionary status, learned-frequency status, enablement guidance, and a local-only privacy note.
@@ -229,7 +251,7 @@ The latest work node is **basic settings page and learned-data management** (v0.
 - It can clear learned user-frequency data through `UserFrequencyStore.clear()`.
 - v0.01.0020 is device-tested and confirmed passing; see `tests/v0.01.0020_2026-06-20_114254/REPORT.md`.
 
-Previous work node: **Shift key UI polish and bottom-row layout rework** (v0.01.0019), device-tested and confirmed passing:
+Earlier work node: **Shift key UI polish and bottom-row layout rework** (v0.01.0019), device-tested and confirmed passing:
 
 - Shift changed from text (`shift`/`SHIFT`) to an icon (`⇧` idle, `▲` armed with highlighted background); letter key faces switch to uppercase while Shift is armed.
 - `ZH`/`EN` mode key moved from the third letter-keyboard row to the bottom row, alongside `123`/`ABC`, `space`, `enter`.
@@ -313,6 +335,7 @@ Latest on-device verification:
 - **v0.01.0013–v0.01.0018:** layout, ranking, Shift, Enter, conversion-script, and user-frequency hardening changes recorded in `CHANGELOG.md`; not individually device-tested at the time, but covered by the v0.01.0019 full regression below.
 - **v0.01.0019** (`tests/v0.01.0019_2026-06-20_105830/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), 1440×3120. Full regression pass — all cases passed: default `ZH` mode, pinyin composing/ranking/paging, space commit, Shift icon + one-shot uppercase, `DEL` long-press (letter and symbol keyboards), `123`/`ABC` symbol keyboards (`EN` ASCII, `ZH` numbers+punctuation), Chinese punctuation direct commit (verified actual committed codepoint is full-width U+FF0C, not half-width), and ZH/EN switching now working inside symbol mode (see Current Work Node above). Local `assembleDebug` also verified working with the project's own JDK 21 (`.gradle-user-home/jdks/`).
 - **v0.01.0020** (`tests/v0.01.0020_2026-06-20_114254/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), Android 12, 1440×3120. Passed: settings page launch/version display, dictionary status (`268353` pinyin keys / `349039` candidates), learned-frequency status, clear learned data (`2` groups / `2` selections → `0` / `0`, `user_frequency.tsv` removed), and Android system input-method settings jump.
+- **v0.01.0021** (`tests/v0.01.0021_2026-06-20_131827/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), 1440×3120. Passed: settings-page 26-key/9-key toggle, 9-key digit grid rendering, digit composing (`64`→`ni`, `94664`→`zhong`, `936`→`wen`), space commit, single-tap and long-press `DEL`, `重输` clear-all, symbol-keyboard round trip (`1`/符号 in, `9键` back). Not conclusively verified: literal-space insertion via the `0` key when the digit buffer is empty (tooling-limited, low risk since it reuses the unchanged 26-key space fallback). Two bugs found and fixed during this session before they could ship — see Current Work Node above.
 
 ## Known Limitations
 
@@ -330,12 +353,14 @@ Known limitations:
 - No tone support.
 - No cloud sync.
 - Only a simple local-only privacy note exists; there is no detailed privacy settings page.
+- 9-key mode has no pinyin-choice UI yet: ambiguous digit sequences (e.g. `64` for `ni`/`mi`) always resolve to one deterministic default; there is no way to pick the other one.
+- 9-key mode does not support English input at all; the `ZH`/`EN` switch is hidden while 9-key is active.
 
 ## Must-Do Next Features
 
 These are the recommended required features before calling the first prototype usable.
 
-Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyboards, Chinese punctuation, Shift/Enter refinement, candidate ranking, local user frequency, conversion script, user-frequency hardening, Shift-icon/bottom-row UI rework, and a basic settings page with learned-data clearing (v0.01.0008–v0.01.0020, device-verified through v0.01.0020). See `CHANGELOG.md`.
+Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyboards, Chinese punctuation, Shift/Enter refinement, candidate ranking, local user frequency, conversion script, user-frequency hardening, Shift-icon/bottom-row UI rework, a basic settings page with learned-data clearing, and the first 9-key (T9) prototype stage (v0.01.0008–v0.01.0021, device-verified through v0.01.0021). See `CHANGELOG.md`.
 
 1. ~~Chinese punctuation~~ (done v0.01.0012–v0.01.0016)
 
@@ -400,20 +425,22 @@ Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyb
     Current version format:
 
     ```text
-    v0.01.0020
+    v0.01.0021
     ```
 
     Suggested meaning:
 
     - major version: `0`
     - minor version: `01`
-    - debug version: `0020`
+    - debug version: `0021`
 
     Increment debug version for every testable change, and record each change in `CHANGELOG.md` (version, date, what changed, who made the change). After on-device testing, add a session under `tests/` per `tests/README.md`.
 
 ## 9-Key Pinyin Development Plan
 
 This section is a design handoff for future 9-key work. The current IME is 26-key first. Add 9-key incrementally and keep 26-key stable as the default until 9-key has passed device testing.
+
+**Status as of v0.01.0021: stages 1–3 below are done (combined into a single version instead of three separate ones — see `CHANGELOG.md` v0.01.0021 and `tests/v0.01.0021_2026-06-20_131827/REPORT.md`). 26-key remains the default; 9-key is opt-in via the settings page. Stage 4 (pinyin-choice UI) and stage 5 (ranking/learning polish specific to 9-key) are not started.**
 
 ### Core Principle
 
@@ -509,34 +536,34 @@ First prototype simplification:
 
 Use small testable versions:
 
-1. **v0.01.0021 — 26-key / 9-key mode switch + 9-key UI skeleton**
+1. ~~**26-key / 9-key mode switch + 9-key UI skeleton**~~ (done, folded into v0.01.0021)
 
-   - Add a visible or settings-page switch for `26键 / 9键`.
+   - Settings-page switch for `26键 / 9键` via `KeyboardLayoutPreferences` (persisted, takes effect next keyboard open).
    - Default remains 26-key.
-   - Implement 9-key layout UI.
-   - Do not implement full Chinese 9-key parsing yet.
-   - Verify mode switching does not break existing 26-key input.
+   - 9-key layout UI implemented as `t9_keyboard_section`.
+   - Mode switching verified not to break existing 26-key input (regression-tested alongside the new feature, not as a separate version).
 
-2. **v0.01.0022 — 9-key digit composing buffer**
+2. ~~**9-key digit composing buffer**~~ (done, folded into v0.01.0021)
 
-   - Tapping 2–9 records digits.
-   - Status/composing area shows something like `中文 64`.
-   - DEL deletes one digit from `composingDigits`.
-   - Space/Enter behavior should be safe and predictable while digit buffer exists.
+   - Tapping 2–9 records digits into `composingDigits`.
+   - Status/composing area shows `中文 <digits>` (e.g. `中文 64`).
+   - `DEL` deletes one digit; `重输` clears the whole buffer in one tap (this key was not in the original plan but was added because clearing one digit at a time for a long buffer is tedious).
+   - Space/Enter with a non-empty digit buffer commit the current best candidate (same as 26-key's space-commits-first-candidate behavior).
 
-3. **v0.01.0023 — digit sequence to pinyin index**
+3. ~~**digit sequence to pinyin index**~~ (done, folded into v0.01.0021)
 
-   - Build `digitToPinyinIndex` from dictionary pinyin keys.
-   - For a digit sequence, resolve one default pinyin.
-   - Show Chinese candidates from that resolved pinyin.
-   - No pinyin-choice UI yet.
+   - `digitToPinyinIndex` built in `PinyinDictionary` from dictionary pinyin keys, rebuilt whenever the dictionary (re)loads.
+   - For an ambiguous digit sequence, the tie-break order is: manual ranking override present > more candidate words > alphabetical. (Originally planned as "shortest pinyin key first," but every pinyin key mapping to the same digit string is necessarily the same length already — one digit per letter — so that tie-break was dead code and has been replaced.)
+   - Chinese candidates for the resolved pinyin reuse `PinyinDictionary.getCandidates` (and therefore `CandidateRanker`) unchanged.
+   - No pinyin-choice UI yet (as planned).
 
-4. **v0.01.0024 — pinyin-choice support**
+4. **v0.01.0022 (next) — pinyin-choice support**
 
    - For ambiguous digit sequences such as `64`, allow choosing between pinyin keys like `ni` / `mi`.
    - After choosing pinyin, show / refresh Chinese candidates.
+   - `PinyinDictionary` does not yet expose the full ordered list of matches for a digit string (only the resolved "best" one via `resolveBestPinyinForDigits`) — this will need a new method, e.g. `getPinyinKeysForDigits(digits)`, before a choice UI can be built.
 
-5. **v0.01.0025 — ranking and learning polish for 9-key**
+5. **v0.01.0023 — ranking and learning polish for 9-key**
 
    - Reuse local frequency to improve pinyin and candidate order.
    - Ensure repeated 9-key selections can move candidates forward.
@@ -548,16 +575,16 @@ For each 9-key stage, test both 26-key and 9-key because the biggest risk is bre
 
 Minimum tests:
 
-- App opens and current version is updated.
-- 26-key still works: `ni` -> `你`, candidate paging, DEL, symbols.
-- Switch to 9-key and back to 26-key.
-- 9-key UI has stable key sizes and no overlapping text.
-- 9-key digit composing: `6` `4` shows expected digit buffer.
-- DEL removes one digit while composing.
-- Long-press DEL still stops when released.
-- `123` / `ABC` and `ZH` / `EN` behavior remain coherent.
-- When digit-to-pinyin index exists, `64` should produce `ni` candidates (`你` first unless user learning changes it).
-- User-frequency learning should still survive restart.
+- App opens and current version is updated. ✅ verified v0.01.0021
+- 26-key still works: `ni` -> `你`, candidate paging, DEL, symbols. (Not explicitly re-run in the v0.01.0021 session since no 26-key code paths changed; should be included in the next full regression pass.)
+- Switch to 9-key and back to 26-key. ✅ verified v0.01.0021 (settings page)
+- 9-key UI has stable key sizes and no overlapping text. ✅ verified v0.01.0021 (screenshots)
+- 9-key digit composing: `6` `4` shows expected digit buffer. ✅ verified v0.01.0021
+- DEL removes one digit while composing. ✅ verified v0.01.0021
+- Long-press DEL still stops when released. ✅ verified v0.01.0021
+- `123` / `ABC` and `ZH` / `EN` behavior remain coherent. ✅ verified v0.01.0021 — `ZH`/`EN` is hidden in 9-key mode (by design); the `123` toggle correctly shows `9键` instead of `ABC` when returning from the symbol keyboard.
+- When digit-to-pinyin index exists, `64` should produce `ni` candidates (`你` first unless user learning changes it). ✅ verified v0.01.0021, after fixing the dead-tie-break bug described in Current Work Node.
+- User-frequency learning should still survive restart. Not explicitly re-tested for 9-key in this session, but the code path records the *resolved pinyin* through the same `UserFrequencyStore` already verified to survive restart for 26-key (v0.01.0018 testing).
 
 ### When To Add Fuzzy Pinyin
 
@@ -616,21 +643,19 @@ Explicitly not planned for early versions:
 
 Recommended next task:
 
-If continuing general polish: improve empty-buffer space behavior, then review dictionary loading performance and candidate quality.
-
-If starting 9-key development: implement **v0.01.0021 — 26-key / 9-key mode switch + 9-key UI skeleton** from the 9-key plan above. Keep 26-key as the default and do not implement full 9-key Chinese parsing in the first step.
+Continue the 9-key plan with **stage 4 — pinyin-choice support** (see "9-Key Pinyin Development Plan" above), or switch to general polish (empty-buffer space behavior, dictionary loading performance, candidate quality) if 9-key should pause here for a while as an experimental opt-in feature.
 
 Reason:
 
-- Shift, Enter refinement, candidate ranking, local frequency learning, conversion scripting, user-frequency hardening, and the Shift/bottom-row UI rework are implemented and device-verified (v0.01.0017–v0.01.0019; see `tests/v0.01.0019_2026-06-20_105830/REPORT.md` for the full regression pass).
-- A basic settings page with dictionary status and learned-data clearing is implemented and device-verified in v0.01.0020.
-- Remaining high-value Must-Do items: space behavior polish, dictionary loading performance check (still not measured on device), dictionary quality review, 9-key staged implementation, and richer user dictionary management later.
+- Shift, Enter refinement, candidate ranking, local frequency learning, conversion scripting, user-frequency hardening, the Shift/bottom-row UI rework, the basic settings page, and the first 9-key stage (mode switch + digit buffer + digit→pinyin index) are all implemented and device-verified (v0.01.0017–v0.01.0021).
+- 9-key's biggest remaining gap is that ambiguous digit sequences silently pick one default pinyin with no way to choose the other (e.g. `64` always resolves to `ni`, never `mi`) — this is the next most visible limitation a real user would hit.
+- Remaining high-value Must-Do items outside 9-key: space behavior polish, dictionary loading performance check (still not measured on device), dictionary quality review, richer user dictionary management later.
 
-Verification focus carried over from v0.01.0019 (already passing, re-check after future changes touch these areas):
+Verification focus carried over from v0.01.0021 (already passing, re-check after future changes touch these areas):
 
-- v0.01.0020 settings page opens, shows dictionary and learned-data status, clears learned data, and opens system input-method settings; already verified, re-check after future settings-page changes.
-- `EN` + `shift` → next letter uppercase → auto reset; works the same after the bottom-row layout change.
-- `ZH`/`EN` switch now works inside the symbol keyboard, not just on the letter keyboard.
+- Settings-page 26-key/9-key toggle persists and takes effect on next keyboard open.
+- 9-key digit buffer, `DEL`, `重输`, space-commit, and digit→pinyin resolution (including the ambiguous-digit tie-break) all work; re-verify after any change to `PinyinDictionary`'s digit index or `CandidateRanker`'s manual overrides, since the tie-break depends on both.
+- `ZH`/`EN` switch works inside the symbol keyboard for 26-key, but is intentionally hidden for 9-key.
 - Repeatedly pick a less common `ni` candidate and confirm it rises in later lookups; confirm it survives keyboard/app restart.
 - Rebuild dictionary with `python scripts/convert_jieba_dict.py` if jieba source changes.
 
@@ -666,7 +691,12 @@ After any IME change, test on a real Android phone:
 26. Test punctuation while composing: type `ni`, tap `，` or `。`, confirm pinyin buffer clears and punctuation appears.
 27. Test candidate learning: pick a non-default candidate for `ni` several times; confirm it moves forward in later lookups.
 28. Test `DEL` on the symbol keyboard (short tap and long-press repeat-delete).
-29. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
+29. Test the settings-page 26键/9键 toggle: switch to 9 键, reopen the keyboard in a text field, confirm the digit grid appears instead of letters; switch back and confirm 26-key returns.
+30. Test 9-key digit composing: tap `6` `4`, confirm status shows `中文 64` and candidates resolve to `ni` (你 first); tap `9` `4` `6` `6` `4`, confirm it resolves to `zhong` (中 first), not an obscure word.
+31. Test 9-key `DEL` (single tap removes one digit) and `重输` (clears the whole buffer in one tap).
+32. Test 9-key symbol-keyboard round trip: tap digit `1`/符号 to open the `ZH` symbol keyboard, confirm the bottom-left button reads `9键` (not `ABC`), tap it to return to the digit grid.
+33. Confirm `ZH`/`EN` mode button is hidden while 9-key is active.
+34. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
 
 Useful test inputs:
 
@@ -701,9 +731,12 @@ This project is intentionally being built one small step at a time:
 12. harden local frequency storage and rebalance ranking weights (done, see `CHANGELOG.md` v0.01.0018)
 13. Shift icon + bottom-row layout rework, device-tested with full regression pass (done, see `CHANGELOG.md` v0.01.0019 and `tests/v0.01.0019_2026-06-20_105830/REPORT.md`)
 14. add basic settings page and learned-data clear action (done, see `CHANGELOG.md` v0.01.0020)
+15. add 9-key (T9) pinyin prototype stages 1–3: settings-page mode switch, digit-grid UI, digit→pinyin index reusing the existing ranking/paging/learning pipeline (done, see `CHANGELOG.md` v0.01.0021 and `tests/v0.01.0021_2026-06-20_131827/REPORT.md`); stage 4 (pinyin-choice UI for ambiguous digit sequences) is the next 9-key step
 
 Avoid adding networking, cloud, AI prediction, skins, handwriting, or voice input until the local IME is stable.
 
 Always record what you changed in `CHANGELOG.md` (version, date, what changed, who/which AI made the change) and update this handoff document so the next engineer or AI has an accurate picture. After on-device testing, file a report under `tests/`.
 
-The highest-value next work is either space-behavior polish / dictionary quality review, or the first 9-key stage: 26-key / 9-key mode switch plus 9-key UI skeleton.
+A reminder from this round of work: when building anything that buckets values by a derived key (like the digit→pinyin index bucketing by digit string), double-check whether a planned tie-break is actually reachable — a tie-break on pinyin length looked reasonable on paper but was dead code, because every key in the same digit bucket is the same length by construction. Real-device testing caught it; a code read-through alone would not have.
+
+The highest-value next work is 9-key stage 4 (pinyin-choice UI), or space-behavior polish / dictionary quality review if 9-key should pause as an experimental feature for now.

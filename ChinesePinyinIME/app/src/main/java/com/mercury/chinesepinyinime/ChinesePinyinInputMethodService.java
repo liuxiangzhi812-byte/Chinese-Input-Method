@@ -23,10 +23,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private static final String SHIFT_LABEL_OFF = "⇧";
     private static final String SHIFT_LABEL_ON = "▲";
 
+    private enum KeyboardLayoutMode { QWERTY_26, T9_9 }
+
     private final StringBuilder composingPinyin = new StringBuilder();
+    private final StringBuilder composingDigits = new StringBuilder();
     private final Handler deleteRepeatHandler = new Handler(Looper.getMainLooper());
     private final PinyinDictionary pinyinDictionary = PinyinDictionary.getInstance();
     private final CandidatePager candidatePager = new CandidatePager();
+    private KeyboardLayoutMode keyboardLayoutMode = KeyboardLayoutMode.QWERTY_26;
     private boolean chineseMode = true;
     private boolean symbolMode = false;
     private boolean shiftOneShot = false;
@@ -44,6 +48,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private Button shiftButton;
     private Button symbolToggleButton;
     private LinearLayout letterKeyboardSection;
+    private LinearLayout t9KeyboardSection;
     private LinearLayout symbolKeyboardSection;
     private LinearLayout symbolKeyboardEnSection;
     private LinearLayout symbolKeyboardZhSection;
@@ -63,16 +68,39 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         shiftButton = keyboardView.findViewById(R.id.key_shift);
         symbolToggleButton = keyboardView.findViewById(R.id.key_symbol_toggle);
         letterKeyboardSection = keyboardView.findViewById(R.id.letter_keyboard_section);
+        t9KeyboardSection = keyboardView.findViewById(R.id.t9_keyboard_section);
         symbolKeyboardSection = keyboardView.findViewById(R.id.symbol_keyboard_section);
         symbolKeyboardEnSection = keyboardView.findViewById(R.id.symbol_keyboard_en_section);
         symbolKeyboardZhSection = keyboardView.findViewById(R.id.symbol_keyboard_zh_section);
         bindKeyboardButtons(keyboardView);
         bindCandidatePageButtons();
         bindCandidateListContainerWidthListener(keyboardView);
+        refreshKeyboardLayoutModeFromPreferences();
         updateKeyboardLayout();
         updateKeyboardStatus();
         pinyinDictionary.loadAsync(getApplicationContext(), this::handleDictionaryLoaded);
         return keyboardView;
+    }
+
+    @Override
+    public void onStartInputView(EditorInfo info, boolean restarting) {
+        super.onStartInputView(info, restarting);
+        refreshKeyboardLayoutModeFromPreferences();
+    }
+
+    private void refreshKeyboardLayoutModeFromPreferences() {
+        boolean wantsT9 = KeyboardLayoutPreferences.isT9Enabled(getApplicationContext());
+        KeyboardLayoutMode desiredMode = wantsT9 ? KeyboardLayoutMode.T9_9 : KeyboardLayoutMode.QWERTY_26;
+        if (desiredMode == keyboardLayoutMode) {
+            return;
+        }
+        keyboardLayoutMode = desiredMode;
+        symbolMode = false;
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
+            chineseMode = true;
+        }
+        clearComposingState();
+        updateKeyboardLayout();
     }
 
     @Override
@@ -87,14 +115,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     public void onStartInput(EditorInfo attribute, boolean restarting) {
         super.onStartInput(attribute, restarting);
         currentEditorInfo = attribute;
-        clearComposingPinyin();
+        clearComposingState();
     }
 
     @Override
     public void onFinishInput() {
         super.onFinishInput();
         stopDeleteRepeat();
-        clearComposingPinyin();
+        clearComposingState();
         UserFrequencyStore.getInstance().flush();
     }
 
@@ -191,6 +219,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
+        if (tag.startsWith("t9:")) {
+            handleT9DigitKey(tag.substring(3));
+            return;
+        }
+
         switch (tag) {
             case "action:space":
                 handleSpace(inputConnection);
@@ -210,31 +243,44 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             case "action:symbol":
                 toggleSymbolMode();
                 break;
+            case "action:retype":
+                clearComposingState();
+                break;
             default:
                 break;
         }
     }
 
+    private void handleT9DigitKey(String digit) {
+        composingDigits.append(digit);
+        candidatePageIndex = 0;
+        updateKeyboardStatus();
+    }
+
     private void handleSymbolKey(InputConnection inputConnection, String halfWidthSymbol) {
-        clearComposingPinyin();
+        clearComposingState();
         inputConnection.commitText(halfWidthSymbol, 1);
     }
 
     private void handlePunctuationKey(InputConnection inputConnection, String punctuation) {
-        clearComposingPinyin();
+        clearComposingState();
         inputConnection.commitText(punctuation, 1);
     }
 
     private void toggleSymbolMode() {
         symbolMode = !symbolMode;
         resetShiftOneShot();
-        clearComposingPinyin();
+        clearComposingState();
         updateKeyboardLayout();
     }
 
     private void updateKeyboardLayout() {
+        boolean isT9 = keyboardLayoutMode == KeyboardLayoutMode.T9_9;
         if (letterKeyboardSection != null) {
-            letterKeyboardSection.setVisibility(symbolMode ? View.GONE : View.VISIBLE);
+            letterKeyboardSection.setVisibility(!isT9 && !symbolMode ? View.VISIBLE : View.GONE);
+        }
+        if (t9KeyboardSection != null) {
+            t9KeyboardSection.setVisibility(isT9 && !symbolMode ? View.VISIBLE : View.GONE);
         }
         if (symbolKeyboardSection != null) {
             symbolKeyboardSection.setVisibility(symbolMode ? View.VISIBLE : View.GONE);
@@ -250,7 +296,10 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
                     : View.GONE);
         }
         if (symbolToggleButton != null) {
-            symbolToggleButton.setText(symbolMode ? "ABC" : "123");
+            symbolToggleButton.setText(symbolMode ? (isT9 ? "9键" : "ABC") : "123");
+        }
+        if (modeButton != null) {
+            modeButton.setVisibility(isT9 ? View.GONE : View.VISIBLE);
         }
         if (shiftButton != null) {
             shiftButton.setVisibility(chineseMode || symbolMode ? View.GONE : View.VISIBLE);
@@ -326,7 +375,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void handleSpace(InputConnection inputConnection) {
-        if (chineseMode && composingPinyin.length() > 0) {
+        if (isComposingActive()) {
             commitFirstCandidate(inputConnection);
             return;
         }
@@ -335,6 +384,13 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void handleDelete(InputConnection inputConnection) {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0) {
+            composingDigits.deleteCharAt(composingDigits.length() - 1);
+            candidatePageIndex = 0;
+            updateKeyboardStatus();
+            return;
+        }
+
         if (chineseMode && composingPinyin.length() > 0) {
             composingPinyin.deleteCharAt(composingPinyin.length() - 1);
             candidatePageIndex = 0;
@@ -346,6 +402,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void handleEnter(InputConnection inputConnection) {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0) {
+            commitFirstCandidate(inputConnection);
+            return;
+        }
+
         if (chineseMode && composingPinyin.length() > 0) {
             commitComposingPinyin(inputConnection);
             return;
@@ -388,7 +449,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void toggleInputMode() {
         chineseMode = !chineseMode;
         resetShiftOneShot();
-        clearComposingPinyin();
+        clearComposingState();
         updateKeyboardLayout();
     }
 
@@ -416,18 +477,31 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void commitCandidateInternal(InputConnection inputConnection, String candidate) {
-        String pinyin = composingPinyin.toString();
+        String pinyin = resolvePinyinForLearning();
         inputConnection.commitText(candidate, 1);
-        if (!pinyin.isEmpty()) {
+        if (pinyin != null && !pinyin.isEmpty()) {
             UserFrequencyStore.getInstance().recordSelection(pinyin, candidate);
         }
-        composingPinyin.setLength(0);
-        candidatePageIndex = 0;
-        updateKeyboardStatus();
+        clearComposingState();
     }
 
-    private void clearComposingPinyin() {
+    private String resolvePinyinForLearning() {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
+            return pinyinDictionary.resolveBestPinyinForDigits(composingDigits.toString());
+        }
+        return composingPinyin.toString();
+    }
+
+    private boolean isComposingActive() {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
+            return composingDigits.length() > 0;
+        }
+        return chineseMode && composingPinyin.length() > 0;
+    }
+
+    private void clearComposingState() {
         composingPinyin.setLength(0);
+        composingDigits.setLength(0);
         candidatePageIndex = 0;
         updateKeyboardStatus();
     }
@@ -448,7 +522,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private void updateKeyboardStatus() {
         if (keyboardStatus != null) {
-            if (chineseMode) {
+            if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
+                keyboardStatus.setText("中文 " + composingDigits);
+            } else if (chineseMode) {
                 String pinyin = composingPinyin.length() > 0 ? composingPinyin.toString() : "";
                 keyboardStatus.setText("中文 " + pinyin);
             } else {
@@ -468,7 +544,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
-        boolean showCandidates = chineseMode && composingPinyin.length() > 0;
+        boolean showCandidates = isComposingActive();
         candidateBar.setVisibility(showCandidates ? View.VISIBLE : View.GONE);
         if (!showCandidates) {
             candidateListContainer.removeAllViews();
@@ -476,7 +552,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
-        String[] allCandidates = getCandidatesForCurrentPinyin();
+        String[] allCandidates = getCandidatesForComposing();
         recomputeCandidatePages(allCandidates);
         candidatePageIndex = candidatePager.clampPageIndex(candidatePageIndex);
 
@@ -580,7 +656,10 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         candidateWidthAttachListener = null;
     }
 
-    private String[] getCandidatesForCurrentPinyin() {
+    private String[] getCandidatesForComposing() {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
+            return getCandidatesForCurrentDigits();
+        }
         String pinyin = composingPinyin.toString();
         String[] candidates = pinyinDictionary.getCandidates(pinyin);
         if (candidates == null) {
@@ -589,8 +668,18 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         return candidates;
     }
 
+    private String[] getCandidatesForCurrentDigits() {
+        String digits = composingDigits.toString();
+        String resolvedPinyin = pinyinDictionary.resolveBestPinyinForDigits(digits);
+        String[] candidates = resolvedPinyin == null ? null : pinyinDictionary.getCandidates(resolvedPinyin);
+        if (candidates == null) {
+            return new String[]{digits};
+        }
+        return candidates;
+    }
+
     private String[] getCandidatesForCurrentPage() {
-        String[] allCandidates = getCandidatesForCurrentPinyin();
+        String[] allCandidates = getCandidatesForComposing();
         recomputeCandidatePages(allCandidates);
         candidatePageIndex = candidatePager.clampPageIndex(candidatePageIndex);
         return candidatePager.getCandidatesForPage(allCandidates, candidatePageIndex);

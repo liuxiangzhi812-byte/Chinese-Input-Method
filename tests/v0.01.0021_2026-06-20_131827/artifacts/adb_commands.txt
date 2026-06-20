@@ -1,0 +1,21 @@
+# ADB commands used for v0.01.0021 test session (9-key T9 pinyin prototype)
+$ADB = $LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe
+
+adb devices -l
+adb install -r ChinesePinyinIME/app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n com.mercury.chinesepinyinime/.MainActivity
+adb shell uiautomator dump /sdcard/X.xml && adb pull /sdcard/X.xml <dest>   # used to read exact button bounds on the Activity (settings page views ARE visible to uiautomator, unlike IME keyboard buttons)
+adb shell am start -a android.intent.action.SENDTO -d sms:
+adb shell input tap <x> <y>
+adb shell input swipe <x> <y> <x> <y> <duration_ms>   # long-press simulation for DEL repeat-delete
+adb shell screencap -p /sdcard/X.png && adb pull /sdcard/X.png <dest>
+adb shell dumpsys window | grep -i "InputMethod"   # check mInputShown / IME window frame
+adb shell dumpsys input_method | grep -i mInputShown
+adb logcat -c ; adb logcat -d -b crash   # caught the static-initializer crash bug before it shipped
+adb shell am force-stop com.android.mms ; reopen sms: intent   # workaround when IME window failed to reattach after `adb install -r` replaced the running IME's APK
+
+T9 grid coordinate reference (OnePlus 7 Pro, 1440x3120, density 4, IME frame [0,2116]-[1440,3120], same row geometry as the 26-key letter section it replaces):
+- row1 y=2364: col0(198)='1'/symbol, col1(546)='2 ABC', col2(894)='3 DEF', col3(1242)=DEL
+- row2 y=2556: col0(198)='4 GHI', col1(546)='5 JKL', col2(894)='6 MNO', col3(1242)='重输'
+- row3 y=2748: col0(198)='7 PQRS', col1(546)='8 TUV', col2(894)='9 WXYZ', col3(1242)='0'(space)
+- bottom row y=2940: '123'/'9键' toggle(131), space(665), enter(1239) -- ZH/EN mode button hidden (GONE) in T9 mode

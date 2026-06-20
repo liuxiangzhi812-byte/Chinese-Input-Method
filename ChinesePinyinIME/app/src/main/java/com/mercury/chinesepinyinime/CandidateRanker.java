@@ -13,6 +13,15 @@ public final class CandidateRanker {
     private CandidateRanker() {
     }
 
+    /**
+     * Whether {@code pinyin} has a hand-curated ranking override. Used as a
+     * "well-known common syllable" signal when 9-key digit lookup must pick
+     * a default pinyin among several equally-plausible matches.
+     */
+    public static boolean hasManualOverride(String pinyin) {
+        return MANUAL_OVERRIDES.containsKey(pinyin);
+    }
+
     public static String[] rank(String pinyin, String[] candidates) {
         if (candidates == null || candidates.length <= 1) {
             return candidates;

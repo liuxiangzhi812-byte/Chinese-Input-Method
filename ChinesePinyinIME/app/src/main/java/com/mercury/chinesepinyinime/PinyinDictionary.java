@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 public class PinyinDictionary {
     private static final String DICTIONARY_ASSET_NAME = "pinyin_dict.txt";
     private static final int MAX_CANDIDATES_PER_PINYIN = 20;
+    private static final Map<Character, Character> LETTER_TO_DIGIT = createLetterToDigitMap();
     private static final PinyinDictionary INSTANCE = new PinyinDictionary();
 
     private final Object lock = new Object();
@@ -26,6 +27,7 @@ public class PinyinDictionary {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final List<Runnable> pendingCallbacks = new ArrayList<>();
     private volatile Map<String, String[]> candidateWords = createFallbackCandidateWords();
+    private volatile Map<String, List<String>> digitToPinyinIndex = buildDigitIndex(candidateWords);
     private boolean loadingStarted;
     private boolean loadFinished;
 
@@ -67,11 +69,29 @@ public class PinyinDictionary {
         return CandidateRanker.rank(pinyin, candidates);
     }
 
+    /**
+     * Resolves a 9-key digit sequence (e.g. "64") to the best matching dictionary
+     * pinyin key (e.g. "ni"), or null if no dictionary key maps to these digits.
+     * When a digit sequence is ambiguous, the shortest / alphabetically-first
+     * pinyin key wins; see {@link #buildDigitIndex}.
+     */
+    public String resolveBestPinyinForDigits(String digits) {
+        if (digits == null || digits.isEmpty()) {
+            return null;
+        }
+        List<String> matches = digitToPinyinIndex.get(digits);
+        if (matches == null || matches.isEmpty()) {
+            return null;
+        }
+        return matches.get(0);
+    }
+
     private void finishLoad(Map<String, String[]> loadedWords) {
         List<Runnable> callbacks;
         synchronized (lock) {
             if (!loadedWords.isEmpty()) {
                 candidateWords = loadedWords;
+                digitToPinyinIndex = buildDigitIndex(loadedWords);
             }
             loadFinished = true;
             loadingStarted = false;
@@ -238,5 +258,61 @@ public class PinyinDictionary {
         words.put("zou", new String[]{"走"});
         words.put("zuo", new String[]{"做", "坐", "作"});
         return Collections.unmodifiableMap(words);
+    }
+
+    private static Map<String, List<String>> buildDigitIndex(Map<String, String[]> words) {
+        Map<String, List<String>> index = new HashMap<>();
+        for (String pinyin : words.keySet()) {
+            String digits = toDigits(pinyin);
+            if (digits == null) {
+                continue;
+            }
+            index.computeIfAbsent(digits, key -> new ArrayList<>()).add(pinyin);
+        }
+        for (List<String> pinyinKeys : index.values()) {
+            // Every key in this bucket maps to the same digit string, so they are
+            // necessarily the same length already (one digit per letter) - length is
+            // not a useful tie-break here. Candidate count is a reasonable proxy for
+            // how common/productive a syllable is (e.g. "zhong" has 30+ candidates,
+            // "xinmi" has 2), so prefer that before falling back to alphabetical order.
+            Collections.sort(pinyinKeys, (left, right) -> {
+                boolean leftOverride = CandidateRanker.hasManualOverride(left);
+                boolean rightOverride = CandidateRanker.hasManualOverride(right);
+                if (leftOverride != rightOverride) {
+                    return leftOverride ? -1 : 1;
+                }
+                int leftCount = words.get(left).length;
+                int rightCount = words.get(right).length;
+                if (leftCount != rightCount) {
+                    return Integer.compare(rightCount, leftCount);
+                }
+                return left.compareTo(right);
+            });
+        }
+        return index;
+    }
+
+    private static String toDigits(String pinyin) {
+        StringBuilder digits = new StringBuilder(pinyin.length());
+        for (int i = 0; i < pinyin.length(); i++) {
+            Character digit = LETTER_TO_DIGIT.get(pinyin.charAt(i));
+            if (digit == null) {
+                return null;
+            }
+            digits.append(digit.charValue());
+        }
+        return digits.toString();
+    }
+
+    private static Map<Character, Character> createLetterToDigitMap() {
+        Map<Character, Character> map = new HashMap<>();
+        String[] groups = {"abc", "def", "ghi", "jkl", "mno", "pqrs", "tuv", "wxyz"};
+        for (int i = 0; i < groups.length; i++) {
+            char digit = (char) ('2' + i);
+            for (char letter : groups[i].toCharArray()) {
+                map.put(letter, digit);
+            }
+        }
+        return Collections.unmodifiableMap(map);
     }
 }

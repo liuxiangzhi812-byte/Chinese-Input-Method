@@ -29,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private TextView dictionaryStatus;
     private TextView learnedDataStatus;
+    private TextView keyboardLayoutStatus;
+    private Button keyboardLayoutToggleButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,12 +39,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         dictionaryStatus = findViewById(R.id.dictionary_status);
         learnedDataStatus = findViewById(R.id.learned_data_status);
+        keyboardLayoutStatus = findViewById(R.id.keyboard_layout_status);
+        keyboardLayoutToggleButton = findViewById(R.id.keyboard_layout_toggle_button);
         Button clearLearnedDataButton = findViewById(R.id.clear_learned_data_button);
         Button openInputSettingsButton = findViewById(R.id.open_input_settings_button);
 
         clearLearnedDataButton.setOnClickListener(view -> clearLearnedData());
         openInputSettingsButton.setOnClickListener(view ->
                 startActivity(new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)));
+        keyboardLayoutToggleButton.setOnClickListener(view -> toggleKeyboardLayoutPreference());
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -51,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
         });
         updateDictionaryStatus();
         updateLearnedDataStatus();
+        updateKeyboardLayoutStatus();
     }
 
     @Override
@@ -119,6 +125,22 @@ public class MainActivity extends AppCompatActivity {
         UserFrequencyStore.getInstance().clear(getApplicationContext());
         updateLearnedDataStatus();
         Toast.makeText(this, R.string.learned_data_cleared, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateKeyboardLayoutStatus() {
+        boolean isT9 = KeyboardLayoutPreferences.isT9Enabled(getApplicationContext());
+        keyboardLayoutStatus.setText(isT9
+                ? R.string.keyboard_layout_status_9
+                : R.string.keyboard_layout_status_26);
+        keyboardLayoutToggleButton.setText(isT9
+                ? R.string.switch_to_qwerty_layout
+                : R.string.switch_to_t9_layout);
+    }
+
+    private void toggleKeyboardLayoutPreference() {
+        boolean isCurrentlyT9 = KeyboardLayoutPreferences.isT9Enabled(getApplicationContext());
+        KeyboardLayoutPreferences.setT9Enabled(getApplicationContext(), !isCurrentlyT9);
+        updateKeyboardLayoutStatus();
     }
 
     private static final class DictionaryStats {

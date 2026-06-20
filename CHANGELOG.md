@@ -4,6 +4,50 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0021 — 2026-06-20
+
+执行者: Claude Code (Sonnet 4.6)
+
+### 新增
+
+- **9 键拼音输入原型 — 第一阶段**（对应 `PROJECT_HANDOFF.md` 9-Key Pinyin Development Plan 的阶段 1+2+3，一次性合并实现）：
+  - 新增 `KeyboardLayoutPreferences`：用 `SharedPreferences` 持久化 26 键/9 键布局选择，设置页和 IME 服务共用同一份配置。
+  - 设置页新增"键盘布局"区块：显示当前布局（26 键 / 9 键），提供一键切换按钮，切换后下次打开键盘时生效。
+  - IME 新增 `t9_keyboard_section` 键盘布局：3×4 数字格（`1 符号`、`2 ABC`…`9 WXYZ`、`DEL`、`重输`、`0`），复用既有的候选栏、候选分页、符号/标点键盘（通过数字键"1"进入）、底栏 `123`/`space`/`enter`。9 键模式下 `ZH`/`EN` 切换键隐藏（目前仅支持中文拼音）。
+  - `PinyinDictionary` 新增数字↔拼音反查索引（`digitToPinyinIndex`）：词典加载完成后，把每个拼音 key（如 `ni`、`zhong`）转换成对应数字串（如 `64`、`94664`）建立反查表；`resolveBestPinyinForDigits(digits)` 在多个拼音对应同一数字串时（如 `64` 同时对应 `ni`/`mi`），优先选有人工排序覆盖的 key，其次选候选词数量更多的 key，最后字母序兜底。
+  - `CandidateRanker` 新增 `hasManualOverride(pinyin)`，供上面的数字反查排序复用人工覆盖表作为"常见音节"信号。
+  - 9 键候选词完整复用现有管线：`CandidatePager` 分页、`CandidateRanker` 排序、`UserFrequencyStore` 本地学习——通过解析出的拼音记录学习数据，与 26 键输入同一个词共享学习记录。
+  - 数字组字、DEL（含长按连删）、空格/回车提交、`重输`一键清空，均在 `ChinesePinyinInputMethodService` 里新增 T9 专属分支，结构上和 26 键拼音 buffer 并列、互不干扰。
+  - 未实现（按计划推迟到阶段 4）：歧义数字串的拼音选择 UI（例如 `64` 暂时只能展示 `ni` 的候选，无法切换到 `mi`）。
+
+### 修复（真机测试中发现，发布前修复）
+
+- **崩溃 bug**：`PinyinDictionary` 类里 `LETTER_TO_DIGIT` 静态字段声明在 `INSTANCE` 单例字段**之后**，导致单例构造时反查 `LETTER_TO_DIGIT` 取到 `null`，抛出 `NullPointerException`，App 每次启动必崩溃。修复为把 `LETTER_TO_DIGIT` 声明移到 `INSTANCE` 之前。
+- **排序质量 bug**：数字反查索引排序时用了"长度优先"做次要排序键，但同一数字串下的拼音 key 必然等长（一字母一数字），这个判断永远不生效、等价于死代码，实际退化为纯字母序，导致 `94664`（"zhong"）被误判为生僻词"新密"（"xinmi"）而不是常用字"中"。修复为改用"候选词数量更多优先"。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/KeyboardLayoutPreferences.java`（新增）
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/PinyinDictionary.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidateRanker.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/MainActivity.java`
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/layout/activity_main.xml`
+- `ChinesePinyinIME/app/src/main/res/values/themes.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+- `PROJECT_HANDOFF.md`
+- `tests/README.md`
+- `tests/v0.01.0021_2026-06-20_131827/`（真机测试归档）
+
+### 验证
+
+- 本机 JDK 21（`.gradle-user-home/jdks/`）`--offline` 运行 `compileDebugJavaWithJavac` 与 `assembleDebug`，均编译/打包成功。
+- 真机（OnePlus 7 Pro，`7fbf2094`）安装验证，详见 `tests/v0.01.0021_2026-06-20_131827/REPORT.md`：设置页切换 26/9 键、9 键网格布局、数字组字、`64→ni`/`94664→zhong`/`936→wen` 数字转拼音解析、空格提交、DEL 单击与长按、`重输`一键清空、符号键盘往返均通过；空 buffer 下"0"键插入空格未能用 `uiautomator` 完全证实，标记为待人工复核。
+
+---
+
 ## v0.01.0020 — 2026-06-20
 
 执行者: Codex

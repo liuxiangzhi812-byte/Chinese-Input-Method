@@ -53,6 +53,26 @@
         <TextView
             style="@style/SettingsSectionTitle"
             android:layout_marginTop="28dp"
+            android:text="@string/settings_section_layout" />
+
+        <TextView
+            android:id="@+id/keyboard_layout_status"
+            style="@style/SettingsBodyText"
+            android:text="@string/keyboard_layout_status_26" />
+
+        <Button
+            android:id="@+id/keyboard_layout_toggle_button"
+            style="@style/SettingsSecondaryButton"
+            android:layout_marginTop="10dp"
+            android:text="@string/switch_to_t9_layout" />
+
+        <TextView
+            style="@style/SettingsBodyText"
+            android:text="@string/keyboard_layout_switch_hint" />
+
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
             android:text="@string/settings_section_actions" />
 
         <Button
