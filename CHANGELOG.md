@@ -4,6 +4,122 @@ All notable changes to ChinesePinyinIME are recorded here.
 
 Version format: `vMAJOR.MINOR.DEBUG` (e.g. `v0.01.0008`).
 
+## v0.01.0016 — 2026-06-20
+
+执行者: Grok (Cursor Agent)
+
+### 修改
+
+- `ZH` 符号键盘数字键改为输出半角（`1` `2` …），不再转换为全角（`１` `２` …）。
+- 符号键（`sym:`）统一按键面半角字符直接上屏；移除已不再使用的全角符号转换逻辑。
+- 更新启动页版本号为 `v0.01.0016`。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+
+---
+
+## v0.01.0015 — 2026-06-20
+
+执行者: Grok (Cursor Agent)
+
+### 修改
+
+- `ZH` + `123` 符号键盘顶部恢复 `1`–`0` 数字行；`ZH` 模式下仍输出全角数字（如 `１` `２`）。
+- `ZH` 符号页现为三行：数字 / 中文标点两行 + `DEL`；仍不显示英文符号行。
+- 更新启动页版本号为 `v0.01.0015`。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+
+---
+
+## v0.01.0014 — 2026-06-20
+
+执行者: Grok (Cursor Agent)
+
+### 修改
+
+- 符号键盘按语言模式完全分离，避免键位拥挤：
+  - `ZH` + `123`：仅显示两行中文标点（`， 。 ？ ！ ： ；` / `、 “ ” （ ）` + `DEL`），不再显示数字与英文符号。
+  - `EN` + `123`：保留完整三行半角数字、符号与英文标点。
+- 中文标点仍通过 `punc:` 直接上屏；组字时点击会先清空拼音缓冲。
+- 更新启动页版本号为 `v0.01.0014`。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+
+---
+
+## v0.01.0013 — 2026-06-20
+
+执行者: Grok (Cursor Agent)
+
+### 修改
+
+- 移除 `ZH` 字母键盘下方的中文标点行，恢复紧凑字母布局。
+- 改造 `123` 符号键盘：`ZH` 与 `EN` 共享数字与常用符号前两行；第三行按语言模式切换：
+  - `ZH`：显示 `， 。 ？ ！ ： ； 、 “ ” （ ）` 中文标点（`punc:` 标签，直接上屏，组字时先清空拼音缓冲）。
+  - `EN`：保留原有半角英文标点第三行。
+- 切换 `ZH`/`EN` 时若已在符号键盘，会同步刷新第三行布局。
+- 更新启动页版本号为 `v0.01.0013`。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+
+---
+
+## v0.01.0012 — 2026-06-20
+
+执行者: Grok (Cursor Agent)
+
+### 新增
+
+- 中文标点键盘行（仅 `ZH` 字母键盘下显示）：
+  - 第一行：`，` `。` `？` `！` `：` `；`
+  - 第二行：`、` `“` `”` `（` `）`
+  - 标点键使用 `punc:` 标签，点击后直接上屏，不经过拼音缓冲；若正在组字会先清空拼音缓冲。
+  - `EN` 模式与 `123` 符号键盘下不显示标点行（需先返回字母键盘）。
+- 新增 `PunctuationKey` 样式，略缩小标点键字号以便两行容纳 11 个常用中文标点。
+
+### 修改
+
+- 更新启动页版本号为 `v0.01.0012`。
+- `toggleInputMode()` 切换 `ZH`/`EN` 时同步刷新键盘布局，以显示/隐藏标点行。
+
+### 修改文件
+
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ChinesePinyinInputMethodService.java`
+- `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`
+- `ChinesePinyinIME/app/src/main/res/values/themes.xml`
+- `ChinesePinyinIME/app/src/main/res/values/strings.xml`
+- `CHANGELOG.md`
+
+### 验证
+
+- 使用项目 Gradle Wrapper + 工作区 JDK 21 运行 `assembleDebug`，编译/打包成功。
+- 真机（OnePlus 7 Pro，`7fbf2094`）：`adb install -r` 安装成功；启动页版本 `v0.01.0012` 正确。
+- 真机 ADB 半自动验证（详见 `tests/v0.01.0012_2026-06-20_093708/REPORT.md` 与 `screenshots/`）：
+  - **通过**：`ZH` 字母键盘显示两行中文标点；`，` `。` `？` `、` `（` 等直接上屏。
+  - **通过**：组字中（`ni`）点击 `。` 会先清空拼音缓冲并上屏句号，而非把标点当作拼音。
+  - **通过**：切至 `EN` 或 `123` 符号键盘后标点行隐藏（截图 `06_en_mode.png`、`07_symbol_mode.png`）。
+  - **待人工**：`ni` + 空格提交 `你` 后再输入 `。` 组成 `你。`（ADB 字母键坐标与 v0.01.0010 同类问题，未在本次脚本中稳定复现）。
+
+---
+
 ## v0.01.0011 — 2026-06-20
 
 执行者: Codex

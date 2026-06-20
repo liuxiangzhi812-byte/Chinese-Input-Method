@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0011`
+- Current display version: `v0.01.0016`
 
 The project is currently in early test stage. The goal is to build a simple, local-first Chinese Pinyin IME before considering advanced features.
 
@@ -158,8 +158,10 @@ Implemented:
 - Clicking a candidate commits it to the input field
 - Space commits the first candidate of the current page
 - App launch page shows project name and version number
-- Large pinyin dictionary is loaded from `assets/pinyin_dict.txt`
+- Large pinyin dictionary is loaded from `assets/pinyin_dict.txt` (loaded asynchronously via `PinyinDictionary`)
 - Fallback built-in small dictionary exists if asset loading fails
+- Chinese punctuation on the `ZH` symbol keyboard (`punc:` keys)
+- Language-specific symbol keyboards: `symbol_keyboard_zh_section` and `symbol_keyboard_en_section`
 
 Current behavior:
 
@@ -174,24 +176,34 @@ Current behavior:
 - Tapping any visible candidate commits that candidate.
 - If no dictionary match exists, the raw pinyin itself is used as a fallback candidate.
 - Holding the `DEL` key for more than ~500ms starts continuous deletion every ~80ms until released; a normal tap still deletes once.
-- `123` / `ABC` symbol and number keyboard toggle:
-  - Tapping `123` shows a 3-row symbol/number layout (0-9 and common ASCII symbols).
-  - Tapping `ABC` returns to the letter keyboard.
-  - Symbol keys commit directly (not through the pinyin buffer).
-  - In `ZH` mode, symbols and numbers are output as full-width characters (e.g. `１`, `＠`, `（`).
-  - In `EN` mode, symbols and numbers are output as half-width characters (e.g. `1`, `@`, `(`).
-  - Language mode (`ZH`/`EN`) is preserved when switching between letter and symbol keyboards.
+- `123` / `ABC` symbol keyboard toggle:
+  - Tapping `123` opens a language-specific symbol layout; tapping `ABC` returns to the letter keyboard.
   - Symbol mode intentionally does not include a direct `ZH`/`EN` switch; tap `ABC` first, then switch language mode on the letter keyboard.
+  - Language mode (`ZH`/`EN`) is preserved when switching between letter and symbol keyboards.
   - Both letter-keyboard and symbol-keyboard `DEL` keys support long-press repeat-delete (bound by `action:delete` tag).
+- **`ZH` + `123` symbol keyboard** (`symbol_keyboard_zh_section`, 3 rows):
+  - Row 1: `1`–`0` (half-width output, e.g. `1` `2`).
+  - Row 2: `，` `。` `？` `！` `：` `；` (Chinese punctuation, `punc:` tags).
+  - Row 3: `、` `“` `”` `（` `）` + `DEL`.
+  - No English symbol row (`@#$%…`); layout stays compact.
+  - Chinese punctuation commits directly (not through the pinyin buffer). If composing, the buffer is cleared first.
+  - Number/symbol keys (`sym:`) commit the half-width character shown on the key face.
+- **`EN` + `123` symbol keyboard** (`symbol_keyboard_en_section`, 3 rows):
+  - Row 1: `1`–`0`.
+  - Row 2: `@` `#` `$` `%` `&` `*` `-` `+` `=` `/`.
+  - Row 3: `( ) : ; ' " ? ! . ,` + `DEL`.
+  - All keys output half-width characters.
 
 ## Current Work Node
 
-The large local dictionary has been integrated into the Android app. The latest work node is **runtime and structure cleanup** after the v0.01.0010 symbol-keyboard milestone:
+The latest work node is **Chinese punctuation and symbol-keyboard refinement** (v0.01.0012–v0.01.0016):
 
-- Large dictionary loading was moved off the keyboard creation path.
-- Candidate paging was split into a small helper class.
-- Dictionary lookup/loading was split into a small helper class.
-- Candidate bar width listener cleanup was added for the keyboard view lifecycle.
+- v0.01.0011: async dictionary loading, `PinyinDictionary` / `CandidatePager` split, candidate-bar listener cleanup.
+- v0.01.0012: Chinese punctuation added (initially as two rows under the `ZH` letter keyboard); `PunctuationKey` style added.
+- v0.01.0013: punctuation moved from the letter keyboard into the `123` symbol keyboard third row (shared number/symbol rows with `EN`).
+- v0.01.0014: `ZH`/`EN` symbol keyboards fully separated (`ZH` punctuation-only, `EN` full ASCII layout).
+- v0.01.0015: `ZH` symbol keyboard restored top number row `1`–`0`.
+- v0.01.0016: `ZH` symbol numbers output half-width; removed unused full-width `sym:` conversion logic.
 
 The project is still in **early on-device testing**, polishing input behavior before calling the first prototype usable.
 
@@ -240,14 +252,11 @@ Summary from conversion report:
 - Total output candidates: `349039`
 - Longest candidate key: `yi`
 
-Latest on-device verification (v0.01.0010, see `tests/v0.01.0010_2026-06-20_001406/REPORT.md`):
+Latest on-device verification:
 
-- Device: OnePlus 7 Pro (`GM1910`, `7fbf2094`), 1440×3120
-- `assembleDebug` + `adb install -r`: success; launch page shows `v0.01.0010`
-- IME enabled and shown in SMS compose
-- **Passed:** pinyin `ni` + space candidate commit, candidate paging, DEL long-press, `123`/`ABC`, ZH full-width / EN half-width symbol output
-- **v0.01.0011 not yet on-device tested:** async dictionary loading and refactored classes need a fresh phone check after build/install.
-- Build note for v0.01.0011: Codex could run Gradle from the workspace cache with local JDK 21, but the current sandbox could not read the Android SDK directory under `C:\Users\76556\AppData\Local\Android\Sdk`, so full `assembleDebug` verification must be run from Android Studio or an unrestricted terminal.
+- **v0.01.0010** (`tests/v0.01.0010_2026-06-20_001406/REPORT.md`): OnePlus 7 Pro (`7fbf2094`), 1440×3120. Passed: `ni` + space commit, candidate paging, DEL long-press, `123`/`ABC`, symbol output.
+- **v0.01.0012** (`tests/v0.01.0012_2026-06-20_093708/REPORT.md`): punctuation direct commit and EN/symbol-mode layout checks passed; `ni` + space + `。` sentence test left for manual follow-up.
+- **v0.01.0013–v0.01.0016:** layout and output-behavior changes recorded in `CHANGELOG.md`; no dedicated new device session yet. Re-test `ZH` symbol keyboard (numbers half-width, Chinese punctuation rows) after install.
 
 ## Known Limitations
 
@@ -255,9 +264,7 @@ The current IME is usable for early testing, but still very basic.
 
 Known limitations:
 
-- There is no Chinese punctuation layout (`，。？！` etc.).
 - There is no shift / uppercase behavior.
-- There is no full stop, comma, question mark, or Chinese punctuation key.
 - Enter behavior is basic.
 - Dictionary loading still reads a text asset at runtime, but now does so asynchronously. Startup performance should still be tested on device.
 - No personalized frequency learning.
@@ -272,17 +279,11 @@ Known limitations:
 
 These are the recommended required features before calling the first prototype usable.
 
-Done so far: candidate paging (width-adaptive), default Chinese mode on open, DEL long-press repeat-delete, symbol/number mode (`123`/`ABC`). See `CHANGELOG.md` for details of each change.
+Done so far: candidate paging (width-adaptive), default Chinese mode on open, DEL long-press repeat-delete, symbol/number mode (`123`/`ABC`), Chinese punctuation on `ZH` symbol keyboard (v0.01.0012–v0.01.0016). See `CHANGELOG.md` for details of each change.
 
-1. Chinese punctuation
+1. ~~Chinese punctuation~~ (done in v0.01.0012–v0.01.0016; current layout: `ZH` `123` → numbers + two punctuation rows)
 
-   Add common punctuation:
-
-   ```text
-   ， 。 ？ ！ ： ； 、 “ ” （ ）
-   ```
-
-2. ~~Symbol / number mode~~ (done in v0.01.0010)
+2. ~~Symbol / number mode~~ (done in v0.01.0010; refined in v0.01.0013–v0.01.0016)
 
 3. Better space behavior
 
@@ -338,14 +339,14 @@ Done so far: candidate paging (width-adaptive), default Chinese mode on open, DE
     Current version format:
 
     ```text
-    v0.01.0011
+    v0.01.0016
     ```
 
     Suggested meaning:
 
     - major version: `0`
     - minor version: `01`
-    - debug version: `0011`
+    - debug version: `0016`
 
     Increment debug version for every testable change, and record each change in `CHANGELOG.md` (version, date, what changed, who made the change). After on-device testing, add a session under `tests/` per `tests/README.md`.
 
@@ -387,19 +388,19 @@ Explicitly not planned for early versions:
 
 Recommended next task:
 
-Implement Chinese punctuation.
+On-device regression pass for v0.01.0016, then polish space/punctuation behavior.
 
 Reason:
 
-- Candidate paging and symbol/number mode are now done (see `CHANGELOG.md` v0.01.0008–v0.01.0010).
-- Without Chinese punctuation, users cannot type normal Chinese sentences (commas, periods, question marks, quotes).
+- Chinese punctuation and symbol-keyboard separation are implemented (see `CHANGELOG.md` v0.01.0012–v0.01.0016).
+- v0.01.0013–v0.01.0016 changes have not yet been archived under `tests/`.
+- Async dictionary loading (v0.01.0011) should be re-checked on a real phone for first-open latency.
 
-Suggested behavior for punctuation:
+Suggested verification focus:
 
-- Add a punctuation row or a long-press popup on existing keys for common marks: `， 。 ？ ！ ： ； 、 “ ” （ ）`.
-- In `ZH` mode, punctuation should commit directly (it should not go through the pinyin composing buffer).
-
-After punctuation, revisit dictionary loading performance (see Must-Do item 5).
+- `ZH` + `123`: numbers output half-width; punctuation rows commit `， 。 ？ ！ ： ； 、 “ ” （ ）` directly.
+- `EN` + `123`: three-row ASCII layout unchanged.
+- Composing pinyin + punctuation key clears buffer before commit.
 
 ## Testing Checklist
 
@@ -422,10 +423,12 @@ After any IME change, test on a real Android phone:
 15. Test holding `DEL` for 1+ second to confirm continuous delete, and that it stops as soon as released.
 16. Test enter key.
 17. Confirm the keyboard opens in `ZH` (Chinese) mode by default on a fresh input session.
-18. Test `123` / `ABC`: tap `123` to open symbol/number keyboard; tap `ABC` to return to letters; language mode (`ZH`/`EN`) should stay the same.
-19. Test symbol output width: in `ZH` + symbol keyboard, `1` → `１`, `@` → `＠`; in `EN` + symbol keyboard, `1` → `1`, `@` → `@`.
-20. Test `DEL` on the symbol keyboard (short tap and long-press repeat-delete).
-21. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
+18. Test `123` / `ABC`: tap `123` to open symbol keyboard; tap `ABC` to return to letters; language mode (`ZH`/`EN`) should stay the same.
+19. Test `ZH` symbol keyboard: row 1 numbers output half-width (`1` not `１`); rows 2–3 Chinese punctuation commit directly; no `@#$%` English symbol row.
+20. Test `EN` symbol keyboard: three rows (numbers, symbols, punctuation) all half-width.
+21. Test punctuation while composing: type `ni`, tap `，` or `。`, confirm pinyin buffer clears and punctuation appears.
+22. Test `DEL` on the symbol keyboard (short tap and long-press repeat-delete).
+23. Archive results under `tests/v{version}_{date}_{time}/` with `REPORT.md` (see `tests/README.md`).
 
 Useful test inputs:
 
@@ -454,11 +457,11 @@ This project is intentionally being built one small step at a time:
 6. commit candidates
 7. use large local dictionary
 8. add width-adaptive candidate paging, default Chinese mode, and DEL long-press repeat-delete (done, see `CHANGELOG.md` v0.01.0008–v0.01.0009)
-9. add `123` symbol/number mode with ZH full-width / EN half-width output (done, see `CHANGELOG.md` v0.01.0010)
-10. add Chinese punctuation (still pending)
+9. add `123` symbol/number mode (done, see `CHANGELOG.md` v0.01.0010; refined v0.01.0013–v0.01.0016)
+10. add Chinese punctuation on `ZH` symbol keyboard (done, see `CHANGELOG.md` v0.01.0012–v0.01.0016)
 
 Avoid adding networking, cloud, AI prediction, skins, handwriting, or voice input until the local IME is stable.
 
 Always record what you changed in `CHANGELOG.md` (version, date, what changed, who/which AI made the change) and update this handoff document so the next engineer or AI has an accurate picture. After on-device testing, file a report under `tests/`.
 
-The highest-value next work is Chinese punctuation and dictionary loading performance (first-open latency on real hardware).
+The highest-value next work is a v0.01.0016 on-device regression pass and dictionary loading performance check (first-open latency on real hardware).
