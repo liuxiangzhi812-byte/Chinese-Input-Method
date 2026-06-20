@@ -411,6 +411,172 @@ Done so far: candidate paging, default Chinese mode, DEL long-press, symbol keyb
 
     Increment debug version for every testable change, and record each change in `CHANGELOG.md` (version, date, what changed, who made the change). After on-device testing, add a session under `tests/` per `tests/README.md`.
 
+## 9-Key Pinyin Development Plan
+
+This section is a design handoff for future 9-key work. The current IME is 26-key first. Add 9-key incrementally and keep 26-key stable as the default until 9-key has passed device testing.
+
+### Core Principle
+
+Do not build 9-key pinyin by brute-forcing all possible letter combinations from the digit sequence and then searching the dictionary. That grows too quickly for longer input.
+
+Preferred approach:
+
+1. Keep the existing pinyin dictionary as the source of truth.
+2. Convert each existing dictionary pinyin key into a digit key once.
+3. Build a reverse index:
+
+   ```text
+   digits -> pinyin keys
+   ```
+
+Examples:
+
+```text
+ni       -> 64
+mi       -> 64
+hao      -> 426
+zhong    -> 94664
+shurufa  -> 7487832
+```
+
+Then, when the user taps 9-key digits, look up the digit sequence directly in the index.
+
+### Suggested Key Mapping
+
+Use the standard mobile phone mapping:
+
+```text
+1: punctuation / symbols entry
+2: abc
+3: def
+4: ghi
+5: jkl
+6: mno
+7: pqrs
+8: tuv
+9: wxyz
+0: space
+```
+
+The display can show `2 ABC`, `3 DEF`, etc. Chinese pinyin lookup should treat letters case-insensitively and produce lowercase pinyin keys internally.
+
+### Data Model
+
+Keep 26-key and 9-key composition states separate enough that future logic stays clear.
+
+Recommended fields / concepts:
+
+- `keyboardLayoutMode`: `QWERTY_26` or `T9_9`
+- `composingPinyin`: existing 26-key pinyin buffer
+- `composingDigits`: 9-key digit buffer, e.g. `64`
+- `activeResolvedPinyin`: selected or default resolved pinyin for the current digit buffer, e.g. `ni`
+- `digitToPinyinIndex`: map from digit string to ordered pinyin keys
+
+For v0.01.x, it is acceptable to keep this in memory inside `PinyinDictionary` or a small helper class such as `PinyinDigitIndex`. Do not introduce SQLite/binary formats only for the first 9-key prototype unless performance measurements prove text-indexing is too slow.
+
+### Candidate Flow
+
+Long-term ideal:
+
+1. User taps digits, e.g. `6`, `4`.
+2. IME stores `composingDigits = "64"`.
+3. IME looks up `digitToPinyinIndex["64"]`, e.g. `["ni", "mi"]`.
+4. Candidate area can show:
+   - pinyin choices (`ni`, `mi`) or
+   - Chinese candidates for the default pinyin (`你`, `泥`, `尼`, ...)
+5. If user selects a Chinese candidate, commit through the existing candidate commit path.
+6. Record local frequency using the resolved pinyin and committed candidate, reusing `UserFrequencyStore`.
+
+First prototype simplification:
+
+- Do not add a separate pinyin-choice row yet.
+- Pick the first / best pinyin for the digit sequence.
+- Show Chinese candidates for that resolved pinyin.
+- Keep enough structure that a pinyin-choice row can be added later.
+
+### Reuse Existing Logic
+
+9-key should reuse the existing logic wherever possible:
+
+- Candidate display and paging: reuse `CandidatePager`.
+- Candidate ranking: reuse `CandidateRanker`.
+- Candidate commit: route through the same commit method used by 26-key candidates.
+- Local learning: reuse `UserFrequencyStore`.
+- Symbol keyboards: keep the current `ZH` / `EN` symbol behavior unless a 9-key-specific issue appears.
+- DEL behavior: short press deletes one digit while composing; long press should reuse repeat-delete behavior.
+
+### Suggested Version Stages
+
+Use small testable versions:
+
+1. **v0.01.0021 — 26-key / 9-key mode switch + 9-key UI skeleton**
+
+   - Add a visible or settings-page switch for `26键 / 9键`.
+   - Default remains 26-key.
+   - Implement 9-key layout UI.
+   - Do not implement full Chinese 9-key parsing yet.
+   - Verify mode switching does not break existing 26-key input.
+
+2. **v0.01.0022 — 9-key digit composing buffer**
+
+   - Tapping 2–9 records digits.
+   - Status/composing area shows something like `中文 64`.
+   - DEL deletes one digit from `composingDigits`.
+   - Space/Enter behavior should be safe and predictable while digit buffer exists.
+
+3. **v0.01.0023 — digit sequence to pinyin index**
+
+   - Build `digitToPinyinIndex` from dictionary pinyin keys.
+   - For a digit sequence, resolve one default pinyin.
+   - Show Chinese candidates from that resolved pinyin.
+   - No pinyin-choice UI yet.
+
+4. **v0.01.0024 — pinyin-choice support**
+
+   - For ambiguous digit sequences such as `64`, allow choosing between pinyin keys like `ni` / `mi`.
+   - After choosing pinyin, show / refresh Chinese candidates.
+
+5. **v0.01.0025 — ranking and learning polish for 9-key**
+
+   - Reuse local frequency to improve pinyin and candidate order.
+   - Ensure repeated 9-key selections can move candidates forward.
+   - Consider whether digit-to-pinyin ordering needs separate ranking from word candidate ranking.
+
+### Testing Focus For 9-Key
+
+For each 9-key stage, test both 26-key and 9-key because the biggest risk is breaking the stable 26-key path.
+
+Minimum tests:
+
+- App opens and current version is updated.
+- 26-key still works: `ni` -> `你`, candidate paging, DEL, symbols.
+- Switch to 9-key and back to 26-key.
+- 9-key UI has stable key sizes and no overlapping text.
+- 9-key digit composing: `6` `4` shows expected digit buffer.
+- DEL removes one digit while composing.
+- Long-press DEL still stops when released.
+- `123` / `ABC` and `ZH` / `EN` behavior remain coherent.
+- When digit-to-pinyin index exists, `64` should produce `ni` candidates (`你` first unless user learning changes it).
+- User-frequency learning should still survive restart.
+
+### When To Add Fuzzy Pinyin
+
+Fuzzy pinyin can be done before or after 9-key, but for this project it is better after the first working 9-key prototype.
+
+Reason:
+
+- 9-key already introduces ambiguity (`64` can map to multiple pinyin keys).
+- Fuzzy pinyin introduces another ambiguity layer (`zh/z`, `ch/c`, `sh/s`, `n/l`).
+- Doing both at once makes candidate ranking hard to debug.
+
+Recommended order:
+
+1. Basic 9-key UI and digit buffer.
+2. Digit-to-pinyin index.
+3. 9-key candidate commit.
+4. Pinyin-choice UI / ranking.
+5. Then fuzzy pinyin as a separate feature.
+
 ## Possible Future Features
 
 These are not required for the first lightweight version, but may be useful later.
@@ -419,6 +585,7 @@ These are not required for the first lightweight version, but may be useful late
 - Import / export user dictionary
 - Improve word frequency learning from local usage
 - Improve candidate ranking based on local usage
+- 9-key pinyin input, following the staged plan above
 - Fuzzy pinyin, such as `zh/z`, `ch/c`, `sh/s`, `n/l`
 - Full pinyin segmentation for long input
 - Sentence-level candidate generation
@@ -449,13 +616,15 @@ Explicitly not planned for early versions:
 
 Recommended next task:
 
-Polish empty-buffer space behavior, then review dictionary loading performance and candidate quality.
+If continuing general polish: improve empty-buffer space behavior, then review dictionary loading performance and candidate quality.
+
+If starting 9-key development: implement **v0.01.0021 — 26-key / 9-key mode switch + 9-key UI skeleton** from the 9-key plan above. Keep 26-key as the default and do not implement full 9-key Chinese parsing in the first step.
 
 Reason:
 
 - Shift, Enter refinement, candidate ranking, local frequency learning, conversion scripting, user-frequency hardening, and the Shift/bottom-row UI rework are implemented and device-verified (v0.01.0017–v0.01.0019; see `tests/v0.01.0019_2026-06-20_105830/REPORT.md` for the full regression pass).
 - A basic settings page with dictionary status and learned-data clearing is implemented and device-verified in v0.01.0020.
-- Remaining high-value Must-Do items: space behavior polish, dictionary loading performance check (still not measured on device), dictionary quality review, and richer user dictionary management later.
+- Remaining high-value Must-Do items: space behavior polish, dictionary loading performance check (still not measured on device), dictionary quality review, 9-key staged implementation, and richer user dictionary management later.
 
 Verification focus carried over from v0.01.0019 (already passing, re-check after future changes touch these areas):
 
@@ -537,4 +706,4 @@ Avoid adding networking, cloud, AI prediction, skins, handwriting, or voice inpu
 
 Always record what you changed in `CHANGELOG.md` (version, date, what changed, who/which AI made the change) and update this handoff document so the next engineer or AI has an accurate picture. After on-device testing, file a report under `tests/`.
 
-The highest-value next work is space-behavior polish, dictionary loading performance (still not measured as a dedicated timing test), and dictionary quality review.
+The highest-value next work is either space-behavior polish / dictionary quality review, or the first 9-key stage: 26-key / 9-key mode switch plus 9-key UI skeleton.
