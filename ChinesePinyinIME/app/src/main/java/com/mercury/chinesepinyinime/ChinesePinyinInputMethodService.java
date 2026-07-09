@@ -38,15 +38,19 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private boolean chineseMode = true;
     private boolean symbolMode = false;
     private boolean shiftOneShot = false;
+    private boolean candidatePanelExpanded = false;
     private int candidatePageIndex = 0;
     private String t9ActivePinyin;
     private EditorInfo currentEditorInfo;
     private int candidateListContainerWidthPx = 0;
+    private int candidateExpandedContainerWidthPx = 0;
     private boolean deleteRepeatStarted;
     private Runnable deleteRepeatRunnable;
     private LinearLayout candidateBar;
     private LinearLayout candidateListContainer;
+    private LinearLayout candidateExpandedList;
     private LinearLayout t9PinyinChoiceList;
+    private TextView candidateExpandToggle;
     private TextView candidatePagePrev;
     private TextView candidatePageNext;
     private TextView keyboardStatus;
@@ -58,6 +62,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private LinearLayout symbolKeyboardSection;
     private LinearLayout symbolKeyboardEnSection;
     private LinearLayout symbolKeyboardZhSection;
+    private View candidateExpandedPanel;
     private View keyboardRootView;
     private ViewTreeObserver.OnGlobalLayoutListener candidateWidthLayoutListener;
     private View.OnAttachStateChangeListener candidateWidthAttachListener;
@@ -67,7 +72,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         View keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
         candidateBar = keyboardView.findViewById(R.id.candidate_bar);
         candidateListContainer = keyboardView.findViewById(R.id.candidate_list_container);
+        candidateExpandedList = keyboardView.findViewById(R.id.candidate_expanded_list);
         t9PinyinChoiceList = keyboardView.findViewById(R.id.t9_pinyin_choice_list);
+        candidateExpandToggle = keyboardView.findViewById(R.id.candidate_expand_toggle);
         candidatePagePrev = keyboardView.findViewById(R.id.candidate_page_prev);
         candidatePageNext = keyboardView.findViewById(R.id.candidate_page_next);
         keyboardStatus = keyboardView.findViewById(R.id.keyboard_status);
@@ -79,6 +86,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         symbolKeyboardSection = keyboardView.findViewById(R.id.symbol_keyboard_section);
         symbolKeyboardEnSection = keyboardView.findViewById(R.id.symbol_keyboard_en_section);
         symbolKeyboardZhSection = keyboardView.findViewById(R.id.symbol_keyboard_zh_section);
+        candidateExpandedPanel = keyboardView.findViewById(R.id.candidate_expanded_panel);
         bindKeyboardButtons(keyboardView);
         bindCandidatePageButtons();
         bindCandidateListContainerWidthListener(keyboardView);
@@ -284,14 +292,23 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private void updateKeyboardLayout() {
         boolean isT9 = keyboardLayoutMode == KeyboardLayoutMode.T9_9;
+        boolean showExpandedCandidatePanel =
+                candidatePanelExpanded && isComposingActive() && !symbolMode;
         if (letterKeyboardSection != null) {
-            letterKeyboardSection.setVisibility(!isT9 && !symbolMode ? View.VISIBLE : View.GONE);
+            letterKeyboardSection.setVisibility(!isT9 && !symbolMode && !showExpandedCandidatePanel
+                    ? View.VISIBLE
+                    : View.GONE);
         }
         if (t9KeyboardSection != null) {
-            t9KeyboardSection.setVisibility(isT9 && !symbolMode ? View.VISIBLE : View.GONE);
+            t9KeyboardSection.setVisibility(isT9 && !symbolMode && !showExpandedCandidatePanel
+                    ? View.VISIBLE
+                    : View.GONE);
         }
         if (symbolKeyboardSection != null) {
             symbolKeyboardSection.setVisibility(symbolMode ? View.VISIBLE : View.GONE);
+        }
+        if (candidateExpandedPanel != null) {
+            candidateExpandedPanel.setVisibility(showExpandedCandidatePanel ? View.VISIBLE : View.GONE);
         }
         if (symbolKeyboardEnSection != null) {
             symbolKeyboardEnSection.setVisibility(symbolMode && !chineseMode
@@ -392,6 +409,10 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void handleDelete(InputConnection inputConnection) {
+        if (candidatePanelExpanded) {
+            candidatePanelExpanded = false;
+        }
+
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0) {
             composingDigits.deleteCharAt(composingDigits.length() - 1);
             t9ActivePinyin = null;
@@ -498,7 +519,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
             return getActiveResolvedPinyinForDigits();
         }
-        return composingPinyin.toString();
+        return getResolvedPinyinForCurrentInput();
     }
 
     /**
@@ -510,7 +531,21 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (t9ActivePinyin != null) {
             return t9ActivePinyin;
         }
-        return pinyinDictionary.resolveBestPinyinForDigits(composingDigits.toString());
+        String digits = composingDigits.toString();
+        String exactPinyin = pinyinDictionary.resolveBestPinyinForDigits(digits);
+        if (exactPinyin != null) {
+            return exactPinyin;
+        }
+        return pinyinDictionary.resolveBestPinyinForDigitPrefix(digits);
+    }
+
+    private String getResolvedPinyinForCurrentInput() {
+        String pinyinInput = composingPinyin.toString();
+        String[] exactCandidates = pinyinDictionary.getCandidates(pinyinInput);
+        if (exactCandidates != null) {
+            return pinyinInput;
+        }
+        return pinyinDictionary.resolveBestPinyinForPrefix(pinyinInput);
     }
 
     private void selectPinyinChoice(String pinyin) {
@@ -530,6 +565,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         composingPinyin.setLength(0);
         composingDigits.setLength(0);
         t9ActivePinyin = null;
+        candidatePanelExpanded = false;
         candidatePageIndex = 0;
         updateKeyboardStatus();
     }
@@ -564,6 +600,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             modeButton.setText(chineseMode ? "ZH" : "EN");
         }
 
+        if (!isComposingActive()) {
+            candidatePanelExpanded = false;
+        }
+
+        updateKeyboardLayout();
         updateT9PinyinChoiceList();
         updateCandidateBar();
     }
@@ -585,7 +626,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
-        List<String> matches = pinyinDictionary.getPinyinKeysForDigits(composingDigits.toString());
+        List<String> matches = getMatchingPinyinChoicesForDigits();
         if (matches.size() <= 1) {
             t9PinyinChoiceList.removeAllViews();
             return;
@@ -596,6 +637,15 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         for (String pinyin : matches) {
             t9PinyinChoiceList.addView(createPinyinChoiceListItem(pinyin, pinyin.equals(activePinyin)));
         }
+    }
+
+    private List<String> getMatchingPinyinChoicesForDigits() {
+        String digits = composingDigits.toString();
+        List<String> exactMatches = pinyinDictionary.getPinyinKeysForDigits(digits);
+        if (!exactMatches.isEmpty()) {
+            return exactMatches;
+        }
+        return pinyinDictionary.getPinyinKeysForDigitPrefix(digits);
     }
 
     private TextView createPinyinChoiceListItem(String pinyin, boolean active) {
@@ -629,8 +679,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         boolean showCandidates = isComposingActive();
         candidateBar.setVisibility(showCandidates ? View.VISIBLE : View.GONE);
         if (!showCandidates) {
+            candidatePanelExpanded = false;
             candidateListContainer.removeAllViews();
+            clearExpandedCandidatePanel();
             updateCandidatePageButtons(false, false);
+            updateCandidateExpandToggle();
             return;
         }
 
@@ -649,6 +702,8 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         updateCandidatePageButtons(
                 candidatePager.hasPreviousPage(candidatePageIndex),
                 candidatePager.hasNextPage(candidatePageIndex));
+        updateCandidateExpandToggle();
+        updateExpandedCandidatePanel(allCandidates);
     }
 
     private void recomputeCandidatePages(String[] allCandidates) {
@@ -660,6 +715,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private int measureCandidateViewWidth(String text) {
         TextView measuringView = createCandidateView(text);
+        measuringView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        LinearLayout.MarginLayoutParams params =
+                (LinearLayout.MarginLayoutParams) measuringView.getLayoutParams();
+        return measuringView.getMeasuredWidth() + params.leftMargin + params.rightMargin;
+    }
+
+    private int measureExpandedCandidateViewWidth(String text) {
+        TextView measuringView = createExpandedCandidateView(text);
         measuringView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         LinearLayout.MarginLayoutParams params =
                 (LinearLayout.MarginLayoutParams) measuringView.getLayoutParams();
@@ -678,6 +741,78 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         return candidateView;
     }
 
+    private TextView createExpandedCandidateView(String text) {
+        TextView candidateView = new TextView(this, null, 0, R.style.CandidatePanelText);
+        candidateView.setText(text);
+        int marginPx = (int) (3 * getResources().getDisplayMetrics().density);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(marginPx, marginPx, marginPx, marginPx);
+        candidateView.setLayoutParams(params);
+        candidateView.setOnClickListener(view -> commitCandidate(text));
+        return candidateView;
+    }
+
+    private void updateCandidateExpandToggle() {
+        if (candidateExpandToggle == null) {
+            return;
+        }
+        if (!isComposingActive()) {
+            candidateExpandToggle.setVisibility(View.INVISIBLE);
+            return;
+        }
+        candidateExpandToggle.setVisibility(View.VISIBLE);
+        candidateExpandToggle.setText(candidatePanelExpanded ? "▾" : "▴");
+    }
+
+    private void updateExpandedCandidatePanel(String[] allCandidates) {
+        if (candidateExpandedList == null) {
+            return;
+        }
+
+        if (!candidatePanelExpanded || symbolMode || !isComposingActive()) {
+            clearExpandedCandidatePanel();
+            return;
+        }
+
+        candidateExpandedList.removeAllViews();
+        int availableWidth = candidateExpandedContainerWidthPx > 0
+                ? candidateExpandedContainerWidthPx
+                : getResources().getDisplayMetrics().widthPixels;
+        LinearLayout currentRow = createExpandedCandidateRow();
+        int usedWidth = 0;
+
+        for (String candidate : allCandidates) {
+            int candidateWidth = measureExpandedCandidateViewWidth(candidate);
+            if (usedWidth + candidateWidth > availableWidth && currentRow.getChildCount() > 0) {
+                candidateExpandedList.addView(currentRow);
+                currentRow = createExpandedCandidateRow();
+                usedWidth = 0;
+            }
+            currentRow.addView(createExpandedCandidateView(candidate));
+            usedWidth += candidateWidth;
+        }
+
+        if (currentRow.getChildCount() > 0) {
+            candidateExpandedList.addView(currentRow);
+        }
+    }
+
+    private LinearLayout createExpandedCandidateRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        return row;
+    }
+
+    private void clearExpandedCandidatePanel() {
+        if (candidateExpandedList != null) {
+            candidateExpandedList.removeAllViews();
+        }
+    }
+
     private void updateCandidatePageButtons(boolean hasPrevPage, boolean hasNextPage) {
         if (candidatePagePrev != null) {
             candidatePagePrev.setVisibility(hasPrevPage ? View.VISIBLE : View.INVISIBLE);
@@ -694,6 +829,17 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (candidatePageNext != null) {
             candidatePageNext.setOnClickListener(view -> goToNextCandidatePage());
         }
+        if (candidateExpandToggle != null) {
+            candidateExpandToggle.setOnClickListener(view -> toggleCandidatePanel());
+        }
+    }
+
+    private void toggleCandidatePanel() {
+        if (!isComposingActive()) {
+            return;
+        }
+        candidatePanelExpanded = !candidatePanelExpanded;
+        updateKeyboardStatus();
     }
 
     private void bindCandidateListContainerWidthListener(View keyboardView) {
@@ -703,9 +849,18 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             if (candidateListContainer == null) {
                 return;
             }
+            boolean widthChanged = false;
             int newWidth = candidateListContainer.getWidth();
             if (newWidth > 0 && newWidth != candidateListContainerWidthPx) {
                 candidateListContainerWidthPx = newWidth;
+                widthChanged = true;
+            }
+            int expandedWidth = candidateExpandedPanel != null ? candidateExpandedPanel.getWidth() : 0;
+            if (expandedWidth > 0 && expandedWidth != candidateExpandedContainerWidthPx) {
+                candidateExpandedContainerWidthPx = expandedWidth;
+                widthChanged = true;
+            }
+            if (widthChanged) {
                 updateCandidateBar();
             }
         };
@@ -744,6 +899,10 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         }
         String pinyin = composingPinyin.toString();
         String[] candidates = pinyinDictionary.getCandidates(pinyin);
+        if (candidates != null) {
+            return candidates;
+        }
+        candidates = pinyinDictionary.getCandidatesForPinyinPrefix(pinyin);
         if (candidates == null) {
             return new String[]{pinyin};
         }
@@ -751,10 +910,17 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private String[] getCandidatesForCurrentDigits() {
+        String digits = composingDigits.toString();
         String resolvedPinyin = getActiveResolvedPinyinForDigits();
-        String[] candidates = resolvedPinyin == null ? null : pinyinDictionary.getCandidates(resolvedPinyin);
+        String[] exactMatches = pinyinDictionary.getPinyinKeysForDigits(digits).isEmpty()
+                ? null
+                : pinyinDictionary.getCandidates(resolvedPinyin);
+        String[] candidates = exactMatches;
+        if (candidates == null && resolvedPinyin != null) {
+            candidates = pinyinDictionary.getCandidatesForDigitPrefix(digits);
+        }
         if (candidates == null) {
-            return new String[]{composingDigits.toString()};
+            return new String[]{digits};
         }
         return candidates;
     }

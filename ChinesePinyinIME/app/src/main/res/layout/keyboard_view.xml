@@ -43,7 +43,31 @@
             android:id="@+id/candidate_page_next"
             style="@style/CandidatePageButton"
             android:text="›" />
+
+        <TextView
+            android:id="@+id/candidate_expand_toggle"
+            style="@style/CandidatePageButton"
+            android:text="▴" />
     </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/candidate_expanded_panel"
+        android:layout_width="match_parent"
+        android:layout_height="144dp"
+        android:background="#DDE5EF"
+        android:fillViewport="true"
+        android:paddingStart="4dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/candidate_expanded_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
 
     <LinearLayout
         android:id="@+id/letter_keyboard_section"

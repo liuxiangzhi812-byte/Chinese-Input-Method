@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0025` (latest tested local version)
+- Current display version: `v0.01.0027` (current local worktree version; manually verified by the user, not formally archived under `tests/`)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -54,32 +54,42 @@ High-level completed features:
 - Large local dictionary loads from `assets/pinyin_dict.txt`; fallback dictionary is available while loading.
 - Local candidate ranking and user-frequency learning exist.
 - Basic settings page exists: version, built-in IME test input box, dictionary status, learned-data status/clear action, input-method settings shortcut, 26-key/9-key layout toggle.
+- Expandable Chinese candidate panel is implemented locally: compact candidate row now has a far-right expand arrow that can replace the main keyboard area with a scrollable multi-row candidate panel.
 - 9-key/T9 prototype is implemented through pinyin-choice UI: digit grid, digit-to-pinyin index, ambiguous pinyin choice bar, shared ranking/paging/learning pipeline.
 
 Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0025 — in-app IME test input box**
+Latest functional node: **v0.01.0027 — prefix pinyin matching (26-key + 9-key)**
 
-Implementation (Codex; code present in worktree — at test time still uncommitted relative to `HEAD` `1c743fb`):
+Implementation (Codex; code present in worktree, not yet committed for this version):
 
-- Added a dedicated **multiline EditText test box** near the top of `MainActivity` so the app itself now contains a focusable input target as soon as it opens.
-- The field is intended to become the default manual-test entry point for future rounds: candidate commit, delete, paging, Enter, and 26-key/9-key layout checks can all start inside the app without first switching to Edge or Messages.
-- The field uses `flagNoExtractUi` and multiline text input so full-screen extract mode is less likely to interrupt testing on device.
-- `MainActivity` now requests focus for the test box on launch so the cursor is ready immediately after the app opens.
-- Existing settings functions (dictionary status, learned-data status, layout toggle, enable-IME shortcut) are unchanged.
+- Added 26-key prefix matching: if the current pinyin buffer is not an exact dictionary key, the IME now aggregates candidates from pinyin keys that start with that prefix.
+- Added 9-key digit-prefix matching: if the current digit buffer is not an exact digit-to-pinyin hit, the left-side pinyin list and candidate lookup now reuse keys whose digit strings start with the current prefix.
+- Exact full pinyin / exact full digit behavior stays unchanged; prefix matching only activates when there is no exact key for the current input.
+- Candidate learning for 26-key prefix commits now records under the resolved pinyin key instead of the raw prefix text.
+- Local `assembleDebug` passed after this prefix-matching round.
+- The user has manually tested `v0.01.0027` and confirmed it can be pushed, but no formal `tests/` archive was created.
 
-**Device test (Grok, 2026-07-09):** archived under `tests/v0.01.0025_2026-07-09_133826/REPORT.md`. **Pass** for built-in test field + in-app 26-key `ni→你` + 9-key `64/mi` + `94664→zhong` + layout toggle/symbol smoke. Candidate-row tap and DEL feel remain **low-priority manual follow-up only**; Edge full regression not run.
+Previous local node: **v0.01.0026 — expandable Chinese candidate panel**
 
-Deferred to v0.01.0026 (see P0 task below): the **expandable Chinese candidate panel**. It remains the next major IME feature after this testability improvement.
+- User manually tested the expandable candidate panel and reported it works, but no formal `tests/` archive was created for `v0.01.0026`.
+- Last archived report remains `tests/v0.01.0025_2026-07-09_133826/REPORT.md`.
 
-Previous functional node: **v0.01.0024 — 9-key vertical pinyin selection list**
+Next step:
 
-- Claude Code replaced the old horizontal `pinyin_choice_bar` with a fixed-width left-side vertical list in 9-key mode.
-- Grok archived a real-device report under `tests/v0.01.0024_2026-06-20_171120/REPORT.md`; core cases passed, with the long-list scroll case still marked not covered.
+1. Commit and push `v0.01.0027`.
+2. Start `v0.01.0028` planning/implementation for **9-key syllable-by-syllable composition + self-learning dictionary foundation**.
+3. After `v0.01.0028` code-complete, hand off separate manual/device testing.
 
-Next step: push `main` after committing v0.01.0025 source + this test archive together, then move on to the next IME feature.
+Planned follow-up after `v0.01.0027` acceptance:
+
+- The next feature is no longer just "optimize dictionary" in the abstract.
+- The concrete target is to let 9-key users type words that are **not already present as full-word dictionary entries**, by composing them syllable by syllable first, then learning the committed result into a user dictionary.
+- Example requirement:
+  - If the user wants `fenpan`, and the base lexicon has no full-word pronunciation entry for it, 9-key input must still let the user walk through `fen` + `pan`, assemble the word, and commit it.
+  - Only after that should the IME record this new mapping into self-learning storage for future recall.
 
 ## 5. Current Repository State Notes
 
@@ -88,14 +98,16 @@ At the time of this handoff update:
 - The failed v0.01.0023 dictionary-loading experiment is preserved on branch `codex-experiment-dict-load-v0.01.0023` and should not be merged into `main`.
 - `.idea/` is local IDE state and should not be committed.
 - v0.01.0024 (vertical pinyin chooser) already has an archived device-test report under `tests/`, but its commit and report have not been pushed to `origin/main`.
-- v0.01.0025 (in-app IME test input box) is implemented in the worktree and **device-tested** (`tests/v0.01.0025_2026-07-09_133826/`); source + test archive may still need a single commit before push. Not pushed.
+- v0.01.0025 (in-app IME test input box) is already on `origin/main` with its archived device-test report.
+- v0.01.0026 (expandable Chinese candidate panel) was manually verified by the user but has no archived device-test report.
+- v0.01.0027 (prefix pinyin matching) is implemented in the current worktree, manually verified by the user, and is ready to push even though no `tests/` archive exists for it.
 
 Recommended immediate repository action:
 
-1. Commit v0.01.0025 app/handoff/ChangeLog changes **and** `tests/v0.01.0025_2026-07-09_133826/` together.
-2. Push `main` to `origin/main` after that commit.
-3. Keep `ChinesePinyinIME/.idea/` uncommitted.
-4. Leave candidate-row tap / DEL-feel manual confirmation as a low-priority follow-up, not a push blocker for v0.01.0025.
+1. Commit and push the current v0.01.0027 app/handoff/ChangeLog changes.
+2. Keep `ChinesePinyinIME/.idea/` uncommitted.
+3. Leave v0.01.0025 candidate-row tap / DEL-feel manual confirmation as a low-priority follow-up unless a later test exposes a real regression.
+4. Treat `v0.01.0028` 9-key syllable-by-syllable composition as the highest-priority next feature; user-dictionary import/export can wait until that foundation exists.
 
 ## 6. Collaboration Workflow
 
@@ -168,10 +180,52 @@ Watch-outs:
 
 ## 8. Near-Term Development Plan
 
+### P0 — Expandable Chinese Candidate Panel
+
+Target version: `v0.01.0026`
+Status: **code-complete, not yet device-tested.** Implemented locally in the worktree; not committed or pushed for this version yet.
+Difficulty: Medium
+Depth: Medium
+Recommended implementation engineer: Codex or Claude Code
+Recommended tester: Grok
+
+Problem:
+
+- The Chinese candidate row can show only a limited number of words.
+- Paging arrows work but are not as fluid as opening a larger candidate panel.
+- User wants the main row to keep compact candidates, with a small arrow on the far right that opens a larger candidate menu covering roughly the keyboard area.
+
+Implementation brief:
+
+- Add a far-right expand arrow to the compact candidate row.
+- When tapped, show an expanded candidate panel that replaces the main keyboard section area.
+- The expanded panel should show more Chinese candidates than the compact row and allow scrolling if needed.
+- Tapping a candidate commits it through the existing candidate commit path and closes the panel.
+- Tapping the arrow again, pressing `DEL`, committing a candidate, clearing composition, or switching modes should close the panel.
+- Keep the compact candidate row usable when the panel is closed.
+- Avoid changing candidate ranking in this version.
+
+Testing brief for Grok:
+
+- In both 26-key and 9-key Chinese composing states, confirm the compact candidate row shows a far-right expand arrow.
+- Tap the arrow and confirm the expanded candidate panel appears in place of the main keyboard area while the compact candidate row remains visible.
+- Confirm the expanded panel shows more candidates than the compact row and can scroll when needed.
+- Tap a candidate from the expanded panel; confirm it commits and the panel closes.
+- Confirm `DEL`, `重输`, mode/symbol toggles, and composition clearing close the panel cleanly.
+- Recheck `64 -> ni/mi`, `94664 -> zhong`, and 26-key `ni -> 你` to make sure the panel did not disturb the existing candidate flow.
+- Archive screenshots and report under `tests/v0.01.0026_{date}_{time}/`.
+
+Acceptance:
+
+- User can access more than the compact candidate row without repeated page-arrow tapping.
+- Expanded candidate panel does not permanently cover the keyboard or leave stale state.
+- Candidate commit behavior and learning path remain unchanged.
+- 26-key and 9-key candidate flows still work.
+
 ### P0 — In-App IME Test Input Box
 
 Target version: `v0.01.0025`
-Status: **device-tested (pass).** Report: `tests/v0.01.0025_2026-07-09_133826/REPORT.md`. Source may still need commit with the test archive; not pushed.
+Status: **device-tested (pass).** Report: `tests/v0.01.0025_2026-07-09_133826/REPORT.md`. Already pushed.
 Difficulty: Low-Medium
 Depth: Small
 Recommended implementation engineer: Codex
@@ -266,52 +320,13 @@ Acceptance:
 - 26-key behavior is unchanged.
 - Claude committed locally but did not push; Grok tests before any push.
 
-### P0 — Expandable Chinese Candidate Panel
-
-Target version: `v0.01.0026` (**deferred first from v0.01.0024, then again after v0.01.0025 was used for the in-app test box**)
-Difficulty: Medium
-Depth: Medium
-Recommended implementation engineer: Claude Code
-Recommended tester: Grok
-
-Problem:
-
-- The Chinese candidate row can show only a limited number of words.
-- Paging arrows work but are not as fluid as opening a larger candidate panel.
-- User wants the main row to keep compact candidates, with a small arrow on the far right that opens a larger candidate menu covering roughly the 9-key keyboard area.
-
-Implementation brief:
-
-- Add a small expand arrow at the far right of the Chinese candidate row.
-- When tapped, show an expanded candidate panel that overlays or replaces the 9-key digit grid area.
-- The expanded panel should show more Chinese candidates than the compact row and allow scrolling if needed.
-- Tapping a candidate commits it through the existing candidate commit path and closes the panel.
-- Tapping the arrow again, pressing `DEL`, committing a candidate, clearing composition, or switching modes should close the panel.
-- Keep the compact candidate row usable when the panel is closed.
-- Avoid changing candidate ranking in this version.
-
-Testing brief for Grok:
-
-- Type a pinyin/digit sequence with many Chinese candidates, such as `yi`, `shi`, or T9 `94/94664` depending on available candidates.
-- Confirm the compact row shows candidates and a far-right expand arrow.
-- Tap the arrow; confirm the expanded candidate panel appears over the keyboard area and shows more candidates.
-- Tap a candidate from the expanded panel; confirm it commits and panel closes.
-- Confirm `DEL`, `重输`, mode/symbol toggles, and composition clearing close the panel cleanly.
-- Confirm 26-key still works; if the panel is shared across 26-key and 9-key, test both.
-
-Acceptance:
-
-- User can access more than the compact candidate row without repeated page-arrow tapping.
-- Expanded candidate panel does not permanently cover the keyboard or leave stale state.
-- Candidate commit behavior and learning path remain unchanged.
-- If this becomes too large while implementing, split it into the next version rather than rushing.
-
 ### P0 — Prefix Pinyin Matching
 
-Target version: `v0.01.0026` or later
+Target version: `v0.01.0027`
+Status: **code-complete, not yet device-tested.** Implemented locally in the worktree; not committed or pushed for this version yet.
 Difficulty: Medium-High
 Depth: Deep
-Recommended implementation engineer: Claude Code
+Recommended implementation engineer: Codex or Claude Code
 Recommended tester: Grok
 
 Problem:
@@ -354,6 +369,67 @@ Acceptance:
 - User can get useful candidates before typing complete pinyin.
 - Exact matches remain stronger than prefix matches.
 - 9-key vertical pinyin list and expanded candidate panel still work.
+
+### P0 — 9-Key Syllable-By-Syllable Composition And Self-Learning Foundation
+
+Target version: `v0.01.0028`
+Status: **planned, not started.** This becomes the highest-priority feature after `v0.01.0027` passes device testing and is pushed.
+Difficulty: High
+Depth: Deep
+Recommended implementation engineer: Codex or Claude Code
+Recommended tester: Grok
+
+Problem:
+
+- Current 9-key flow still depends too heavily on full-word dictionary hits.
+- If the base dictionary does not already contain a word/pronunciation entry, the user may have no way to reach that word from 9-key input.
+- This blocks the desired self-learning behavior, because the IME cannot learn a new word that the user was never able to type successfully in the first place.
+- Example:
+  - The user wants to type `fenpan`.
+  - In 9-key mode, the IME should not require the dictionary to already contain a full `fenpan` word entry before typing is possible.
+  - The user must first be able to select `fen` and `pan` step by step, assemble the target text, and commit it.
+  - Only then can the IME store that result into a self-learning dictionary for future direct recall.
+
+Implementation brief:
+
+- Split the design into two layers:
+  - base dictionary lookup for existing whole-word candidates;
+  - syllable-by-syllable composition path for words that are missing from the whole-word lexicon.
+- Add a 9-key composition path that can continue after a single pinyin syllable is selected, instead of forcing the whole digit buffer to resolve as one existing word-pronunciation key.
+- Introduce or derive a pinyin-syllable validity source so the IME can recognize legal syllables even when no full word currently matches.
+- Allow the user to build a phrase from multiple selected syllables in sequence, such as `fen` then `pan`.
+- Keep the interaction compatible with the current 9-key pinyin-choice UI as much as possible; avoid redesigning the whole keyboard in this version.
+- After a user commits a word/phrase that was assembled through this fallback path, store:
+  - committed Chinese text;
+  - resolved full pinyin sequence;
+  - enough frequency/order data so it can appear as a future learned candidate.
+- Reuse existing local-only storage patterns where practical, but do not block this version on a polished settings UI.
+- Do not bundle PC-side manual dictionary editing into the first implementation if that slows delivery; the foundation is:
+  - user can type missing words first;
+  - IME can learn them locally afterward.
+
+Suggested delivery split:
+
+1. Make 9-key missing-word composition possible.
+2. Persist successful manual compositions into a basic user dictionary.
+3. Only after the above is stable, add PC-side manual dictionary editing/import workflow.
+
+Testing brief:
+
+- In 9-key mode, verify a word that does **not** exist as a full-word base-dictionary entry can still be entered through multiple syllable selections.
+- Use the `fenpan`-style scenario as an explicit regression case.
+- Confirm the user can select the first syllable, continue typing/selecting the next syllable, and finally commit the combined result.
+- After the first successful commit, repeat the same input and confirm the learned result becomes easier to reach on the next attempt.
+- Confirm existing exact-hit words such as `94664 -> zhong` still behave normally.
+- Confirm prefix matching from `v0.01.0027` still works and does not conflict with the new 9-key composition state machine.
+- Confirm delete, `重输`, candidate expand panel, and mode switching all clear intermediate composition state correctly.
+
+Acceptance:
+
+- 9-key users can type target words even when the base dictionary lacks a direct full-word pronunciation entry.
+- The IME can learn those successfully committed words for future reuse.
+- Existing 9-key exact-hit and prefix-hit flows remain stable.
+- Manual PC-side dictionary editing is allowed to remain a later follow-up.
 
 ### P2 — Manual Interaction Confirmation Cleanup
 
@@ -417,6 +493,35 @@ Future direction when revisited:
 - Prioritize reducing or delaying `buildDigitIndex`.
 - Consider build-time pre-indexing rather than runtime full parsing.
 
+### P1 — Manual/User Dictionary Management
+
+Difficulty: Medium-High
+Depth: Deep
+Recommended implementation engineer: Codex or Claude Code
+Recommended tester: Grok
+
+Current decision:
+
+- This is important, but it should come **after** the `v0.01.0028` 9-key composition foundation.
+- The first goal is not a full editor UI; it is a reliable storage format and import path that does not fight the runtime learning behavior.
+- Lower priority than letting users type and learn missing words directly on-device.
+
+Planned scope when revisited:
+
+- Define a stable custom-dictionary file format for manually maintained entries.
+- Let the user update that file from a PC and have the app ingest it locally.
+- Decide merge rules between:
+  - built-in base dictionary;
+  - user self-learning dictionary;
+  - manually maintained custom dictionary.
+- Add conflict rules so manually curated entries are not accidentally drowned out by noisy learned data.
+
+Acceptance:
+
+- User can maintain a small hand-edited dictionary on PC without rebuilding the entire app workflow each time.
+- Manual entries and learned entries have predictable merge priority.
+- This feature does not block `v0.01.0028`.
+
 ### P1 — Automated Core Tests
 
 Difficulty: Medium
@@ -472,27 +577,30 @@ Minimum regression set:
 - After v0.01.0024: verify the left-side vertical pinyin list scrolls, highlights the active pinyin, and the digit grid's size never changes regardless of match count. (The candidate expand panel was deferred beyond this version and is currently planned for v0.01.0026.)
 - After v0.01.0025: confirm the new in-app test box covers the main smoke path, then optionally rerun a lighter Edge pass for cross-app behavior.
 - Low-priority manual follow-up only: candidate-row tap hitbox and `DEL` feel in the in-app test field, if automation remains noisy.
-- After v0.01.0026: verify the candidate expand panel opens/closes cleanly, and/or partial pinyin / digit-prefix matching before full spelling (whichever lands in that version).
+- After v0.01.0026: verify the candidate expand panel opens/closes cleanly and the compact candidate row still behaves normally.
+- After v0.01.0027: verify partial pinyin / digit-prefix matching before full spelling (when that version lands).
 - Performance-sensitive changes only: repeat cold-process dictionary load measurement.
 
 ## 10. Known Limitations
 
 - Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
-- No prefix pinyin matching yet; this is the next major usability feature after the 9-key UI work.
+- Prefix pinyin matching is implemented locally in `v0.01.0027` and was manually verified by the user, but no formal `tests/` archive exists yet.
+- 9-key still lacks the planned syllable-by-syllable missing-word composition path; this is the next major feature after `v0.01.0027`.
 - No fuzzy pinyin; intentionally deferred because the user can spell pinyin and wants exact/prefix behavior first.
 - No mistyped-pinyin correction.
 - No tone support.
-- No custom user dictionary UI.
-- No import/export for learned data.
+- No custom user dictionary UI yet.
+- No PC-side manual dictionary import/edit workflow yet.
+- Self-learning for words missing from the base lexicon still depends on the planned `v0.01.0028` 9-key composition foundation.
 - No detailed privacy page beyond the local-only note.
 - No cloud sync, networking, handwriting, speech input, or AI prediction planned for early versions.
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0025-2026-07-09.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0027-2026-07-09.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
-- Latest device report: `tests/v0.01.0025_2026-07-09_133826/REPORT.md`
+- Latest archived device report: `tests/v0.01.0025_2026-07-09_133826/REPORT.md`
 - Failed dictionary-loading experiment branch: `codex-experiment-dict-load-v0.01.0023`

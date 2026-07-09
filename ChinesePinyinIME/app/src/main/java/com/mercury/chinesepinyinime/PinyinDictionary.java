@@ -11,14 +11,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class PinyinDictionary {
     private static final String DICTIONARY_ASSET_NAME = "pinyin_dict.txt";
     private static final int MAX_CANDIDATES_PER_PINYIN = 20;
+    private static final int MAX_PREFIX_PYNYIN_KEYS = 24;
+    private static final int MAX_PREFIX_CANDIDATES = 40;
     private static final Map<Character, Character> LETTER_TO_DIGIT = createLetterToDigitMap();
     private static final PinyinDictionary INSTANCE = new PinyinDictionary();
 
@@ -28,6 +32,8 @@ public class PinyinDictionary {
     private final List<Runnable> pendingCallbacks = new ArrayList<>();
     private volatile Map<String, String[]> candidateWords = createFallbackCandidateWords();
     private volatile Map<String, List<String>> digitToPinyinIndex = buildDigitIndex(candidateWords);
+    private volatile Map<String, List<String>> pinyinPrefixIndex = buildPinyinPrefixIndex(candidateWords);
+    private volatile Map<String, List<String>> digitPrefixIndex = buildDigitPrefixIndex(candidateWords);
     private boolean loadingStarted;
     private boolean loadFinished;
 
@@ -69,6 +75,14 @@ public class PinyinDictionary {
         return CandidateRanker.rank(pinyin, candidates);
     }
 
+    public String[] getCandidatesForPinyinPrefix(String prefix) {
+        return mergeCandidatesForPinyinKeys(getPinyinKeysForPrefix(prefix));
+    }
+
+    public String[] getCandidatesForDigitPrefix(String digitsPrefix) {
+        return mergeCandidatesForPinyinKeys(getPinyinKeysForDigitPrefix(digitsPrefix));
+    }
+
     /**
      * Resolves a 9-key digit sequence (e.g. "64") to the best matching dictionary
      * pinyin key (e.g. "ni"), or null if no dictionary key maps to these digits.
@@ -96,12 +110,38 @@ public class PinyinDictionary {
         return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
     }
 
+    public String resolveBestPinyinForPrefix(String prefix) {
+        List<String> matches = getPinyinKeysForPrefix(prefix);
+        return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    public List<String> getPinyinKeysForPrefix(String prefix) {
+        if (prefix == null || prefix.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return getPrefixMatches(pinyinPrefixIndex, prefix);
+    }
+
+    public String resolveBestPinyinForDigitPrefix(String digitsPrefix) {
+        List<String> matches = getPinyinKeysForDigitPrefix(digitsPrefix);
+        return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    public List<String> getPinyinKeysForDigitPrefix(String digitsPrefix) {
+        if (digitsPrefix == null || digitsPrefix.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return getPrefixMatches(digitPrefixIndex, digitsPrefix);
+    }
+
     private void finishLoad(Map<String, String[]> loadedWords) {
         List<Runnable> callbacks;
         synchronized (lock) {
             if (!loadedWords.isEmpty()) {
                 candidateWords = loadedWords;
                 digitToPinyinIndex = buildDigitIndex(loadedWords);
+                pinyinPrefixIndex = buildPinyinPrefixIndex(loadedWords);
+                digitPrefixIndex = buildDigitPrefixIndex(loadedWords);
             }
             loadFinished = true;
             loadingStarted = false;
@@ -279,27 +319,91 @@ public class PinyinDictionary {
             }
             index.computeIfAbsent(digits, key -> new ArrayList<>()).add(pinyin);
         }
-        for (List<String> pinyinKeys : index.values()) {
-            // Every key in this bucket maps to the same digit string, so they are
-            // necessarily the same length already (one digit per letter) - length is
-            // not a useful tie-break here. Candidate count is a reasonable proxy for
-            // how common/productive a syllable is (e.g. "zhong" has 30+ candidates,
-            // "xinmi" has 2), so prefer that before falling back to alphabetical order.
-            Collections.sort(pinyinKeys, (left, right) -> {
-                boolean leftOverride = CandidateRanker.hasManualOverride(left);
-                boolean rightOverride = CandidateRanker.hasManualOverride(right);
-                if (leftOverride != rightOverride) {
-                    return leftOverride ? -1 : 1;
-                }
-                int leftCount = words.get(left).length;
-                int rightCount = words.get(right).length;
-                if (leftCount != rightCount) {
-                    return Integer.compare(rightCount, leftCount);
-                }
-                return left.compareTo(right);
-            });
-        }
+        sortPinyinKeyBuckets(index, words);
         return index;
+    }
+
+    private static Map<String, List<String>> buildPinyinPrefixIndex(Map<String, String[]> words) {
+        Map<String, List<String>> index = new HashMap<>();
+        for (String pinyin : words.keySet()) {
+            for (int prefixLength = 1; prefixLength < pinyin.length(); prefixLength++) {
+                String prefix = pinyin.substring(0, prefixLength);
+                index.computeIfAbsent(prefix, key -> new ArrayList<>()).add(pinyin);
+            }
+        }
+        sortPinyinKeyBuckets(index, words);
+        return index;
+    }
+
+    private static Map<String, List<String>> buildDigitPrefixIndex(Map<String, String[]> words) {
+        Map<String, List<String>> index = new HashMap<>();
+        for (String pinyin : words.keySet()) {
+            String digits = toDigits(pinyin);
+            if (digits == null) {
+                continue;
+            }
+            for (int prefixLength = 1; prefixLength < digits.length(); prefixLength++) {
+                String prefix = digits.substring(0, prefixLength);
+                index.computeIfAbsent(prefix, key -> new ArrayList<>()).add(pinyin);
+            }
+        }
+        sortPinyinKeyBuckets(index, words);
+        return index;
+    }
+
+    private static void sortPinyinKeyBuckets(Map<String, List<String>> index, Map<String, String[]> words) {
+        for (List<String> pinyinKeys : index.values()) {
+            Collections.sort(pinyinKeys, (left, right) -> comparePinyinKeys(left, right, words));
+        }
+    }
+
+    private static int comparePinyinKeys(String left, String right, Map<String, String[]> words) {
+        // Candidate count is a reasonable proxy for how common/productive a syllable is
+        // after the manual-override signal.
+        boolean leftOverride = CandidateRanker.hasManualOverride(left);
+        boolean rightOverride = CandidateRanker.hasManualOverride(right);
+        if (leftOverride != rightOverride) {
+            return leftOverride ? -1 : 1;
+        }
+        int leftCount = words.get(left).length;
+        int rightCount = words.get(right).length;
+        if (leftCount != rightCount) {
+            return Integer.compare(rightCount, leftCount);
+        }
+        return left.compareTo(right);
+    }
+
+    private List<String> getPrefixMatches(Map<String, List<String>> index, String prefix) {
+        List<String> matches = index.get(prefix);
+        if (matches == null || matches.isEmpty()) {
+            return Collections.emptyList();
+        }
+        int resultSize = Math.min(matches.size(), MAX_PREFIX_PYNYIN_KEYS);
+        return Collections.unmodifiableList(new ArrayList<>(matches.subList(0, resultSize)));
+    }
+
+    private String[] mergeCandidatesForPinyinKeys(List<String> pinyinKeys) {
+        if (pinyinKeys.isEmpty()) {
+            return null;
+        }
+
+        List<String> mergedCandidates = new ArrayList<>();
+        Set<String> seenCandidates = new LinkedHashSet<>();
+        for (String pinyin : pinyinKeys) {
+            String[] rankedCandidates = getCandidates(pinyin);
+            if (rankedCandidates == null) {
+                continue;
+            }
+            for (String candidate : rankedCandidates) {
+                if (seenCandidates.add(candidate)) {
+                    mergedCandidates.add(candidate);
+                    if (mergedCandidates.size() >= MAX_PREFIX_CANDIDATES) {
+                        return mergedCandidates.toArray(new String[0]);
+                    }
+                }
+            }
+        }
+        return mergedCandidates.isEmpty() ? null : mergedCandidates.toArray(new String[0]);
     }
 
     private static String toDigits(String pinyin) {
