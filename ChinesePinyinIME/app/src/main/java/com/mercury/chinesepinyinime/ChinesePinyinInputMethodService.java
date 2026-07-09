@@ -42,7 +42,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private boolean shiftOneShot = false;
     private boolean candidatePanelExpanded = false;
     private int candidatePageIndex = 0;
-    private String t9ActivePinyin;
     private EditorInfo currentEditorInfo;
     private int candidateListContainerWidthPx = 0;
     private int candidateExpandedContainerWidthPx = 0;
@@ -279,7 +278,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         } else {
             composingDigits.append(digit);
         }
-        t9ActivePinyin = null;
         candidatePageIndex = 0;
         updateKeyboardStatus();
     }
@@ -437,7 +435,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             if (composingDigits.length() > 0) {
                 composingDigits.deleteCharAt(composingDigits.length() - 1);
             }
-            t9ActivePinyin = null;
             candidatePageIndex = 0;
             updateKeyboardStatus();
             return;
@@ -445,7 +442,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0) {
             composingDigits.deleteCharAt(composingDigits.length() - 1);
-            t9ActivePinyin = null;
             candidatePageIndex = 0;
             updateKeyboardStatus();
             return;
@@ -453,7 +449,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && hasCommittedT9Segments()) {
             t9CommittedSegments.remove(t9CommittedSegments.size() - 1);
-            t9ActivePinyin = null;
             candidatePageIndex = 0;
             updateKeyboardStatus();
             return;
@@ -562,7 +557,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         }
 
         if (shouldAppendT9CandidateToComposition()) {
-            appendT9CandidateToComposition(candidate);
+            appendT9CandidateToComposition(inputConnection, candidate);
             return;
         }
 
@@ -590,18 +585,8 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (isT9SyllableSelectionActive()) {
             return t9SelectedSyllablePinyin;
         }
-        if (t9ActivePinyin != null && !isT9ManualCompositionMode()) {
-            return t9ActivePinyin;
-        }
         String digits = composingDigits.toString();
-        String exactPinyin = pinyinDictionary.resolveBestPinyinForDigits(digits);
-        if (exactPinyin != null) {
-            return exactPinyin;
-        }
-        if (hasCommittedT9Segments() || shouldUseLeadingSyllableFallback(digits)) {
-            return pinyinDictionary.resolveBestLeadingSingleSyllableForDigits(digits);
-        }
-        return pinyinDictionary.resolveBestPinyinForDigitPrefix(digits);
+        return pinyinDictionary.resolveBestLeadingSingleSyllableForDigits(digits);
     }
 
     private String getResolvedPinyinForCurrentInput() {
@@ -617,18 +602,12 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (choice == null) {
             return;
         }
-        if (choice.wholeBufferMatch && !isT9ManualCompositionMode()) {
-            t9ActivePinyin = choice.pinyin;
-            clearT9SyllableSelection();
-        } else {
-            String fullDigits = getVisibleDigitsForT9Choices();
-            t9SelectedSyllablePinyin = choice.pinyin;
-            t9SelectedSyllableDigitCount = Math.min(choice.consumedDigitsCount, fullDigits.length());
-            t9DeferredDigitsAfterSelection = fullDigits.substring(t9SelectedSyllableDigitCount);
-            composingDigits.setLength(0);
-            composingDigits.append(fullDigits, 0, t9SelectedSyllableDigitCount);
-            t9ActivePinyin = null;
-        }
+        String fullDigits = getVisibleDigitsForT9Choices();
+        t9SelectedSyllablePinyin = choice.pinyin;
+        t9SelectedSyllableDigitCount = Math.min(choice.consumedDigitsCount, fullDigits.length());
+        t9DeferredDigitsAfterSelection = fullDigits.substring(t9SelectedSyllableDigitCount);
+        composingDigits.setLength(0);
+        composingDigits.append(fullDigits, 0, t9SelectedSyllableDigitCount);
         candidatePageIndex = 0;
         updateKeyboardStatus();
     }
@@ -644,7 +623,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         composingPinyin.setLength(0);
         composingDigits.setLength(0);
         t9CommittedSegments.clear();
-        t9ActivePinyin = null;
         clearT9SyllableSelection();
         candidatePanelExpanded = false;
         candidatePageIndex = 0;
@@ -708,7 +686,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         }
 
         List<T9PinyinChoice> choices = getMatchingPinyinChoicesForDigits();
-        if (choices.size() <= 1) {
+        if (choices.isEmpty()) {
             t9PinyinChoiceList.removeAllViews();
             return;
         }
@@ -718,8 +696,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         for (T9PinyinChoice choice : choices) {
             boolean active = activeChoice != null
                     && choice.pinyin.equals(activeChoice.pinyin)
-                    && choice.consumedDigitsCount == activeChoice.consumedDigitsCount
-                    && choice.wholeBufferMatch == activeChoice.wholeBufferMatch;
+                    && choice.consumedDigitsCount == activeChoice.consumedDigitsCount;
             t9PinyinChoiceList.addView(createPinyinChoiceListItem(choice, active));
         }
     }
@@ -731,26 +708,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         }
 
         List<T9PinyinChoice> choices = new ArrayList<>();
-        if (isT9ManualCompositionMode()) {
-            addLeadingSyllableChoices(choices, digits);
-            return choices;
-        }
-
-        List<String> exactMatches = pinyinDictionary.getPinyinKeysForDigits(digits);
-        if (!exactMatches.isEmpty()) {
-            addChoicesForPinyinKeys(choices, exactMatches, digits.length(), true);
-            return choices;
-        }
-
         addLeadingSyllableChoices(choices, digits);
-        if (!choices.isEmpty()) {
-            return choices;
-        }
-
-        List<String> prefixMatches = pinyinDictionary.getPinyinKeysForDigitPrefix(digits);
-        if (!prefixMatches.isEmpty()) {
-            addChoicesForPinyinKeys(choices, prefixMatches, digits.length(), true);
-        }
         return choices;
     }
 
@@ -1025,21 +983,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return new String[]{digits};
         }
 
-        if (shouldAppendT9CandidateToComposition()) {
-            String[] syllableCandidates = pinyinDictionary.getCandidates(resolvedPinyin);
-            if (syllableCandidates == null) {
-                return new String[]{digits};
-            }
-            return syllableCandidates;
-        }
-
-        String[] exactMatches = pinyinDictionary.getPinyinKeysForDigits(digits).isEmpty()
-                ? null
-                : pinyinDictionary.getCandidates(resolvedPinyin);
-        String[] candidates = exactMatches;
-        if (candidates == null && resolvedPinyin != null) {
-            candidates = pinyinDictionary.getCandidatesForDigitPrefix(digits);
-        }
+        String[] candidates = pinyinDictionary.getCandidates(resolvedPinyin);
         if (candidates == null) {
             return new String[]{digits};
         }
@@ -1066,29 +1010,13 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         return status.toString();
     }
 
-    private boolean shouldUseLeadingSyllableFallback(String digits) {
-        if (digits == null || digits.isEmpty()) {
-            return false;
-        }
-        if (!pinyinDictionary.getPinyinKeysForDigits(digits).isEmpty()) {
-            return false;
-        }
-        return !pinyinDictionary.getLeadingSingleSyllablePinyinKeys(digits).isEmpty();
-    }
-
     private boolean shouldAppendT9CandidateToComposition() {
-        if (keyboardLayoutMode != KeyboardLayoutMode.T9_9 || composingDigits.length() == 0) {
-            return false;
-        }
-        if (isT9SyllableSelectionActive() || hasCommittedT9Segments()) {
-            return true;
-        }
-        return shouldUseLeadingSyllableFallback(composingDigits.toString());
+        return keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0;
     }
 
-    private void appendT9CandidateToComposition(String candidate) {
+    private void appendT9CandidateToComposition(InputConnection inputConnection, String candidate) {
         T9PinyinChoice activeChoice = getActiveT9PinyinChoice();
-        if (activeChoice == null || candidate == null || candidate.isEmpty()) {
+        if (inputConnection == null || activeChoice == null || candidate == null || candidate.isEmpty()) {
             return;
         }
 
@@ -1097,8 +1025,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         clearT9SyllableSelection();
         composingDigits.setLength(0);
         composingDigits.append(remainingDigits);
-        t9ActivePinyin = null;
         candidatePageIndex = 0;
+        if (remainingDigits.isEmpty()) {
+            commitT9ComposedText(inputConnection);
+            return;
+        }
         updateKeyboardStatus();
     }
 
@@ -1135,10 +1066,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         return !t9CommittedSegments.isEmpty();
     }
 
-    private boolean isT9ManualCompositionMode() {
-        return hasCommittedT9Segments() || isT9SyllableSelectionActive();
-    }
-
     private boolean isT9SyllableSelectionActive() {
         return t9SelectedSyllablePinyin != null && t9SelectedSyllableDigitCount > 0;
     }
@@ -1170,22 +1097,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         if (isT9SyllableSelectionActive()) {
             return new T9PinyinChoice(
                     t9SelectedSyllablePinyin,
-                    t9SelectedSyllableDigitCount,
-                    false);
+                    t9SelectedSyllableDigitCount);
         }
 
         List<T9PinyinChoice> choices = getMatchingPinyinChoicesForDigits();
         return choices.isEmpty() ? null : choices.get(0);
-    }
-
-    private void addChoicesForPinyinKeys(
-            List<T9PinyinChoice> target,
-            List<String> pinyinKeys,
-            int consumedDigitsCount,
-            boolean wholeBufferMatch) {
-        for (String pinyin : pinyinKeys) {
-            target.add(new T9PinyinChoice(pinyin, consumedDigitsCount, wholeBufferMatch));
-        }
     }
 
     private void addLeadingSyllableChoices(List<T9PinyinChoice> target, String digits) {
@@ -1196,8 +1112,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             }
             target.add(new T9PinyinChoice(
                     pinyin,
-                    Math.min(pinyinDigits.length(), digits.length()),
-                    false));
+                    Math.min(pinyinDigits.length(), digits.length())));
         }
     }
 
@@ -1230,12 +1145,10 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private static final class T9PinyinChoice {
         private final String pinyin;
         private final int consumedDigitsCount;
-        private final boolean wholeBufferMatch;
 
-        private T9PinyinChoice(String pinyin, int consumedDigitsCount, boolean wholeBufferMatch) {
+        private T9PinyinChoice(String pinyin, int consumedDigitsCount) {
             this.pinyin = pinyin;
             this.consumedDigitsCount = consumedDigitsCount;
-            this.wholeBufferMatch = wholeBufferMatch;
         }
     }
 }

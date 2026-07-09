@@ -66,9 +66,9 @@ Latest functional node: **v0.01.0028 — 9-key syllable-by-syllable composition 
 
 Implementation (Codex; code present in worktree, not yet committed or device-tested for this version):
 
-- Added a 9-key syllable-by-syllable fallback path for cases where the full digit buffer has no direct whole-word dictionary hit.
-- In that fallback path, the IME can consume the current digit buffer one syllable at a time, append selected Chinese candidates into an internal phrase buffer, and let the user continue with the remaining digits.
-- After the assembled phrase is committed, the IME now writes the combined `pinyin -> candidate` mapping into a local custom-word dictionary so the same word can be recalled directly next time.
+- Changed 9-key composition to always advance syllable by syllable: regardless of whether the full digit buffer already has a whole-word hit, the left-side pinyin list now stays on the current syllable and then advances to the remaining digits after that syllable is chosen.
+- In that syllable-by-syllable path, the IME consumes the current digit buffer one syllable at a time, appends selected Chinese candidates into an internal phrase buffer, and then continues with the remaining digits.
+- After the assembled phrase is committed, the IME now writes the combined `pinyin -> candidate` mapping into a local custom-word dictionary as a foundation for later recall/ranking.
 - The settings page learned-data area now covers both learned frequency data and learned custom words; clearing learned data clears both stores.
 - Local `assembleDebug` passed after this `v0.01.0028` round.
 
@@ -85,16 +85,17 @@ Previous local node: **v0.01.0026 — expandable Chinese candidate panel**
 Next step:
 
 1. Hand off `v0.01.0028` for manual/device testing.
-2. If the assembled-phrase flow behaves well on device, archive a report under `tests/`.
+2. Verify that 9-key now stays in syllable-by-syllable mode even when the full digit string already has a whole-word hit.
 3. Push `v0.01.0028` only after that test pass is recorded.
 
 Planned follow-up after `v0.01.0027` acceptance:
 
 - The next feature is no longer just "optimize dictionary" in the abstract.
-- The concrete target is to let 9-key users type words that are **not already present as full-word dictionary entries**, by composing them syllable by syllable first, then learning the committed result into a user dictionary.
+- The concrete target is to let 9-key users always advance by syllable, instead of letting full-word dictionary hits bypass the syllable-selection flow.
 - Example requirement:
-  - If the user wants `fenpan`, and the base lexicon has no full-word pronunciation entry for it, 9-key input must still let the user walk through `fen` + `pan`, assemble the word, and commit it.
-  - Only after that should the IME record this new mapping into self-learning storage for future recall.
+  - If the user wants `fenpan`, 9-key input should let the user walk through `fen` + `pan`, assemble the word, and commit it.
+  - Even if the digit string already has some whole-word hit elsewhere in the dictionary, the left-side pinyin flow should still stay on the current single syllable first.
+  - After commit, the IME should record the new mapping into self-learning storage.
 
 ## 5. Current Repository State Notes
 
@@ -110,7 +111,7 @@ At the time of this handoff update:
 
 Recommended immediate repository action:
 
-1. Manual/device-test `v0.01.0028`, focusing on missing-word composition cases such as `fenpan`.
+1. Manual/device-test `v0.01.0028`, focusing on the always-syllable 9-key flow, especially `fenpan`-style cases.
 2. If pass, archive a `tests/v0.01.0028_{date}_{time}/` report and then commit/push source + test record together.
 3. Keep `ChinesePinyinIME/.idea/` uncommitted.
 4. Leave PC-side manual dictionary import/export as a later follow-up after this on-device learning path is confirmed stable.
@@ -387,28 +388,28 @@ Recommended tester: Grok
 
 Problem:
 
-- Current 9-key flow still depends too heavily on full-word dictionary hits.
-- If the base dictionary does not already contain a word/pronunciation entry, the user may have no way to reach that word from 9-key input.
+- Current 9-key flow should not let whole-word dictionary hits bypass syllable-by-syllable input.
+- The user wants to decide the current syllable first, then continue to the remaining syllables, even when the full digit string already has some whole-word match in the dictionary.
 - This blocks the desired self-learning behavior, because the IME cannot learn a new word that the user was never able to type successfully in the first place.
 - Example:
   - The user wants to type `fenpan`.
-  - In 9-key mode, the IME should not require the dictionary to already contain a full `fenpan` word entry before typing is possible.
-  - The user must first be able to select `fen` and `pan` step by step, assemble the target text, and commit it.
+  - In 9-key mode, the IME should first present single-syllable pinyin choices for the current front segment of the digit string.
+  - After the user chooses `fen`, the pinyin choices should immediately switch to the single-syllable choices for the remaining digits, such as `pan`.
+  - This should remain true even if the full digit string already has some whole-word hit elsewhere in the dictionary.
+  - The user must be able to select `fen` and `pan` step by step, assemble the target text, and commit it.
   - Only then can the IME store that result into a self-learning dictionary for future direct recall.
 
 Implementation brief:
 
-- Split the design into two layers:
-  - base dictionary lookup for existing whole-word candidates;
-  - syllable-by-syllable composition path for words that are missing from the whole-word lexicon.
-- Add a 9-key composition path that can continue after a single pinyin syllable is selected, instead of forcing the whole digit buffer to resolve as one existing word-pronunciation key.
-- Introduce or derive a pinyin-syllable validity source so the IME can recognize legal syllables even when no full word currently matches.
+- Make the 9-key pinyin-choice column always operate at the current single-syllable level, instead of switching to whole-word pinyin matches for the full digit buffer.
+- After one syllable is chosen, advance the pinyin-choice column to the remaining digits and keep showing single-syllable choices there.
+- Introduce or derive a pinyin-syllable validity source so the IME can recognize legal syllables even when the final whole word is not already in the dictionary.
 - Allow the user to build a phrase from multiple selected syllables in sequence, such as `fen` then `pan`.
 - Keep the interaction compatible with the current 9-key pinyin-choice UI as much as possible; avoid redesigning the whole keyboard in this version.
-- After a user commits a word/phrase that was assembled through this fallback path, store:
+- After a user commits a word/phrase that was assembled through this syllable-by-syllable path, store:
   - committed Chinese text;
   - resolved full pinyin sequence;
-  - enough frequency/order data so it can appear as a future learned candidate.
+  - enough local data to support future learned recall/ranking.
 - Reuse existing local-only storage patterns where practical, but do not block this version on a polished settings UI.
 - Do not bundle PC-side manual dictionary editing into the first implementation if that slows delivery; the foundation is:
   - user can type missing words first;
@@ -422,19 +423,20 @@ Suggested delivery split:
 
 Testing brief:
 
-- In 9-key mode, verify a word that does **not** exist as a full-word base-dictionary entry can still be entered through multiple syllable selections.
+- In 9-key mode, verify the left-side pinyin list stays on the current single syllable even when the full digit string already has a whole-word dictionary hit.
 - Use the `fenpan`-style scenario as an explicit regression case.
 - Confirm the user can select the first syllable, continue typing/selecting the next syllable, and finally commit the combined result.
-- After the first successful commit, repeat the same input and confirm the learned result becomes easier to reach on the next attempt.
+- After the first successful commit, confirm the assembled phrase is written into local learned data without breaking the always-syllable flow.
 - Confirm existing exact-hit words such as `94664 -> zhong` still behave normally.
 - Confirm prefix matching from `v0.01.0027` still works and does not conflict with the new 9-key composition state machine.
 - Confirm delete, `重输`, candidate expand panel, and mode switching all clear intermediate composition state correctly.
 
 Acceptance:
 
+- 9-key users can always advance one syllable at a time instead of being forced into whole-word resolution for the full digit string.
 - 9-key users can type target words even when the base dictionary lacks a direct full-word pronunciation entry.
-- The IME can learn those successfully committed words for future reuse.
-- Existing 9-key exact-hit and prefix-hit flows remain stable.
+- The IME can store those successfully committed words into local learned data.
+- Existing 26-key and non-9-key flows remain stable.
 - Manual PC-side dictionary editing is allowed to remain a later follow-up.
 
 ### P2 — Manual Interaction Confirmation Cleanup
@@ -592,7 +594,7 @@ Minimum regression set:
 - Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
 - Prefix pinyin matching is already on `origin/main` as `v0.01.0027`; it was manually verified by the user, but no formal `tests/` archive exists for that version.
-- `v0.01.0028` adds the planned 9-key syllable-by-syllable missing-word composition path locally, but this new flow has not been manually/device-tested yet.
+- `v0.01.0028` changes 9-key into an always-syllable-by-syllable flow locally, but this new behavior has not been manually/device-tested yet.
 - No fuzzy pinyin; intentionally deferred because the user can spell pinyin and wants exact/prefix behavior first.
 - No mistyped-pinyin correction.
 - No tone support.
