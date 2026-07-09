@@ -69,6 +69,7 @@ Implementation (Codex; code present in worktree, not yet committed or device-tes
 - Changed 9-key composition to always advance syllable by syllable: regardless of whether the full digit buffer already has a whole-word hit, the left-side pinyin list now stays on the current syllable and then advances to the remaining digits after that syllable is chosen.
 - In that syllable-by-syllable path, the IME consumes the current digit buffer one syllable at a time, appends selected Chinese candidates into an internal phrase buffer, and then continues with the remaining digits.
 - After the assembled phrase is committed, the IME now writes the combined `pinyin -> candidate` mapping into a local custom-word dictionary as a foundation for later recall/ranking.
+- After Grok reported a `commitT9ComposedText -> addUserCandidate` freeze in `tests/v0.01.0028_2026-07-09_155530/REPORT.md`, the user-dictionary merge path was adjusted so the IME no longer rebuilds the whole runtime dictionary on the UI thread during commit.
 - The settings page learned-data area now covers both learned frequency data and learned custom words; clearing learned data clears both stores.
 - Local `assembleDebug` passed after this `v0.01.0028` round.
 
@@ -84,9 +85,11 @@ Previous local node: **v0.01.0026 — expandable Chinese candidate panel**
 
 Next step:
 
-1. Hand off `v0.01.0028` for manual/device testing.
-2. Verify that 9-key now stays in syllable-by-syllable mode even when the full digit string already has a whole-word hit.
-3. Push `v0.01.0028` only after that test pass is recorded.
+1. Hand off `v0.01.0028` for manual/device re-testing.
+2. Recheck the two failures from `tests/v0.01.0028_2026-07-09_155530/REPORT.md`:
+   - 9-key must stay in syllable-by-syllable mode even when the full digit string already has a whole-word hit.
+   - committing a learned/custom phrase must no longer freeze or kill the app.
+3. Push `v0.01.0028` only after that retest pass is recorded.
 
 Planned follow-up after `v0.01.0027` acceptance:
 
@@ -107,7 +110,8 @@ At the time of this handoff update:
 - v0.01.0025 (in-app IME test input box) is already on `origin/main` with its archived device-test report.
 - v0.01.0026 (expandable Chinese candidate panel) was manually verified by the user but has no archived device-test report.
 - v0.01.0027 (prefix pinyin matching) has already been pushed to `origin/main`.
-- v0.01.0028 (9-key syllable-by-syllable composition + self-learning custom words) is implemented in the current worktree and passed local `assembleDebug`, but has not been manually/device-tested or pushed yet.
+- v0.01.0028 (9-key syllable-by-syllable composition + self-learning custom words) is implemented in the current worktree and passed local `assembleDebug`, but has not been manually/device-tested to pass yet or pushed.
+- Grok archived a failing test report under `tests/v0.01.0028_2026-07-09_155530/REPORT.md`; the reported issues were the main-thread custom-word merge freeze and an incorrect second-syllable selection path. Follow-up code changes for both are now in the worktree and need re-test.
 
 Recommended immediate repository action:
 
@@ -427,6 +431,7 @@ Testing brief:
 - Use the `fenpan`-style scenario as an explicit regression case.
 - Confirm the user can select the first syllable, continue typing/selecting the next syllable, and finally commit the combined result.
 - After the first successful commit, confirm the assembled phrase is written into local learned data without breaking the always-syllable flow.
+- Confirm the commit path no longer freezes or kills the app when a newly assembled custom phrase is written to learned data.
 - Confirm existing exact-hit words such as `94664 -> zhong` still behave normally.
 - Confirm prefix matching from `v0.01.0027` still works and does not conflict with the new 9-key composition state machine.
 - Confirm delete, `重输`, candidate expand panel, and mode switching all clear intermediate composition state correctly.

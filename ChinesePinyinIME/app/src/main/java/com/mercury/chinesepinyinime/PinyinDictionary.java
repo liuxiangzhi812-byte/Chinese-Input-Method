@@ -177,12 +177,16 @@ public class PinyinDictionary {
             return;
         }
 
-        UserDictionaryStore.getInstance().recordEntry(pinyin, candidate);
-        synchronized (lock) {
-            Map<String, String[]> updatedWords = new HashMap<>(candidateWords);
-            updatedWords.put(pinyin, prependCandidate(updatedWords.get(pinyin), candidate));
-            applyCandidateWords(Collections.unmodifiableMap(updatedWords));
+        if (containsCandidate(builtInCandidateWords.get(pinyin), candidate)) {
+            return;
         }
+
+        UserDictionaryStore.getInstance().recordEntry(pinyin, candidate);
+        if (containsCandidate(candidateWords.get(pinyin), candidate)) {
+            return;
+        }
+
+        executor.execute(() -> mergeUserCandidateIntoRuntime(pinyin, candidate));
     }
 
     private void finishLoad(Map<String, String[]> loadedWords) {
@@ -244,6 +248,17 @@ public class PinyinDictionary {
             return Collections.emptyMap();
         }
         return Collections.unmodifiableMap(words);
+    }
+
+    private void mergeUserCandidateIntoRuntime(String pinyin, String candidate) {
+        synchronized (lock) {
+            if (containsCandidate(candidateWords.get(pinyin), candidate)) {
+                return;
+            }
+            Map<String, String[]> updatedWords = new HashMap<>(candidateWords);
+            updatedWords.put(pinyin, prependCandidate(updatedWords.get(pinyin), candidate));
+            applyCandidateWords(Collections.unmodifiableMap(updatedWords));
+        }
     }
 
     private void applyCandidateWords(Map<String, String[]> words) {
@@ -587,6 +602,18 @@ public class PinyinDictionary {
             }
         }
         return mergedCandidates.toArray(new String[0]);
+    }
+
+    private static boolean containsCandidate(String[] candidates, String candidate) {
+        if (candidates == null || candidate == null || candidate.isEmpty()) {
+            return false;
+        }
+        for (String existing : candidates) {
+            if (candidate.equals(existing)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String toDigits(String pinyin) {
