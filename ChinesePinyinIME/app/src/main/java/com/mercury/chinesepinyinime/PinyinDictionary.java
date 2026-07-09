@@ -30,10 +30,17 @@ public class PinyinDictionary {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final List<Runnable> pendingCallbacks = new ArrayList<>();
-    private volatile Map<String, String[]> candidateWords = createFallbackCandidateWords();
+    private volatile Map<String, String[]> builtInCandidateWords = createFallbackCandidateWords();
+    private volatile Map<String, String[]> candidateWords = builtInCandidateWords;
     private volatile Map<String, List<String>> digitToPinyinIndex = buildDigitIndex(candidateWords);
     private volatile Map<String, List<String>> pinyinPrefixIndex = buildPinyinPrefixIndex(candidateWords);
     private volatile Map<String, List<String>> digitPrefixIndex = buildDigitPrefixIndex(candidateWords);
+    private volatile Map<String, String[]> singleSyllableCandidateWords =
+            buildSingleSyllableCandidateWords(candidateWords);
+    private volatile Map<String, List<String>> singleSyllableDigitIndex =
+            buildDigitIndex(singleSyllableCandidateWords);
+    private volatile Map<String, List<String>> singleSyllableDigitPrefixIndex =
+            buildDigitPrefixIndex(singleSyllableCandidateWords);
     private boolean loadingStarted;
     private boolean loadFinished;
 
@@ -47,6 +54,7 @@ public class PinyinDictionary {
     public void loadAsync(Context context, Runnable onLoaded) {
         Context appContext = context.getApplicationContext();
         UserFrequencyStore.getInstance().load(appContext);
+        UserDictionaryStore.getInstance().load(appContext);
         boolean shouldStartLoad = false;
         synchronized (lock) {
             if (loadFinished) {
@@ -134,15 +142,58 @@ public class PinyinDictionary {
         return getPrefixMatches(digitPrefixIndex, digitsPrefix);
     }
 
+    public String resolveBestLeadingSingleSyllableForDigits(String digits) {
+        List<String> matches = getLeadingSingleSyllablePinyinKeys(digits);
+        return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    public List<String> getLeadingSingleSyllablePinyinKeys(String digits) {
+        if (digits == null || digits.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> exactMatches = getPinyinKeysForDigits(singleSyllableDigitIndex, digits);
+        if (!exactMatches.isEmpty()) {
+            return exactMatches;
+        }
+
+        List<String> prefixMatches = getPrefixMatches(singleSyllableDigitPrefixIndex, digits);
+        if (!prefixMatches.isEmpty()) {
+            return prefixMatches;
+        }
+
+        return getLeadingConsumedSyllableMatches(digits);
+    }
+
+    public String getDigitsForPinyin(String pinyin) {
+        if (pinyin == null || pinyin.isEmpty()) {
+            return null;
+        }
+        return toDigits(pinyin);
+    }
+
+    public void addUserCandidate(String pinyin, String candidate) {
+        if (pinyin == null || pinyin.isEmpty() || candidate == null || candidate.isEmpty()) {
+            return;
+        }
+
+        UserDictionaryStore.getInstance().recordEntry(pinyin, candidate);
+        synchronized (lock) {
+            Map<String, String[]> updatedWords = new HashMap<>(candidateWords);
+            updatedWords.put(pinyin, prependCandidate(updatedWords.get(pinyin), candidate));
+            applyCandidateWords(Collections.unmodifiableMap(updatedWords));
+        }
+    }
+
     private void finishLoad(Map<String, String[]> loadedWords) {
         List<Runnable> callbacks;
         synchronized (lock) {
-            if (!loadedWords.isEmpty()) {
-                candidateWords = loadedWords;
-                digitToPinyinIndex = buildDigitIndex(loadedWords);
-                pinyinPrefixIndex = buildPinyinPrefixIndex(loadedWords);
-                digitPrefixIndex = buildDigitPrefixIndex(loadedWords);
-            }
+            builtInCandidateWords = loadedWords.isEmpty()
+                    ? createFallbackCandidateWords()
+                    : loadedWords;
+            applyCandidateWords(mergeUserDictionaryWords(
+                    builtInCandidateWords,
+                    UserDictionaryStore.getInstance().snapshotOrderedEntries()));
             loadFinished = true;
             loadingStarted = false;
             callbacks = new ArrayList<>(pendingCallbacks);
@@ -193,6 +244,16 @@ public class PinyinDictionary {
             return Collections.emptyMap();
         }
         return Collections.unmodifiableMap(words);
+    }
+
+    private void applyCandidateWords(Map<String, String[]> words) {
+        candidateWords = words;
+        digitToPinyinIndex = buildDigitIndex(words);
+        pinyinPrefixIndex = buildPinyinPrefixIndex(words);
+        digitPrefixIndex = buildDigitPrefixIndex(words);
+        singleSyllableCandidateWords = buildSingleSyllableCandidateWords(words);
+        singleSyllableDigitIndex = buildDigitIndex(singleSyllableCandidateWords);
+        singleSyllableDigitPrefixIndex = buildDigitPrefixIndex(singleSyllableCandidateWords);
     }
 
     private static Map<String, String[]> createFallbackCandidateWords() {
@@ -310,6 +371,56 @@ public class PinyinDictionary {
         return Collections.unmodifiableMap(words);
     }
 
+    private static Map<String, String[]> mergeUserDictionaryWords(
+            Map<String, String[]> builtInWords,
+            Map<String, List<String>> userWords) {
+        if (userWords.isEmpty()) {
+            return builtInWords;
+        }
+
+        Map<String, String[]> mergedWords = new HashMap<>(builtInWords);
+        for (Map.Entry<String, List<String>> entry : userWords.entrySet()) {
+            String pinyin = entry.getKey();
+            List<String> userCandidates = entry.getValue();
+            if (pinyin == null || pinyin.isEmpty() || userCandidates == null || userCandidates.isEmpty()) {
+                continue;
+            }
+
+            List<String> mergedCandidates = new ArrayList<>(MAX_CANDIDATES_PER_PINYIN);
+            Set<String> seenCandidates = new LinkedHashSet<>();
+            for (String candidate : userCandidates) {
+                if (candidate == null || candidate.isEmpty()) {
+                    continue;
+                }
+                if (seenCandidates.add(candidate)) {
+                    mergedCandidates.add(candidate);
+                    if (mergedCandidates.size() >= MAX_CANDIDATES_PER_PINYIN) {
+                        break;
+                    }
+                }
+            }
+
+            if (mergedCandidates.size() < MAX_CANDIDATES_PER_PINYIN) {
+                String[] builtInCandidates = builtInWords.get(pinyin);
+                if (builtInCandidates != null) {
+                    for (String candidate : builtInCandidates) {
+                        if (seenCandidates.add(candidate)) {
+                            mergedCandidates.add(candidate);
+                            if (mergedCandidates.size() >= MAX_CANDIDATES_PER_PINYIN) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!mergedCandidates.isEmpty()) {
+                mergedWords.put(pinyin, mergedCandidates.toArray(new String[0]));
+            }
+        }
+        return Collections.unmodifiableMap(mergedWords);
+    }
+
     private static Map<String, List<String>> buildDigitIndex(Map<String, String[]> words) {
         Map<String, List<String>> index = new HashMap<>();
         for (String pinyin : words.keySet()) {
@@ -382,6 +493,34 @@ public class PinyinDictionary {
         return Collections.unmodifiableList(new ArrayList<>(matches.subList(0, resultSize)));
     }
 
+    private static List<String> getPinyinKeysForDigits(Map<String, List<String>> index, String digits) {
+        if (digits == null || digits.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> matches = index.get(digits);
+        return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
+    }
+
+    private List<String> getLeadingConsumedSyllableMatches(String digits) {
+        List<String> matches = new ArrayList<>();
+        Set<String> seenMatches = new LinkedHashSet<>();
+        int maxPrefixLength = Math.min(6, digits.length() - 1);
+        for (int prefixLength = maxPrefixLength; prefixLength >= 1; prefixLength--) {
+            List<String> prefixMatches = getPinyinKeysForDigits(
+                    singleSyllableDigitIndex,
+                    digits.substring(0, prefixLength));
+            for (String match : prefixMatches) {
+                if (seenMatches.add(match)) {
+                    matches.add(match);
+                    if (matches.size() >= MAX_PREFIX_PYNYIN_KEYS) {
+                        return Collections.unmodifiableList(matches);
+                    }
+                }
+            }
+        }
+        return matches.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(matches);
+    }
+
     private String[] mergeCandidatesForPinyinKeys(List<String> pinyinKeys) {
         if (pinyinKeys.isEmpty()) {
             return null;
@@ -404,6 +543,50 @@ public class PinyinDictionary {
             }
         }
         return mergedCandidates.isEmpty() ? null : mergedCandidates.toArray(new String[0]);
+    }
+
+    private static Map<String, String[]> buildSingleSyllableCandidateWords(Map<String, String[]> words) {
+        Map<String, String[]> syllableWords = new HashMap<>();
+        for (Map.Entry<String, String[]> entry : words.entrySet()) {
+            if (isProbableSingleSyllableKey(entry.getKey(), entry.getValue())) {
+                syllableWords.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return Collections.unmodifiableMap(syllableWords);
+    }
+
+    private static boolean isProbableSingleSyllableKey(String pinyin, String[] candidates) {
+        if (pinyin == null || candidates == null || pinyin.isEmpty() || pinyin.length() > 6) {
+            return false;
+        }
+        for (int i = 0; i < pinyin.length(); i++) {
+            char current = pinyin.charAt(i);
+            if (current < 'a' || current > 'z') {
+                return false;
+            }
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && candidate.length() == 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String[] prependCandidate(String[] existingCandidates, String candidate) {
+        List<String> mergedCandidates = new ArrayList<>(MAX_CANDIDATES_PER_PINYIN);
+        mergedCandidates.add(candidate);
+        if (existingCandidates != null) {
+            for (String existing : existingCandidates) {
+                if (!candidate.equals(existing)) {
+                    mergedCandidates.add(existing);
+                    if (mergedCandidates.size() >= MAX_CANDIDATES_PER_PINYIN) {
+                        break;
+                    }
+                }
+            }
+        }
+        return mergedCandidates.toArray(new String[0]);
     }
 
     private static String toDigits(String pinyin) {

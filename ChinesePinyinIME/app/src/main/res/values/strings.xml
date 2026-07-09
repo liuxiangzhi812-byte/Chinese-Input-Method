@@ -2,7 +2,7 @@
     <string name="app_name">ChinesePinyinIME</string>
     <string name="ime_name">ChinesePinyinIME</string>
     <string name="ime_subtype_zh">中文</string>
-    <string name="app_version_display">v0.01.0027</string>
+    <string name="app_version_display">v0.01.0028</string>
     <string name="settings_section_quick_test">快速测试</string>
     <string name="settings_section_status">状态</string>
     <string name="settings_section_actions">操作</string>
@@ -17,9 +17,9 @@
     <string name="dictionary_status_loading">词库状态：读取中</string>
     <string name="dictionary_status_ready">词库状态：已就绪，%1$d 个拼音条目，%2$d 个候选词</string>
     <string name="dictionary_status_failed">词库状态：读取失败，将使用内置小词库</string>
-    <string name="learned_data_status_placeholder">已学习词频：读取中</string>
-    <string name="learned_data_status">已学习词频：%1$d 组候选，累计选择 %2$d 次</string>
-    <string name="clear_learned_data">清除已学习词频</string>
+    <string name="learned_data_status_placeholder">已学习数据：读取中</string>
+    <string name="learned_data_status">已学习数据：%1$d 组词频，累计选择 %2$d 次，自造词 %3$d 条</string>
+    <string name="clear_learned_data">清除学习数据</string>
     <string name="learned_data_cleared">已清除学习数据</string>
     <string name="open_input_settings">打开系统输入法设置</string>
     <string name="quick_test_description">打开 app 后可直接在下面输入，立即检查候选、删键、分页、回车和 26/9 键切换效果；后续测试默认优先使用这里，不必先切到 Edge。</string>

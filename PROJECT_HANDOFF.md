@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0027` (current local worktree version; manually verified by the user, not formally archived under `tests/`)
+- Current display version: `v0.01.0028` (current local worktree version; local compile passed, not yet manually/device-tested for this version)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -36,6 +36,7 @@ Ownership rule:
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/PinyinDictionary.java`: dictionary loading, candidate lookup, 9-key digit index
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidateRanker.java`: candidate ranking and manual overrides
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserFrequencyStore.java`: local user selection frequency
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserDictionaryStore.java`: local custom-word dictionary learned from user-composed phrases
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidatePager.java`: width-adaptive candidate paging
 - `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`: keyboard UI
 - `ChinesePinyinIME/app/src/main/assets/pinyin_dict.txt`: runtime dictionary
@@ -61,27 +62,31 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0027 — prefix pinyin matching (26-key + 9-key)**
+Latest functional node: **v0.01.0028 — 9-key syllable-by-syllable composition + self-learning custom words**
 
-Implementation (Codex; code present in worktree, not yet committed for this version):
+Implementation (Codex; code present in worktree, not yet committed or device-tested for this version):
 
-- Added 26-key prefix matching: if the current pinyin buffer is not an exact dictionary key, the IME now aggregates candidates from pinyin keys that start with that prefix.
-- Added 9-key digit-prefix matching: if the current digit buffer is not an exact digit-to-pinyin hit, the left-side pinyin list and candidate lookup now reuse keys whose digit strings start with the current prefix.
-- Exact full pinyin / exact full digit behavior stays unchanged; prefix matching only activates when there is no exact key for the current input.
-- Candidate learning for 26-key prefix commits now records under the resolved pinyin key instead of the raw prefix text.
-- Local `assembleDebug` passed after this prefix-matching round.
-- The user has manually tested `v0.01.0027` and confirmed it can be pushed, but no formal `tests/` archive was created.
+- Added a 9-key syllable-by-syllable fallback path for cases where the full digit buffer has no direct whole-word dictionary hit.
+- In that fallback path, the IME can consume the current digit buffer one syllable at a time, append selected Chinese candidates into an internal phrase buffer, and let the user continue with the remaining digits.
+- After the assembled phrase is committed, the IME now writes the combined `pinyin -> candidate` mapping into a local custom-word dictionary so the same word can be recalled directly next time.
+- The settings page learned-data area now covers both learned frequency data and learned custom words; clearing learned data clears both stores.
+- Local `assembleDebug` passed after this `v0.01.0028` round.
+
+Previous pushed node: **v0.01.0027 — prefix pinyin matching (26-key + 9-key)**
+
+- Pushed to `origin/main`.
+- User manually tested `v0.01.0027` and confirmed it can be pushed, but no formal `tests/` archive was created for it.
 
 Previous local node: **v0.01.0026 — expandable Chinese candidate panel**
 
 - User manually tested the expandable candidate panel and reported it works, but no formal `tests/` archive was created for `v0.01.0026`.
-- Last archived report remains `tests/v0.01.0025_2026-07-09_133826/REPORT.md`.
+- Last archived report still remains `tests/v0.01.0025_2026-07-09_133826/REPORT.md`.
 
 Next step:
 
-1. Commit and push `v0.01.0027`.
-2. Start `v0.01.0028` planning/implementation for **9-key syllable-by-syllable composition + self-learning dictionary foundation**.
-3. After `v0.01.0028` code-complete, hand off separate manual/device testing.
+1. Hand off `v0.01.0028` for manual/device testing.
+2. If the assembled-phrase flow behaves well on device, archive a report under `tests/`.
+3. Push `v0.01.0028` only after that test pass is recorded.
 
 Planned follow-up after `v0.01.0027` acceptance:
 
@@ -100,14 +105,15 @@ At the time of this handoff update:
 - v0.01.0024 (vertical pinyin chooser) already has an archived device-test report under `tests/`, but its commit and report have not been pushed to `origin/main`.
 - v0.01.0025 (in-app IME test input box) is already on `origin/main` with its archived device-test report.
 - v0.01.0026 (expandable Chinese candidate panel) was manually verified by the user but has no archived device-test report.
-- v0.01.0027 (prefix pinyin matching) is implemented in the current worktree, manually verified by the user, and is ready to push even though no `tests/` archive exists for it.
+- v0.01.0027 (prefix pinyin matching) has already been pushed to `origin/main`.
+- v0.01.0028 (9-key syllable-by-syllable composition + self-learning custom words) is implemented in the current worktree and passed local `assembleDebug`, but has not been manually/device-tested or pushed yet.
 
 Recommended immediate repository action:
 
-1. Commit and push the current v0.01.0027 app/handoff/ChangeLog changes.
-2. Keep `ChinesePinyinIME/.idea/` uncommitted.
-3. Leave v0.01.0025 candidate-row tap / DEL-feel manual confirmation as a low-priority follow-up unless a later test exposes a real regression.
-4. Treat `v0.01.0028` 9-key syllable-by-syllable composition as the highest-priority next feature; user-dictionary import/export can wait until that foundation exists.
+1. Manual/device-test `v0.01.0028`, focusing on missing-word composition cases such as `fenpan`.
+2. If pass, archive a `tests/v0.01.0028_{date}_{time}/` report and then commit/push source + test record together.
+3. Keep `ChinesePinyinIME/.idea/` uncommitted.
+4. Leave PC-side manual dictionary import/export as a later follow-up after this on-device learning path is confirmed stable.
 
 ## 6. Collaboration Workflow
 
@@ -373,7 +379,7 @@ Acceptance:
 ### P0 — 9-Key Syllable-By-Syllable Composition And Self-Learning Foundation
 
 Target version: `v0.01.0028`
-Status: **planned, not started.** This becomes the highest-priority feature after `v0.01.0027` passes device testing and is pushed.
+Status: **code-complete, not yet device-tested.** Implemented locally in the worktree; local `assembleDebug` passed.
 Difficulty: High
 Depth: Deep
 Recommended implementation engineer: Codex or Claude Code
@@ -585,20 +591,20 @@ Minimum regression set:
 
 - Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
-- Prefix pinyin matching is implemented locally in `v0.01.0027` and was manually verified by the user, but no formal `tests/` archive exists yet.
-- 9-key still lacks the planned syllable-by-syllable missing-word composition path; this is the next major feature after `v0.01.0027`.
+- Prefix pinyin matching is already on `origin/main` as `v0.01.0027`; it was manually verified by the user, but no formal `tests/` archive exists for that version.
+- `v0.01.0028` adds the planned 9-key syllable-by-syllable missing-word composition path locally, but this new flow has not been manually/device-tested yet.
 - No fuzzy pinyin; intentionally deferred because the user can spell pinyin and wants exact/prefix behavior first.
 - No mistyped-pinyin correction.
 - No tone support.
 - No custom user dictionary UI yet.
 - No PC-side manual dictionary import/edit workflow yet.
-- Self-learning for words missing from the base lexicon still depends on the planned `v0.01.0028` 9-key composition foundation.
+- PC-side manual dictionary import/edit workflow is still not implemented.
 - No detailed privacy page beyond the local-only note.
 - No cloud sync, networking, handwriting, speech input, or AI prediction planned for early versions.
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0027-2026-07-09.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0028-2026-07-09.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`

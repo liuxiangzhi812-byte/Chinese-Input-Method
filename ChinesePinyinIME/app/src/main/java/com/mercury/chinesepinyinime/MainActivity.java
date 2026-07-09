@@ -116,17 +116,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLearnedDataStatus() {
-        UserFrequencyStore store = UserFrequencyStore.getInstance();
-        int entryCount = store.getLearnedEntryCount(getApplicationContext());
-        int selectionCount = store.getTotalSelectionCount(getApplicationContext());
+        UserFrequencyStore frequencyStore = UserFrequencyStore.getInstance();
+        int entryCount = frequencyStore.getLearnedEntryCount(getApplicationContext());
+        int selectionCount = frequencyStore.getTotalSelectionCount(getApplicationContext());
+        int customPhraseCount = UserDictionaryStore.getInstance()
+                .getLearnedPhraseCount(getApplicationContext());
         learnedDataStatus.setText(getString(
                 R.string.learned_data_status,
                 entryCount,
-                selectionCount));
+                selectionCount,
+                customPhraseCount));
     }
 
     private void clearLearnedData() {
         UserFrequencyStore.getInstance().clear(getApplicationContext());
+        UserDictionaryStore.getInstance().clear(getApplicationContext());
         updateLearnedDataStatus();
         Toast.makeText(this, R.string.learned_data_cleared, Toast.LENGTH_SHORT).show();
     }

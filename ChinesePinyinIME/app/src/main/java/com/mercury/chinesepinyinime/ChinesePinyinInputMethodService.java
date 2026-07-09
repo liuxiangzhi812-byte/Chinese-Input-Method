@@ -18,6 +18,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -31,6 +32,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private final StringBuilder composingPinyin = new StringBuilder();
     private final StringBuilder composingDigits = new StringBuilder();
+    private final List<T9CommittedSegment> t9CommittedSegments = new ArrayList<>();
     private final Handler deleteRepeatHandler = new Handler(Looper.getMainLooper());
     private final PinyinDictionary pinyinDictionary = PinyinDictionary.getInstance();
     private final CandidatePager candidatePager = new CandidatePager();
@@ -66,6 +68,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private View keyboardRootView;
     private ViewTreeObserver.OnGlobalLayoutListener candidateWidthLayoutListener;
     private View.OnAttachStateChangeListener candidateWidthAttachListener;
+    private String t9SelectedSyllablePinyin;
+    private String t9DeferredDigitsAfterSelection = "";
+    private int t9SelectedSyllableDigitCount;
 
     @Override
     public View onCreateInputView() {
@@ -123,6 +128,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         removeCandidateListContainerWidthListener();
         stopDeleteRepeat();
         UserFrequencyStore.getInstance().flush();
+        UserDictionaryStore.getInstance().flush();
         super.onDestroy();
     }
 
@@ -139,6 +145,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         stopDeleteRepeat();
         clearComposingState();
         UserFrequencyStore.getInstance().flush();
+        UserDictionaryStore.getInstance().flush();
     }
 
     private void bindKeyboardButtons(View view) {
@@ -267,7 +274,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void handleT9DigitKey(String digit) {
-        composingDigits.append(digit);
+        if (isT9SyllableSelectionActive()) {
+            t9DeferredDigitsAfterSelection += digit;
+        } else {
+            composingDigits.append(digit);
+        }
         t9ActivePinyin = null;
         candidatePageIndex = 0;
         updateKeyboardStatus();
@@ -400,6 +411,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void handleSpace(InputConnection inputConnection) {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9
+                && hasCommittedT9Segments()
+                && composingDigits.length() == 0
+                && !isT9SyllableSelectionActive()) {
+            commitT9ComposedText(inputConnection);
+            return;
+        }
+
         if (isComposingActive()) {
             commitFirstCandidate(inputConnection);
             return;
@@ -413,8 +432,27 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             candidatePanelExpanded = false;
         }
 
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && isT9SyllableSelectionActive()) {
+            restoreFullDigitsFromSelectedSyllable();
+            if (composingDigits.length() > 0) {
+                composingDigits.deleteCharAt(composingDigits.length() - 1);
+            }
+            t9ActivePinyin = null;
+            candidatePageIndex = 0;
+            updateKeyboardStatus();
+            return;
+        }
+
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0) {
             composingDigits.deleteCharAt(composingDigits.length() - 1);
+            t9ActivePinyin = null;
+            candidatePageIndex = 0;
+            updateKeyboardStatus();
+            return;
+        }
+
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && hasCommittedT9Segments()) {
+            t9CommittedSegments.remove(t9CommittedSegments.size() - 1);
             t9ActivePinyin = null;
             candidatePageIndex = 0;
             updateKeyboardStatus();
@@ -432,6 +470,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void handleEnter(InputConnection inputConnection) {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9
+                && hasCommittedT9Segments()
+                && composingDigits.length() == 0
+                && !isT9SyllableSelectionActive()) {
+            commitT9ComposedText(inputConnection);
+            return;
+        }
+
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0) {
             commitFirstCandidate(inputConnection);
             return;
@@ -507,6 +553,19 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void commitCandidateInternal(InputConnection inputConnection, String candidate) {
+        if (keyboardLayoutMode == KeyboardLayoutMode.T9_9
+                && hasCommittedT9Segments()
+                && composingDigits.length() == 0
+                && !isT9SyllableSelectionActive()) {
+            commitT9ComposedText(inputConnection);
+            return;
+        }
+
+        if (shouldAppendT9CandidateToComposition()) {
+            appendT9CandidateToComposition(candidate);
+            return;
+        }
+
         String pinyin = resolvePinyinForLearning();
         inputConnection.commitText(candidate, 1);
         if (pinyin != null && !pinyin.isEmpty()) {
@@ -528,13 +587,19 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
      * default pick for the current digit buffer.
      */
     private String getActiveResolvedPinyinForDigits() {
-        if (t9ActivePinyin != null) {
+        if (isT9SyllableSelectionActive()) {
+            return t9SelectedSyllablePinyin;
+        }
+        if (t9ActivePinyin != null && !isT9ManualCompositionMode()) {
             return t9ActivePinyin;
         }
         String digits = composingDigits.toString();
         String exactPinyin = pinyinDictionary.resolveBestPinyinForDigits(digits);
         if (exactPinyin != null) {
             return exactPinyin;
+        }
+        if (hasCommittedT9Segments() || shouldUseLeadingSyllableFallback(digits)) {
+            return pinyinDictionary.resolveBestLeadingSingleSyllableForDigits(digits);
         }
         return pinyinDictionary.resolveBestPinyinForDigitPrefix(digits);
     }
@@ -548,15 +613,29 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         return pinyinDictionary.resolveBestPinyinForPrefix(pinyinInput);
     }
 
-    private void selectPinyinChoice(String pinyin) {
-        t9ActivePinyin = pinyin;
+    private void selectPinyinChoice(T9PinyinChoice choice) {
+        if (choice == null) {
+            return;
+        }
+        if (choice.wholeBufferMatch && !isT9ManualCompositionMode()) {
+            t9ActivePinyin = choice.pinyin;
+            clearT9SyllableSelection();
+        } else {
+            String fullDigits = getVisibleDigitsForT9Choices();
+            t9SelectedSyllablePinyin = choice.pinyin;
+            t9SelectedSyllableDigitCount = Math.min(choice.consumedDigitsCount, fullDigits.length());
+            t9DeferredDigitsAfterSelection = fullDigits.substring(t9SelectedSyllableDigitCount);
+            composingDigits.setLength(0);
+            composingDigits.append(fullDigits, 0, t9SelectedSyllableDigitCount);
+            t9ActivePinyin = null;
+        }
         candidatePageIndex = 0;
         updateKeyboardStatus();
     }
 
     private boolean isComposingActive() {
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
-            return composingDigits.length() > 0;
+            return composingDigits.length() > 0 || hasCommittedT9Segments();
         }
         return chineseMode && composingPinyin.length() > 0;
     }
@@ -564,7 +643,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void clearComposingState() {
         composingPinyin.setLength(0);
         composingDigits.setLength(0);
+        t9CommittedSegments.clear();
         t9ActivePinyin = null;
+        clearT9SyllableSelection();
         candidatePanelExpanded = false;
         candidatePageIndex = 0;
         updateKeyboardStatus();
@@ -587,7 +668,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private void updateKeyboardStatus() {
         if (keyboardStatus != null) {
             if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
-                keyboardStatus.setText("中文 " + composingDigits);
+                keyboardStatus.setText(buildT9KeyboardStatusText());
             } else if (chineseMode) {
                 String pinyin = composingPinyin.length() > 0 ? composingPinyin.toString() : "";
                 keyboardStatus.setText("中文 " + pinyin);
@@ -621,36 +702,61 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
-        if (keyboardLayoutMode != KeyboardLayoutMode.T9_9 || composingDigits.length() == 0) {
+        if (keyboardLayoutMode != KeyboardLayoutMode.T9_9 || getVisibleDigitsForT9Choices().isEmpty()) {
             t9PinyinChoiceList.removeAllViews();
             return;
         }
 
-        List<String> matches = getMatchingPinyinChoicesForDigits();
-        if (matches.size() <= 1) {
+        List<T9PinyinChoice> choices = getMatchingPinyinChoicesForDigits();
+        if (choices.size() <= 1) {
             t9PinyinChoiceList.removeAllViews();
             return;
         }
 
-        String activePinyin = getActiveResolvedPinyinForDigits();
+        T9PinyinChoice activeChoice = getActiveT9PinyinChoice();
         t9PinyinChoiceList.removeAllViews();
-        for (String pinyin : matches) {
-            t9PinyinChoiceList.addView(createPinyinChoiceListItem(pinyin, pinyin.equals(activePinyin)));
+        for (T9PinyinChoice choice : choices) {
+            boolean active = activeChoice != null
+                    && choice.pinyin.equals(activeChoice.pinyin)
+                    && choice.consumedDigitsCount == activeChoice.consumedDigitsCount
+                    && choice.wholeBufferMatch == activeChoice.wholeBufferMatch;
+            t9PinyinChoiceList.addView(createPinyinChoiceListItem(choice, active));
         }
     }
 
-    private List<String> getMatchingPinyinChoicesForDigits() {
-        String digits = composingDigits.toString();
+    private List<T9PinyinChoice> getMatchingPinyinChoicesForDigits() {
+        String digits = getVisibleDigitsForT9Choices();
+        if (digits.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<T9PinyinChoice> choices = new ArrayList<>();
+        if (isT9ManualCompositionMode()) {
+            addLeadingSyllableChoices(choices, digits);
+            return choices;
+        }
+
         List<String> exactMatches = pinyinDictionary.getPinyinKeysForDigits(digits);
         if (!exactMatches.isEmpty()) {
-            return exactMatches;
+            addChoicesForPinyinKeys(choices, exactMatches, digits.length(), true);
+            return choices;
         }
-        return pinyinDictionary.getPinyinKeysForDigitPrefix(digits);
+
+        addLeadingSyllableChoices(choices, digits);
+        if (!choices.isEmpty()) {
+            return choices;
+        }
+
+        List<String> prefixMatches = pinyinDictionary.getPinyinKeysForDigitPrefix(digits);
+        if (!prefixMatches.isEmpty()) {
+            addChoicesForPinyinKeys(choices, prefixMatches, digits.length(), true);
+        }
+        return choices;
     }
 
-    private TextView createPinyinChoiceListItem(String pinyin, boolean active) {
+    private TextView createPinyinChoiceListItem(T9PinyinChoice choice, boolean active) {
         TextView choiceView = new TextView(this);
-        choiceView.setText(pinyin);
+        choiceView.setText(choice.pinyin);
         choiceView.setGravity(Gravity.CENTER);
         choiceView.setMaxLines(1);
         choiceView.setEllipsize(TextUtils.TruncateAt.END);
@@ -667,7 +773,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
                 LinearLayout.LayoutParams.MATCH_PARENT, heightPx);
         params.setMargins(marginPx, marginPx, marginPx, marginPx);
         choiceView.setLayoutParams(params);
-        choiceView.setOnClickListener(view -> selectPinyinChoice(pinyin));
+        choiceView.setOnClickListener(view -> selectPinyinChoice(choice));
         return choiceView;
     }
 
@@ -895,6 +1001,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private String[] getCandidatesForComposing() {
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
+            if (composingDigits.length() == 0 && hasCommittedT9Segments()) {
+                return new String[]{buildT9ComposedText()};
+            }
             return getCandidatesForCurrentDigits();
         }
         String pinyin = composingPinyin.toString();
@@ -912,6 +1021,18 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private String[] getCandidatesForCurrentDigits() {
         String digits = composingDigits.toString();
         String resolvedPinyin = getActiveResolvedPinyinForDigits();
+        if (resolvedPinyin == null) {
+            return new String[]{digits};
+        }
+
+        if (shouldAppendT9CandidateToComposition()) {
+            String[] syllableCandidates = pinyinDictionary.getCandidates(resolvedPinyin);
+            if (syllableCandidates == null) {
+                return new String[]{digits};
+            }
+            return syllableCandidates;
+        }
+
         String[] exactMatches = pinyinDictionary.getPinyinKeysForDigits(digits).isEmpty()
                 ? null
                 : pinyinDictionary.getCandidates(resolvedPinyin);
@@ -932,9 +1053,189 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         return candidatePager.getCandidatesForPage(allCandidates, candidatePageIndex);
     }
 
+    private String buildT9KeyboardStatusText() {
+        StringBuilder status = new StringBuilder("中文");
+        String composedText = buildT9ComposedText();
+        String visibleDigits = getVisibleDigitsForT9Choices();
+        if (!composedText.isEmpty()) {
+            status.append(' ').append(composedText);
+        }
+        if (!visibleDigits.isEmpty()) {
+            status.append(' ').append(visibleDigits);
+        }
+        return status.toString();
+    }
+
+    private boolean shouldUseLeadingSyllableFallback(String digits) {
+        if (digits == null || digits.isEmpty()) {
+            return false;
+        }
+        if (!pinyinDictionary.getPinyinKeysForDigits(digits).isEmpty()) {
+            return false;
+        }
+        return !pinyinDictionary.getLeadingSingleSyllablePinyinKeys(digits).isEmpty();
+    }
+
+    private boolean shouldAppendT9CandidateToComposition() {
+        if (keyboardLayoutMode != KeyboardLayoutMode.T9_9 || composingDigits.length() == 0) {
+            return false;
+        }
+        if (isT9SyllableSelectionActive() || hasCommittedT9Segments()) {
+            return true;
+        }
+        return shouldUseLeadingSyllableFallback(composingDigits.toString());
+    }
+
+    private void appendT9CandidateToComposition(String candidate) {
+        T9PinyinChoice activeChoice = getActiveT9PinyinChoice();
+        if (activeChoice == null || candidate == null || candidate.isEmpty()) {
+            return;
+        }
+
+        t9CommittedSegments.add(new T9CommittedSegment(activeChoice.pinyin, candidate));
+        String remainingDigits = getRemainingDigitsAfterActiveChoice(activeChoice);
+        clearT9SyllableSelection();
+        composingDigits.setLength(0);
+        composingDigits.append(remainingDigits);
+        t9ActivePinyin = null;
+        candidatePageIndex = 0;
+        updateKeyboardStatus();
+    }
+
+    private void commitT9ComposedText(InputConnection inputConnection) {
+        String candidate = buildT9ComposedText();
+        String pinyin = buildT9ComposedPinyin();
+        if (candidate.isEmpty() || pinyin.isEmpty()) {
+            return;
+        }
+
+        inputConnection.commitText(candidate, 1);
+        pinyinDictionary.addUserCandidate(pinyin, candidate);
+        UserFrequencyStore.getInstance().recordSelection(pinyin, candidate);
+        clearComposingState();
+    }
+
+    private String buildT9ComposedText() {
+        StringBuilder builder = new StringBuilder();
+        for (T9CommittedSegment segment : t9CommittedSegments) {
+            builder.append(segment.candidate);
+        }
+        return builder.toString();
+    }
+
+    private String buildT9ComposedPinyin() {
+        StringBuilder builder = new StringBuilder();
+        for (T9CommittedSegment segment : t9CommittedSegments) {
+            builder.append(segment.pinyin);
+        }
+        return builder.toString();
+    }
+
+    private boolean hasCommittedT9Segments() {
+        return !t9CommittedSegments.isEmpty();
+    }
+
+    private boolean isT9ManualCompositionMode() {
+        return hasCommittedT9Segments() || isT9SyllableSelectionActive();
+    }
+
+    private boolean isT9SyllableSelectionActive() {
+        return t9SelectedSyllablePinyin != null && t9SelectedSyllableDigitCount > 0;
+    }
+
+    private void clearT9SyllableSelection() {
+        t9SelectedSyllablePinyin = null;
+        t9SelectedSyllableDigitCount = 0;
+        t9DeferredDigitsAfterSelection = "";
+    }
+
+    private void restoreFullDigitsFromSelectedSyllable() {
+        if (!isT9SyllableSelectionActive()) {
+            return;
+        }
+        String restoredDigits = getVisibleDigitsForT9Choices();
+        clearT9SyllableSelection();
+        composingDigits.setLength(0);
+        composingDigits.append(restoredDigits);
+    }
+
+    private String getVisibleDigitsForT9Choices() {
+        if (isT9SyllableSelectionActive()) {
+            return composingDigits.toString() + t9DeferredDigitsAfterSelection;
+        }
+        return composingDigits.toString();
+    }
+
+    private T9PinyinChoice getActiveT9PinyinChoice() {
+        if (isT9SyllableSelectionActive()) {
+            return new T9PinyinChoice(
+                    t9SelectedSyllablePinyin,
+                    t9SelectedSyllableDigitCount,
+                    false);
+        }
+
+        List<T9PinyinChoice> choices = getMatchingPinyinChoicesForDigits();
+        return choices.isEmpty() ? null : choices.get(0);
+    }
+
+    private void addChoicesForPinyinKeys(
+            List<T9PinyinChoice> target,
+            List<String> pinyinKeys,
+            int consumedDigitsCount,
+            boolean wholeBufferMatch) {
+        for (String pinyin : pinyinKeys) {
+            target.add(new T9PinyinChoice(pinyin, consumedDigitsCount, wholeBufferMatch));
+        }
+    }
+
+    private void addLeadingSyllableChoices(List<T9PinyinChoice> target, String digits) {
+        for (String pinyin : pinyinDictionary.getLeadingSingleSyllablePinyinKeys(digits)) {
+            String pinyinDigits = pinyinDictionary.getDigitsForPinyin(pinyin);
+            if (pinyinDigits == null || pinyinDigits.isEmpty()) {
+                continue;
+            }
+            target.add(new T9PinyinChoice(
+                    pinyin,
+                    Math.min(pinyinDigits.length(), digits.length()),
+                    false));
+        }
+    }
+
+    private String getRemainingDigitsAfterActiveChoice(T9PinyinChoice activeChoice) {
+        if (isT9SyllableSelectionActive()) {
+            return t9DeferredDigitsAfterSelection;
+        }
+
+        String digits = composingDigits.toString();
+        int consumedCount = Math.min(activeChoice.consumedDigitsCount, digits.length());
+        return digits.substring(consumedCount);
+    }
+
     private void handleDictionaryLoaded() {
         if (keyboardStatus != null) {
             updateKeyboardStatus();
+        }
+    }
+
+    private static final class T9CommittedSegment {
+        private final String pinyin;
+        private final String candidate;
+
+        private T9CommittedSegment(String pinyin, String candidate) {
+            this.pinyin = pinyin;
+            this.candidate = candidate;
+        }
+    }
+
+    private static final class T9PinyinChoice {
+        private final String pinyin;
+        private final int consumedDigitsCount;
+        private final boolean wholeBufferMatch;
+
+        private T9PinyinChoice(String pinyin, int consumedDigitsCount, boolean wholeBufferMatch) {
+            this.pinyin = pinyin;
+            this.consumedDigitsCount = consumedDigitsCount;
+            this.wholeBufferMatch = wholeBufferMatch;
         }
     }
 }
