@@ -1,0 +1,53 @@
+
+13:42:17 === RETEST 26-key path ===
+13:42:25 status snippet: 9 键,keyboard_layout_status,26 键,9 键
+13:42:25 tap toggle -> 26 (720,1313)
+13:42:29 PASS UI shows 26-key status
+13:42:30 shot 03_26key_smoke/r01_layout_26_status.png
+13:42:36 tap ime_test_input (720,1293)
+13:42:39 shot 03_26key_smoke/r03_26key_keyboard.png
+13:42:39 tap n (1005,2790)
+13:42:39 tap i (1065,2390)
+13:42:42 shot 03_26key_smoke/r04_ni_composing.png
+13:42:42 tap space (665,2940)
+13:42:44 shot 03_26key_smoke/r05_ni_committed.png
+13:42:44 tap n (1005,2790)
+13:42:45 tap i (1065,2390)
+13:42:48 shot 03_26key_smoke/r06_ni_before_cand.png
+13:42:48 tap cand1 (180,2140)
+13:42:50 shot 03_26key_smoke/r07_ni_cand_tap.png
+13:42:50 tap n (1005,2790)
+13:42:51 tap i (1065,2390)
+13:42:52 tap DEL (1310,2790)
+13:42:54 shot 03_26key_smoke/r08_del_short.png
+13:42:58 shot 03_26key_smoke/r09_del_long.png
+13:42:58 tap 123 (131,2940)
+13:43:00 shot 03_26key_smoke/r10_symbol.png
+13:43:00 tap ABC (131,2940)
+13:43:02 shot 03_26key_smoke/r11_abc_back.png
+13:43:02 === RETEST 9-key 94664 with fixed coords ===
+13:43:10 already 9 or unknown
+13:43:12 shot 05_layout_toggle/r02_layout_9_status.png
+13:43:17 tap ime_test_input (720,1293)
+13:43:20 shot 04_t9_smoke/r12_t9_keyboard.png
+13:43:20 tap 重输 clear (1292,2556)
+13:43:21 tap 9 (996,2748)
+13:43:22 tap 4 (700,2556)
+13:43:23 tap 6 (996,2556)
+13:43:24 tap 6 (996,2556)
+13:43:24 tap 4 (404,2556)
+13:43:27 shot 04_t9_smoke/r13_94664_zhong.png
+13:43:27 tap 重输 (1292,2556)
+13:43:28 tap 6 (996,2556)
+13:43:29 tap 4 (404,2556)
+13:43:31 shot 04_t9_smoke/r14_64_list.png
+13:43:31 tap mi (128,2520)
+13:43:33 shot 04_t9_smoke/r15_mi.png
+13:43:33 tap 重输 (1292,2556)
+13:43:34 tap 0 (1292,2748)
+13:43:36 shot 04_t9_smoke/r16_zero_space.png
+13:43:36 tap 1 symbol (404,2364)
+13:43:39 shot 04_t9_smoke/r17_symbol.png
+13:43:39 tap 9键 (131,2940)
+13:43:41 shot 04_t9_smoke/r18_back_t9.png
+13:43:41 === RETEST DONE ===

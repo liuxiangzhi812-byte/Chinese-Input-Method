@@ -12,20 +12,21 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0024`
+- Current display version: `v0.01.0025` (latest tested local version)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
 Detailed implemented behavior has been moved out of this handoff to keep handoff reading short:
 
 - `docs/FEATURE_DETAILS.md`
-- `CHANGELOG.md`
+- `ChangeLog/` update logs folder
 - `tests/README.md`
 
 Ownership rule:
 
 - `docs/FEATURE_DETAILS.md` is maintained only by the chief engineer / Codex.
-- Other implementation engineers should use `PROJECT_HANDOFF.md` and `CHANGELOG.md` for handoff notes.
+- Other implementation engineers should use `PROJECT_HANDOFF.md` and `ChangeLog/` for handoff notes.
+- New update-log files should live under `ChangeLog/` and use `v{version}-{YYYY-MM-DD}.md` naming. The existing `ChangeLog/CHANGELOG.md` is now a legacy summary file and may remain until history is fully split out.
 - Test engineers should update `tests/` reports and `tests/README.md`.
 
 ## 2. Important Paths
@@ -38,6 +39,7 @@ Ownership rule:
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidatePager.java`: width-adaptive candidate paging
 - `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`: keyboard UI
 - `ChinesePinyinIME/app/src/main/assets/pinyin_dict.txt`: runtime dictionary
+- `ChangeLog/`: update-log folder; new files should use `v{version}-{YYYY-MM-DD}.md`
 - `scripts/convert_jieba_dict.py`: reproducible jieba-to-pinyin dictionary conversion
 - `tests/`: real-device test archives
 - `ENVIRONMENT_SETUP.md`: local build/test environment notes
@@ -51,32 +53,33 @@ High-level completed features:
 - Chinese pinyin composing, candidate display, candidate paging, tap/space commit, delete, long-press delete, symbol keyboards, punctuation, Shift, and Enter behavior are implemented.
 - Large local dictionary loads from `assets/pinyin_dict.txt`; fallback dictionary is available while loading.
 - Local candidate ranking and user-frequency learning exist.
-- Basic settings page exists: version, dictionary status, learned-data status/clear action, input-method settings shortcut, 26-key/9-key layout toggle.
+- Basic settings page exists: version, built-in IME test input box, dictionary status, learned-data status/clear action, input-method settings shortcut, 26-key/9-key layout toggle.
 - 9-key/T9 prototype is implemented through pinyin-choice UI: digit grid, digit-to-pinyin index, ambiguous pinyin choice bar, shared ranking/paging/learning pipeline.
 
 Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0024 — 9-key vertical pinyin selection list**
+Latest functional node: **v0.01.0025 — in-app IME test input box**
 
-Implementation (Claude Code, committed locally on top of `main`/`origin/main` — **not based on `codex-experiment-dict-load-v0.01.0023`**, not pushed, no device test run per task instruction — testing assigned to Grok):
+Implementation (Codex; code present in worktree — at test time still uncommitted relative to `HEAD` `1c743fb`):
 
-- Replaced the old horizontal `pinyin_choice_bar` (a row above the candidate bar) with a **fixed-width (64dp) vertical scrollable list** to the left of the 9-key digit grid, inside `t9_keyboard_section`. New view id: `t9_pinyin_choice_list`, wrapped in a plain `ScrollView`.
-- The list shows every pinyin key the current digit buffer matches (e.g. `64 -> ni / mi`), highlights the active one (reuses `keyboard_shift_active_background`), and tapping an entry calls the existing `selectPinyinChoice()` — no change to how the active pinyin or candidate refresh logic works, only how the choices are presented.
-- **Layout stability decision**: the 64dp column is never hidden or resized — only its contents change (empty when unambiguous or no digits yet). This was chosen over "hide the column when there's only one match" specifically to stop the 9-key digit grid's button width from jumping every time the digit buffer edges in/out of an ambiguous match. The whole 9-key row (list column + digit grid) is a fixed 144dp tall, matching the previous 3×48dp total exactly, so the keyboard's overall height is unchanged.
-- Explicit-choice clearing on digit-buffer edits (append/delete/`重输`) reuses the existing `t9ActivePinyin = null` reset points already in `handleT9DigitKey`, the T9 branch of `handleDelete`, and `clearComposingState()` — no new clearing logic was needed, since those reset points already existed from the v0.01.0022 horizontal-bar version.
-- 26-key (`letter_keyboard_section`) was not touched at all. Candidate ranking (`CandidateRanker`, `buildDigitIndex`'s tie-break order) was not touched — this is purely a presentation change (horizontal row -> vertical scrollable column) for the same underlying pinyin-choice data.
-- No prefix pinyin matching, no fuzzy pinyin added (out of scope, confirmed not implemented).
+- Added a dedicated **multiline EditText test box** near the top of `MainActivity` so the app itself now contains a focusable input target as soon as it opens.
+- The field is intended to become the default manual-test entry point for future rounds: candidate commit, delete, paging, Enter, and 26-key/9-key layout checks can all start inside the app without first switching to Edge or Messages.
+- The field uses `flagNoExtractUi` and multiline text input so full-screen extract mode is less likely to interrupt testing on device.
+- `MainActivity` now requests focus for the test box on launch so the cursor is ready immediately after the app opens.
+- Existing settings functions (dictionary status, learned-data status, layout toggle, enable-IME shortcut) are unchanged.
 
-Deferred to v0.01.0025 (see P0 task below): the **expandable Chinese candidate panel**. Reasoning: it's an independently-sized chunk of new UI work (expand/collapse state, a panel view covering the 9-key area, and close-triggers at ~6 different call sites) that would have added real risk if rushed alongside the vertical pinyin list in the same version. Not implemented this round; full brief is in section 8.
+**Device test (Grok, 2026-07-09):** archived under `tests/v0.01.0025_2026-07-09_133826/REPORT.md`. **Pass** for built-in test field + in-app 26-key `ni→你` + 9-key `64/mi` + `94664→zhong` + layout toggle/symbol smoke. Candidate-row tap and DEL feel remain **low-priority manual follow-up only**; Edge full regression not run.
 
-Previous shipped node on `main`: **v0.01.0022 — 9-key pinyin-choice UI + dictionary loading performance measurement**
+Deferred to v0.01.0026 (see P0 task below): the **expandable Chinese candidate panel**. It remains the next major IME feature after this testability improvement.
 
-- Claude Code implemented the (now-replaced) horizontal pinyin-choice bar; Grok ran the real-device pass and it passed. Report: `tests/v0.01.0022_2026-06-20_145553/REPORT.md`.
-- Dictionary cold-start performance baseline measured: **622-977 ms** (OnePlus 7 Pro). The v0.01.0023 optimization attempt on top of this did not help and lives on `codex-experiment-dict-load-v0.01.0023`, not merged into `main`. Dictionary loading is **not** the current priority — see P2 task in section 8.
+Previous functional node: **v0.01.0024 — 9-key vertical pinyin selection list**
 
-Next step: Grok device-tests v0.01.0024 (see the P0 task's testing brief in section 8) before anyone pushes.
+- Claude Code replaced the old horizontal `pinyin_choice_bar` with a fixed-width left-side vertical list in 9-key mode.
+- Grok archived a real-device report under `tests/v0.01.0024_2026-06-20_171120/REPORT.md`; core cases passed, with the long-list scroll case still marked not covered.
+
+Next step: push `main` after committing v0.01.0025 source + this test archive together, then move on to the next IME feature.
 
 ## 5. Current Repository State Notes
 
@@ -84,29 +87,30 @@ At the time of this handoff update:
 
 - The failed v0.01.0023 dictionary-loading experiment is preserved on branch `codex-experiment-dict-load-v0.01.0023` and should not be merged into `main`.
 - `.idea/` is local IDE state and should not be committed.
-- v0.01.0024 (vertical pinyin chooser) was built directly on top of `main`/`origin/main`, confirmed not based on the experiment branch — it does not contain any `PinyinDictPerf` logging or HashMap pre-sizing changes.
-- `main` is now ahead of `origin/main` by the v0.01.0024 commit; it has **not** been pushed and has **not** been device-tested — both intentional per this round's task instructions.
+- v0.01.0024 (vertical pinyin chooser) already has an archived device-test report under `tests/`, but its commit and report have not been pushed to `origin/main`.
+- v0.01.0025 (in-app IME test input box) is implemented in the worktree and **device-tested** (`tests/v0.01.0025_2026-07-09_133826/`); source + test archive may still need a single commit before push. Not pushed.
 
 Recommended immediate repository action:
 
-1. Grok device-tests v0.01.0024 (see the P0 task's testing brief in section 8) and archives a report under `tests/`.
-2. Once that test passes and is committed, push `main` to `origin/main`.
+1. Commit v0.01.0025 app/handoff/ChangeLog changes **and** `tests/v0.01.0025_2026-07-09_133826/` together.
+2. Push `main` to `origin/main` after that commit.
 3. Keep `ChinesePinyinIME/.idea/` uncommitted.
+4. Leave candidate-row tap / DEL-feel manual confirmation as a low-priority follow-up, not a push blocker for v0.01.0025.
 
 ## 6. Collaboration Workflow
 
 The user wants development and testing separated:
 
 1. **Planning / review**: Codex acts as chief engineer. Codex writes plans, clarifies scope, reviews structure, and checks handoff quality.
-2. **Implementation**: Claude Code is recommended for focused code implementation. Claude should write code, compile if practical, update changelog/handoff, commit locally, and **not immediately run full real-device testing or push** unless explicitly asked.
+2. **Implementation**: Claude Code is recommended for focused code implementation. Claude should write code, compile if practical, update the relevant `ChangeLog/` entry and handoff, commit locally, and **not immediately run full real-device testing or push** unless explicitly asked.
 3. **Testing**: Grok is recommended for device testing because it has high quota and has already built useful ADB/Edge coordinate workflows for this project. Grok must receive very explicit test instructions and archive evidence under `tests/`.
 4. **Push / next step**: Only after testing passes and reports are archived should Codex or the designated engineer push to GitHub and move to the next feature.
 
 Documentation permissions:
 
 - Codex/chief engineer may update `docs/FEATURE_DETAILS.md` when architecture or long-form feature details need consolidation.
-- Claude Code and other coding engineers should update only `PROJECT_HANDOFF.md` and `CHANGELOG.md` for ordinary handoff.
-- Grok should update `tests/` and `tests/README.md`; if a test changes project state, summarize it in `PROJECT_HANDOFF.md` and `CHANGELOG.md` as needed.
+- Claude Code and other coding engineers should update only `PROJECT_HANDOFF.md` and the relevant `ChangeLog/` entry for ordinary handoff.
+- Grok should update `tests/` and `tests/README.md`; if a test changes project state, summarize it in `PROJECT_HANDOFF.md` and the relevant `ChangeLog/` entry as needed.
 
 Default rule for new development:
 
@@ -139,7 +143,7 @@ Best for:
 - Focused implementation
 - Java/XML feature work
 - Small, testable commits
-- Updating changelog during implementation
+- Updating the relevant `ChangeLog/` entry during implementation
 
 Watch-outs:
 
@@ -164,10 +168,53 @@ Watch-outs:
 
 ## 8. Near-Term Development Plan
 
+### P0 — In-App IME Test Input Box
+
+Target version: `v0.01.0025`
+Status: **device-tested (pass).** Report: `tests/v0.01.0025_2026-07-09_133826/REPORT.md`. Source may still need commit with the test archive; not pushed.
+Difficulty: Low-Medium
+Depth: Small
+Recommended implementation engineer: Codex
+Recommended tester: Grok
+
+Problem:
+
+- Manual verification currently has to start in another app such as Edge, which adds setup friction before every smoke test.
+- The project needs a stable built-in input target so testers can open the app and immediately try the IME.
+
+Implementation brief:
+
+- Add a dedicated multiline input box near the top of `MainActivity`.
+- Keep the existing settings page content intact below it.
+- Request focus for the field on launch so the cursor is ready immediately.
+- Make the field suitable for basic candidate, delete, paging, Enter, and 26-key/9-key layout checks.
+- Do **not** change IME candidate ranking or keyboard behavior in this version; this is a testability improvement only.
+
+Testing brief for Grok:
+
+- Open the app and confirm the new "快速测试" section is visible near the top.
+- Confirm the test input box already has focus or can be focused with one tap, then switch to ChinesePinyinIME and type directly inside the app.
+- Run the basic smoke path in this field first:
+  - 26-key `ni -> 你`
+  - candidate tap / space commit
+  - `DEL` short tap and long-press
+  - symbol keyboard round trip
+  - 26/9 key layout toggle after reopening the keyboard
+- In 9-key mode, use the same in-app field to verify `64 -> ni/mi`, tap `mi`, `94664 -> zhong`, `重输`, and empty-buffer `0` space.
+- After the in-app field passes, optionally rerun a lighter Edge cross-app check for regression confidence.
+- Archive screenshots and report under `tests/v0.01.0025_{date}_{time}/`.
+
+Acceptance:
+
+- App opens with a visible built-in test field.
+- Testers can start IME smoke testing inside the app without first navigating to Edge.
+- Existing settings-page controls still work.
+- No push happens before the test archive is committed.
+
 ### P0 — 9-Key Vertical Pinyin Selection List
 
 Target version: `v0.01.0024`
-Status: **code-complete, not yet device-tested.** Implemented on top of `main`/`origin/main` (confirmed not based on `codex-experiment-dict-load-v0.01.0023`); compiled and packaged locally (`compileDebugJavaWithJavac` + `assembleDebug`), committed locally, not pushed. This task is not closed until Grok reports a passing device test.
+Status: **implemented, with archived device test evidence.** Grok archived `tests/v0.01.0024_2026-06-20_171120/REPORT.md`; the core behavior passed, while the long-list scroll case remained not covered.
 Difficulty: Medium
 Depth: Medium
 Recommended implementation engineer: Claude Code
@@ -221,7 +268,7 @@ Acceptance:
 
 ### P0 — Expandable Chinese Candidate Panel
 
-Target version: `v0.01.0025` (**deferred from v0.01.0024** — see Current Work Node for reasoning: implementing this alongside the vertical pinyin list in the same version was judged too much independent new-UI surface for one safe round)
+Target version: `v0.01.0026` (**deferred first from v0.01.0024, then again after v0.01.0025 was used for the in-app test box**)
 Difficulty: Medium
 Depth: Medium
 Recommended implementation engineer: Claude Code
@@ -257,11 +304,11 @@ Acceptance:
 - User can access more than the compact candidate row without repeated page-arrow tapping.
 - Expanded candidate panel does not permanently cover the keyboard or leave stale state.
 - Candidate commit behavior and learning path remain unchanged.
-- If this becomes too large while implementing v0.01.0024, split it into the next version rather than rushing.
+- If this becomes too large while implementing, split it into the next version rather than rushing.
 
 ### P0 — Prefix Pinyin Matching
 
-Target version: `v0.01.0025`
+Target version: `v0.01.0026` or later
 Difficulty: Medium-High
 Depth: Deep
 Recommended implementation engineer: Claude Code
@@ -307,6 +354,22 @@ Acceptance:
 - User can get useful candidates before typing complete pinyin.
 - Exact matches remain stronger than prefix matches.
 - 9-key vertical pinyin list and expanded candidate panel still work.
+
+### P2 — Manual Interaction Confirmation Cleanup
+
+Difficulty: Low
+Depth: Small
+Recommended implementation engineer: Not required unless a real bug is confirmed
+Recommended tester: Grok or human manual tester
+
+Current decision:
+
+- The v0.01.0025 smoke pass already verified the new in-app test box and the main 26-key / 9-key flows.
+- Two items remain better suited to manual confirmation than automation in the current setup:
+  - candidate-row tap accuracy in the app test field;
+  - `DEL` short-tap / long-press feel in the same field.
+- Edge full regression was not rerun after the in-app field pass; this is useful but not a blocker.
+- Treat these as **low-priority follow-up checks**, not as blockers for pushing v0.01.0025 unless a human finds a real regression.
 
 ### P2 — Fuzzy Pinyin
 
@@ -392,7 +455,7 @@ Acceptance:
 
 For every testable feature:
 
-1. Implementation engineer updates version/changelog and commits locally.
+1. Implementation engineer updates the display version and the relevant `ChangeLog/` entry, then commits locally.
 2. Implementation engineer does not need to run a full real-device pass unless specifically asked.
 3. Tester creates a new `tests/v{version}_{YYYY-MM-DD}_{HHMMSS}/` folder.
 4. Tester records `REPORT.md`, screenshots, UI dumps if useful, and command logs.
@@ -403,10 +466,13 @@ For every testable feature:
 Minimum regression set:
 
 - Launch/settings page version and dictionary status.
+- Built-in app test box: cursor appears on launch, text can be entered directly inside the app, and this field is used as the default first test target before cross-app checks.
 - 26-key: `ni -> 你`, candidate paging, tap/space commit, delete, long-press delete, symbols, punctuation.
 - 9-key: layout toggle, `64 -> ni/mi`, tap `mi`, append digit resets choice, `94664 -> zhong`, `DEL`, `重输`, `0` empty-buffer space.
-- After v0.01.0024: verify the left-side vertical pinyin list scrolls, highlights the active pinyin, and the digit grid's size never changes regardless of match count. (The candidate expand panel was deferred to v0.01.0025, not part of this version.)
-- After v0.01.0025: verify the candidate expand panel opens/closes cleanly, and/or partial pinyin / digit-prefix matching before full spelling (whichever lands in that version).
+- After v0.01.0024: verify the left-side vertical pinyin list scrolls, highlights the active pinyin, and the digit grid's size never changes regardless of match count. (The candidate expand panel was deferred beyond this version and is currently planned for v0.01.0026.)
+- After v0.01.0025: confirm the new in-app test box covers the main smoke path, then optionally rerun a lighter Edge pass for cross-app behavior.
+- Low-priority manual follow-up only: candidate-row tap hitbox and `DEL` feel in the in-app test field, if automation remains noisy.
+- After v0.01.0026: verify the candidate expand panel opens/closes cleanly, and/or partial pinyin / digit-prefix matching before full spelling (whichever lands in that version).
 - Performance-sensitive changes only: repeat cold-process dictionary load measurement.
 
 ## 10. Known Limitations
@@ -424,9 +490,9 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Latest changelog: `CHANGELOG.md`
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0025-2026-07-09.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
-- Latest device report: `tests/v0.01.0022_2026-06-20_145553/REPORT.md`
+- Latest device report: `tests/v0.01.0025_2026-07-09_133826/REPORT.md`
 - Failed dictionary-loading experiment branch: `codex-experiment-dict-load-v0.01.0023`

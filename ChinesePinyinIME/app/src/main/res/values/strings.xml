@@ -2,7 +2,8 @@
     <string name="app_name">ChinesePinyinIME</string>
     <string name="ime_name">ChinesePinyinIME</string>
     <string name="ime_subtype_zh">中文</string>
-    <string name="app_version_display">v0.01.0024</string>
+    <string name="app_version_display">v0.01.0025</string>
+    <string name="settings_section_quick_test">快速测试</string>
     <string name="settings_section_status">状态</string>
     <string name="settings_section_actions">操作</string>
     <string name="settings_section_layout">键盘布局</string>
@@ -21,6 +22,8 @@
     <string name="clear_learned_data">清除已学习词频</string>
     <string name="learned_data_cleared">已清除学习数据</string>
     <string name="open_input_settings">打开系统输入法设置</string>
+    <string name="quick_test_description">打开 app 后可直接在下面输入，立即检查候选、删键、分页、回车和 26/9 键切换效果；后续测试默认优先使用这里，不必先切到 Edge。</string>
+    <string name="quick_test_input_hint">在这里直接测试输入法</string>
     <string name="enable_ime_steps">在系统设置中启用 ChinesePinyinIME，然后打开任意输入框并切换到 ChinesePinyinIME。</string>
     <string name="privacy_local_only">当前输入、词库和学习数据都保存在本机；本项目现阶段不联网、不同步、不做云端预测。</string>
 </resources>

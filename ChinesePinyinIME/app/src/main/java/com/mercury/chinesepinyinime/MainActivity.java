@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView learnedDataStatus;
     private TextView keyboardLayoutStatus;
     private Button keyboardLayoutToggleButton;
+    private EditText imeTestInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
         learnedDataStatus = findViewById(R.id.learned_data_status);
         keyboardLayoutStatus = findViewById(R.id.keyboard_layout_status);
         keyboardLayoutToggleButton = findViewById(R.id.keyboard_layout_toggle_button);
+        imeTestInput = findViewById(R.id.ime_test_input);
         Button clearLearnedDataButton = findViewById(R.id.clear_learned_data_button);
         Button openInputSettingsButton = findViewById(R.id.open_input_settings_button);
 
@@ -57,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
         updateDictionaryStatus();
         updateLearnedDataStatus();
         updateKeyboardLayoutStatus();
+        mainHandler.post(() -> imeTestInput.requestFocus());
     }
 
     @Override

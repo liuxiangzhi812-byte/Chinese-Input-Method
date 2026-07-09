@@ -1,0 +1,83 @@
+
+13:39:44 === Install ===
+13:39:46 Performing Streamed Install
+13:39:46 Success
+13:39:46 === Ensure IME ===
+13:39:46 default_ime=com.mercury.chinesepinyinime/.ChinesePinyinInputMethodService
+13:39:46 === P01/P02 baseline: open app, version, quick test ===
+13:39:50 shot 01_settings/s01_app_open.png
+13:39:53 dump main_open.xml
+13:39:53 PASS version v0.01.0025 visible in dump
+13:39:53 PASS quick test field present
+13:39:53 PASS ime_test_input focused=true
+13:39:54 shot 02_inapp_focus/s02_after_focus_check.png
+13:39:54 === T01 26-key: ni composing in app field ===
+13:39:59 dump settings_layout.xml
+13:39:59 layout_isT9=True wantT9=False
+13:39:59 tap toggle to 26-key (720,2521)
+13:40:07 dump focus_check.xml
+13:40:07 tap ime_test_input (720,1293)
+13:40:11 dump focus_check.xml
+13:40:11 tap ime_test_input (720,1293)
+13:40:13 shot 03_26key_smoke/t01_26key_ready.png
+13:40:13 tap n (1005,2790)
+13:40:14 tap i (1065,2390)
+13:40:17 shot 03_26key_smoke/t01_ni_composing.png
+13:40:19 dump after_ni.xml
+13:40:19 === T02 space commit ===
+13:40:19 tap space commit (665,2940)
+13:40:21 shot 03_26key_smoke/t02_ni_space_commit.png
+13:40:24 dump after_space.xml
+13:40:24 === T03 candidate tap path (type ni again) ===
+13:40:24 tap n (1005,2790)
+13:40:25 tap i (1065,2390)
+13:40:27 shot 03_26key_smoke/t03_ni_before_candidate_tap.png
+13:40:27 tap first candidate (180,2140)
+13:40:30 shot 03_26key_smoke/t03_ni_candidate_tap.png
+13:40:30 === T04 DEL short + long ===
+13:40:30 tap n (1005,2790)
+13:40:31 tap i (1065,2390)
+13:40:32 tap DEL short (1310,2790)
+13:40:34 shot 03_26key_smoke/t04_after_del_short.png
+13:40:37 shot 03_26key_smoke/t04_after_del_long.png
+13:40:37 === T05 symbol keyboard round trip ===
+13:40:37 tap 123 symbols (131,2940)
+13:40:40 shot 03_26key_smoke/t05_symbol_mode.png
+13:40:40 tap ABC return (131,2940)
+13:40:42 shot 03_26key_smoke/t05_back_letters.png
+13:40:42 === T06 switch to 9-key, in-app field ===
+13:40:47 dump settings_layout.xml
+13:40:47 layout_isT9=True wantT9=True
+13:40:50 dump focus_check.xml
+13:40:50 tap ime_test_input (720,1293)
+13:40:54 dump focus_check.xml
+13:40:54 tap ime_test_input (720,1293)
+13:40:57 tap 4 (404,2556)
+13:41:00 shot 04_t9_smoke/t07_64_vertical_list.png
+13:41:00 === T08 tap mi ===
+13:41:00 tap mi (128,2520)
+13:41:02 shot 04_t9_smoke/t08_mi_selected.png
+13:41:02 === T09 94664 zhong ===
+13:41:02 tap 重输 (1292,2556)
+13:41:03 tap 9 (996,2364)
+13:41:04 tap 4 (700,2556)
+13:41:05 tap 6 (996,2556)
+13:41:06 tap 6 (996,2556)
+13:41:07 tap 4 (404,2556)
+13:41:10 shot 04_t9_smoke/t09_94664_zhong.png
+13:41:10 === T10 重输 + empty 0 space ===
+13:41:10 tap 重输 (1292,2556)
+13:41:12 shot 04_t9_smoke/t10_after_retype.png
+13:41:12 tap 0 space (1292,2748)
+13:41:14 shot 04_t9_smoke/t10_zero_space.png
+13:41:14 === T11 T9 symbol round trip ===
+13:41:14 tap 1 symbol (404,2364)
+13:41:16 shot 04_t9_smoke/t11_t9_symbol.png
+13:41:16 tap 9键 return (131,2940)
+13:41:19 shot 04_t9_smoke/t11_back_t9.png
+13:41:19 === T12 settings still intact ===
+13:41:24 shot 05_layout_toggle/t12_settings_scrolled.png
+13:41:26 PASS clear learned present
+13:41:26 PASS open settings present
+13:41:26 PASS layout toggle present
+13:41:26 === DONE ===

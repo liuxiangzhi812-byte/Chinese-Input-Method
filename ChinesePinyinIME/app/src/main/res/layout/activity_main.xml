@@ -37,6 +37,27 @@
         <TextView
             style="@style/SettingsSectionTitle"
             android:layout_marginTop="28dp"
+            android:text="@string/settings_section_quick_test" />
+
+        <TextView
+            style="@style/SettingsBodyText"
+            android:text="@string/quick_test_description" />
+
+        <EditText
+            android:id="@+id/ime_test_input"
+            style="@style/SettingsInputField"
+            android:layout_marginTop="12dp"
+            android:hint="@string/quick_test_input_hint"
+            android:imeOptions="flagNoExtractUi"
+            android:inputType="textMultiLine|textCapSentences"
+            android:maxLines="6"
+            android:minLines="4"
+            android:overScrollMode="ifContentScrolls"
+            android:scrollbars="vertical" />
+
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
             android:text="@string/settings_section_status" />
 
         <TextView
