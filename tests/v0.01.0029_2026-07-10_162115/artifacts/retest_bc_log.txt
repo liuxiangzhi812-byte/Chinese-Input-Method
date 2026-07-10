@@ -1,0 +1,138 @@
+
+16:28:42 === prep ===
+16:28:48 tap field (720,1293)
+16:28:53 tap 重输 (1292,2556)
+16:28:54 shot 03_case_b_syllable/rb00_ready.png
+16:28:54 === probe: 64 then tap mi at several coords ===
+16:28:54 tap 6 (996,2556)
+16:28:55 tap 4 (404,2556)
+16:28:57 shot 03_case_b_syllable/rb_probe_64.png
+16:28:57 tap probe_mi_1 (128,2440)
+16:28:59 shot 03_case_b_syllable/rb_probe_1.png
+16:28:59 tap probe_mi_2 (100,2364)
+16:29:01 shot 03_case_b_syllable/rb_probe_2.png
+16:29:01 tap probe_mi_3 (128,2364)
+16:29:03 shot 03_case_b_syllable/rb_probe_3.png
+16:29:03 tap probe_mi_4 (160,2364)
+16:29:05 shot 03_case_b_syllable/rb_probe_4.png
+16:29:05 tap probe_mi_5 (100,2440)
+16:29:07 shot 03_case_b_syllable/rb_probe_5.png
+16:29:07 tap probe_mi_6 (160,2440)
+16:29:09 shot 03_case_b_syllable/rb_probe_6.png
+16:29:09 tap probe_mi_7 (128,2500)
+16:29:11 shot 03_case_b_syllable/rb_probe_7.png
+16:29:11 tap probe_mi_8 (128,2520)
+16:29:13 shot 03_case_b_syllable/rb_probe_8.png
+16:29:13 tap probe_mi_9 (90,2480)
+16:29:15 shot 03_case_b_syllable/rb_probe_9.png
+16:29:15 tap probe_mi_10 (180,2480)
+16:29:17 shot 03_case_b_syllable/rb_probe_10.png
+16:29:17 tap probe_mi_11 (128,2580)
+16:29:19 shot 03_case_b_syllable/rb_probe_11.png
+16:29:19 === CASE B retest: 64426 + force syllable via mi then ni path ===
+16:29:23 tap field (720,1293)
+16:29:28 tap 重输 (1292,2556)
+16:29:28 tap 6 (996,2556)
+16:29:29 tap 4 (404,2556)
+16:29:30 tap 4 (404,2556)
+16:29:31 tap 2 (700,2364)
+16:29:32 tap 6 (996,2556)
+16:29:34 shot 03_case_b_syllable/rb01_64426_whole.png
+16:29:34 tap try_mi 100,2480 (100,2480)
+16:29:35 tap try_mi 100,2520 (100,2520)
+16:29:36 tap try_mi 100,2556 (100,2556)
+16:29:36 tap try_mi 100,2600 (100,2600)
+16:29:37 tap try_mi 128,2480 (128,2480)
+16:29:38 tap try_mi 128,2520 (128,2520)
+16:29:39 tap try_mi 128,2556 (128,2556)
+16:29:40 tap try_mi 128,2600 (128,2600)
+16:29:40 tap try_mi 160,2480 (160,2480)
+16:29:41 tap try_mi 160,2520 (160,2520)
+16:29:42 tap try_mi 160,2556 (160,2556)
+16:29:43 tap try_mi 160,2600 (160,2600)
+16:29:44 shot 03_case_b_syllable/rb02_after_mi_probes.png
+16:29:44 tap try_ni 100,2300 (100,2300)
+16:29:45 tap try_ni 100,2364 (100,2364)
+16:29:46 tap try_ni 100,2400 (100,2400)
+16:29:47 tap try_ni 100,2440 (100,2440)
+16:29:47 tap try_ni 128,2300 (128,2300)
+16:29:48 tap try_ni 128,2364 (128,2364)
+16:29:49 tap try_ni 128,2400 (128,2400)
+16:29:50 tap try_ni 128,2440 (128,2440)
+16:29:51 tap try_ni 160,2300 (160,2300)
+16:29:51 tap try_ni 160,2364 (160,2364)
+16:29:52 tap try_ni 160,2400 (160,2400)
+16:29:53 tap try_ni 160,2440 (160,2440)
+16:29:54 shot 03_case_b_syllable/rb03_after_ni_probes.png
+16:29:54 tap cand1 after probes (200,2140)
+16:29:57 shot 03_case_b_syllable/rb04_after_cand1.png
+16:29:57 tap cand1 remaining (200,2140)
+16:29:59 shot 03_case_b_syllable/rb05_after_cand2.png
+16:29:59 === CASE C retest: 336726 fen->分 pan->盘 ===
+16:30:03 tap field (720,1293)
+16:30:07 tap 重输 (1292,2556)
+16:30:09 tap clear learned? (720,1846)
+16:30:11 tap confirm? (900,1800)
+16:30:16 tap field (720,1293)
+16:30:21 tap 重输 (1292,2556)
+16:30:22 shot 04_case_c_learn/rc00_ready.png
+16:30:22 tap 3 (996,2364)
+16:30:23 tap 3 (996,2364)
+16:30:24 tap 6 (996,2556)
+16:30:25 tap 7 (404,2748)
+16:30:25 tap 2 (700,2364)
+16:30:26 tap 6 (996,2556)
+16:30:28 shot 04_case_c_learn/rc01_336726.png
+16:30:28 tap fen_probe 100,2300 (100,2300)
+16:30:29 tap fen_probe 100,2364 (100,2364)
+16:30:30 tap fen_probe 100,2400 (100,2400)
+16:30:31 tap fen_probe 100,2440 (100,2440)
+16:30:32 tap fen_probe 100,2480 (100,2480)
+16:30:32 tap fen_probe 128,2300 (128,2300)
+16:30:33 tap fen_probe 128,2364 (128,2364)
+16:30:34 tap fen_probe 128,2400 (128,2400)
+16:30:35 tap fen_probe 128,2440 (128,2440)
+16:30:36 tap fen_probe 128,2480 (128,2480)
+16:30:36 tap fen_probe 160,2300 (160,2300)
+16:30:37 tap fen_probe 160,2364 (160,2364)
+16:30:38 tap fen_probe 160,2400 (160,2400)
+16:30:39 tap fen_probe 160,2440 (160,2440)
+16:30:40 tap fen_probe 160,2480 (160,2480)
+16:30:41 shot 04_case_c_learn/rc02_after_fen_probe.png
+16:30:41 tap cand 分? (200,2140)
+16:30:43 shot 04_case_c_learn/rc03_after_fen_cand.png
+16:30:43 tap pan_probe 100,2364 (100,2364)
+16:30:44 tap pan_probe 100,2440 (100,2440)
+16:30:45 tap pan_probe 100,2520 (100,2520)
+16:30:46 tap pan_probe 100,2556 (100,2556)
+16:30:47 tap pan_probe 100,2600 (100,2600)
+16:30:47 tap pan_probe 100,2680 (100,2680)
+16:30:48 tap pan_probe 128,2364 (128,2364)
+16:30:49 tap pan_probe 128,2440 (128,2440)
+16:30:50 tap pan_probe 128,2520 (128,2520)
+16:30:50 tap pan_probe 128,2556 (128,2556)
+16:30:51 tap pan_probe 128,2600 (128,2600)
+16:30:52 tap pan_probe 128,2680 (128,2680)
+16:30:53 tap pan_probe 160,2364 (160,2364)
+16:30:54 tap pan_probe 160,2440 (160,2440)
+16:30:54 tap pan_probe 160,2520 (160,2520)
+16:30:55 tap pan_probe 160,2556 (160,2556)
+16:30:56 tap pan_probe 160,2600 (160,2600)
+16:30:57 tap pan_probe 160,2680 (160,2680)
+16:30:58 shot 04_case_c_learn/rc04_after_pan_probe.png
+16:30:58 tap cand 盘? (200,2140)
+16:31:01 shot 04_case_c_learn/rc05_after_pan_cand.png
+16:31:01 tap cand2 (420,2140)
+16:31:03 shot 04_case_c_learn/rc06_cand2.png
+16:31:05 tap 重输 (1292,2556)
+16:31:09 tap 重输 (1292,2556)
+16:31:09 tap 3 (996,2364)
+16:31:10 tap 3 (996,2364)
+16:31:11 tap 6 (996,2556)
+16:31:12 tap 7 (404,2748)
+16:31:13 tap 2 (700,2364)
+16:31:14 tap 6 (996,2556)
+16:31:16 shot 04_case_c_learn/rc07_recall.png
+16:31:16 tap recall commit (200,2140)
+16:31:19 shot 04_case_c_learn/rc08_recall_commit.png
+16:31:19 === DONE retest ===

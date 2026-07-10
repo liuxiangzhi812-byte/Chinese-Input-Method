@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0029` (current local worktree version; local compile passed, not yet manually/device-tested for this version)
+- Current display version: `v0.01.0029` (device-tested 2026-07-10; see `tests/v0.01.0029_2026-07-10_162115/REPORT.md`)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -64,49 +64,23 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 Latest functional node: **v0.01.0029 — 9-key whole-word candidates + syllable fallback**
 
-Implementation (Codex; code present in worktree, not yet manually/device-tested for this version):
+Implementation (Codex; device-tested by Grok on 2026-07-10):
 
 - When a complete 9-key digit sequence exactly matches a multi-syllable dictionary or learned-word entry, the candidate bar now prioritizes whole-word candidates. This makes the dictionary and learned custom words directly usable again.
 - The left-side pinyin chooser remains a single-syllable chooser. Tapping a pinyin entry explicitly enters per-syllable mode and shows candidates for that syllable, then continues with the remaining digits as before.
 - If the complete digit sequence has no multi-syllable match, candidate display automatically falls back to the existing single-syllable composition flow.
 
-Manual/device test procedure (v0.01.0029):
+Device test result (v0.01.0029) — archive: `tests/v0.01.0029_2026-07-10_162115/REPORT.md`:
 
-Preparation:
+- **Case A pass**: `64426` shows whole-word candidates such as `你好`; one-tap commit works; DEL while composing is safe.
+- **Case B pass**: tapping left-side pinyin leaves whole-word mode, shows single-syllable candidates, then `你` + remaining `426`/`hao` + `好` commits cleanly without freeze.
+- **Case C partial**: tapping `fen` on `336726` correctly enters syllable mode and can select `分`. However `336726` is **not** a no-whole-word case (built-in `fenran` → `愤然/奋然/忿然`). Second syllable for remaining `726` still does not expose a usable `pan` choice (same class of issue as v0.01.0028); `分盘` learn/recall was **not** completed.
+- Commit path freeze from early v0.01.0028 was **not** reproduced.
 
-1. Install the latest debug APK, enable ChinesePinyinIME, and switch to its 9-key Chinese keyboard.
-2. Open the built-in test input box in the app settings, or any editable text field. Start each case with no active composition.
+Next step after this test:
 
-Case A — whole-word direct candidate:
-
-1. Enter `64426` (`nihao`) without tapping the left-side pinyin column.
-2. Expected: the candidate bar contains a multi-character word such as `你好`, rather than only candidates for `ni`.
-3. Tap `你好`.
-4. Expected: `你好` is committed in one action; no remaining digits or composition state is left behind, and the IME does not freeze or close.
-
-Case B — explicit single-syllable path despite whole-word match:
-
-1. Enter `64426` again, then tap `ni` in the left-side pinyin column.
-2. Expected: the candidate bar changes to candidates for `ni` (for example `你`), not whole-word candidates.
-3. Select `你`.
-4. Expected: the remaining `426` stays available and the left-side column can select `hao`.
-5. Select `hao`, then select `好`.
-6. Expected: `你好` is committed, with no freeze, crash, duplicate text, or leftover composing digits.
-
-Case C — no whole-word match and self-learning recall:
-
-1. If needed, clear learned data in settings so this case starts without a previous `fenpan` entry.
-2. Enter `336726` (`fenpan`) without tapping a pinyin choice.
-3. Expected: no fabricated whole-word candidate is required; the candidate area stays usable for the first syllable and the left-side column offers `fen`.
-4. Tap `fen`, select `分`; then tap `pan` from the remaining-syllable choices and select `盘`.
-5. Expected: `分盘` commits successfully and the IME remains responsive.
-6. Wait briefly for local learning to finish, then enter `336726` again without tapping the pinyin column.
-7. Expected: `分盘` now appears as a direct whole-word candidate. Tap it and confirm it commits in one action.
-
-Regression and evidence:
-
-1. In all cases, test Backspace once while digits are still composing; it should remove input or return safely without a crash.
-2. Record pass/fail for Cases A-C, attach screenshots or UI dumps for failures, and archive the result under `tests/v0.01.0029_{YYYY-MM-DD}_{HHMMSS}/`.
+1. The user accepted the v0.01.0029 release with the `726` limitation recorded; commit the test archive and push source together.
+2. Keep ambiguous leading-syllable choices for keys such as `726` (`pan`/`san`/`ran`) as a non-blocking follow-up. Retest Case C after that fix.
 
 Previous functional node: **v0.01.0028 — 9-key syllable-by-syllable composition + self-learning custom words**
 
@@ -131,10 +105,8 @@ Previous local node: **v0.01.0026 — expandable Chinese candidate panel**
 
 Next step:
 
-1. Hand off `v0.01.0029` for manual/device testing.
-2. Verify that an exact multi-syllable hit can be committed directly, while tapping the pinyin chooser still starts the single-syllable path.
-3. Verify that no-full-word-hit input still supports creating and learning a phrase through per-syllable selection.
-4. Archive the test result under `tests/` and push `v0.01.0029` only after a pass.
+1. Commit and push `tests/v0.01.0029_2026-07-10_162115/` with the accepted v0.01.0029 source.
+2. Schedule the non-blocking `726` ambiguous-syllable fix, then retest Case C (`fen`→`分`→`pan`→`盘` learn/recall).
 
 Planned follow-up after `v0.01.0027` acceptance:
 
@@ -156,14 +128,14 @@ At the time of this handoff update:
 - v0.01.0026 (expandable Chinese candidate panel) was manually verified by the user but has no archived device-test report.
 - v0.01.0027 (prefix pinyin matching) has already been pushed to `origin/main`.
 - v0.01.0028 (9-key syllable-by-syllable composition + self-learning custom words) was tested by the user and pushed to `origin/main` in `66776eb`; its earlier Grok failure report remains archived for traceability.
-- v0.01.0029 (9-key whole-word candidates + syllable fallback) is code-complete locally and has passed `assembleDebug`, but still needs manual/device testing before push.
+- v0.01.0029 (9-key whole-word candidates + syllable fallback) has an archived device report: Cases A/B passed; Case C remains incomplete because `726` does not expose `pan`. The user accepted this as a non-blocking follow-up for the release.
 
 Recommended immediate repository action:
 
-1. Manual/device-test `v0.01.0029`, covering direct whole-word candidates, explicit per-syllable selection, and an unmatched `fenpan`-style composition.
-2. If pass, archive a `tests/v0.01.0029_{date}_{time}/` report and then commit/push source + test record together.
-3. Keep `ChinesePinyinIME/.idea/` uncommitted.
-4. Leave PC-side manual dictionary import/export as a later follow-up after this on-device learning path is confirmed stable.
+1. Commit the v0.01.0029 test archive and push `v0.01.0029`.
+2. Plan the non-blocking single-syllable ambiguity fix for keys like `726`, then retest Case C only.
+4. Keep `ChinesePinyinIME/.idea/` uncommitted.
+5. Leave PC-side manual dictionary import/export as a later follow-up.
 
 ## 6. Collaboration Workflow
 
@@ -596,6 +568,72 @@ Acceptance:
 - `testDebugUnitTest` or equivalent local unit test task catches core ranking/paging/storage regressions.
 - Tests do not require a real device.
 
+### P2 — Candidate Bar Leading-Syllable Single Character
+
+Difficulty: Low-Medium
+Depth: Small
+Recommended implementation engineer: Claude Code
+Recommended tester: Grok
+
+Problem:
+
+- When the user types a multi-syllable pinyin, the candidate bar shows whole-word matches for the full pinyin.
+- There is no quick way to commit only the first character when the user actually wants just the leading syllable, without deleting back or paging.
+
+Implementation brief:
+
+- After the existing whole-word / full-pinyin candidates in the compact candidate row, append the single character for the **first syllable** of the current input as an extra trailing candidate.
+- Resolve the first syllable from the current composing pinyin (26-key) or the current leading single-syllable choice (9-key), then pull its top single-character candidate.
+- Tapping that trailing single character commits only that character and leaves the remaining pinyin/digits composing, so the user can continue with the rest.
+- Do not disturb the existing whole-word candidate ordering; this is an additive trailing entry only.
+- Only add the trailing single character when the input actually spans more than one syllable and the whole-word candidates are not already just that single character.
+- Keep it consistent between 26-key and 9-key composing states as far as practical.
+
+Testing brief for Grok:
+
+- 26-key: type a two-syllable pinyin such as `nihao`; confirm whole-word candidates (你好…) appear, and a trailing single character for the first syllable (你) is shown after them.
+- Tap the trailing single character; confirm only that character commits and the remaining pinyin keeps composing.
+- Confirm single-syllable input (e.g. `ni`) does not show a redundant duplicate trailing character.
+- 9-key: repeat with a multi-syllable digit sequence and confirm the trailing first-syllable character behaves the same.
+- Confirm candidate paging, space/tap commit, delete, and the expand panel still work.
+
+Acceptance:
+
+- User can commit just the leading-syllable character directly from the candidate bar in a multi-syllable input.
+- Whole-word candidate ranking is unchanged; the single character is only an additive trailing option.
+- 26-key and 9-key composing both behave consistently.
+
+### P2 — PC-Enter To Phone Remote Input Bridge
+
+Difficulty: Medium-High
+Depth: Deep
+Recommended implementation engineer: Codex or Claude Code
+Recommended tester: Grok
+
+Problem:
+
+- The user wants to type text on the PC, press Enter, and have the same text appear in the phone's current input field through this IME.
+- This is a personal-use convenience bridge for pushing PC-composed text onto the phone, not a general networking feature.
+
+Implementation brief:
+
+- Provide a way for the IME to receive a text payload from the PC and commit it into the phone's currently focused input field via the existing commit path.
+- Prefer a permission-light, local transport consistent with the project's local-first stance; evaluate an ADB-driven channel first (the project already has an ADB workflow) before considering any networking, which the project has otherwise deferred.
+- Trigger semantics: one Enter on the PC side sends one text payload, and the phone commits it as a single insertion at the current cursor.
+- Keep this strictly opt-in and separate from normal typing so it never interferes with on-device composing.
+- This shares design surface with the PC-side dictionary sync work; consider a common PC-to-phone transport rather than two unrelated mechanisms.
+
+Open questions to settle before implementation:
+
+- Exact transport (ADB `broadcast`/file drop vs. a small local listener) and whether it stays dev-only or becomes a user-facing toggle.
+- Whether the phone must be focused on a text field, and fallback behavior when it is not.
+
+Acceptance:
+
+- Pressing Enter on the PC reliably inserts the composed text into the phone's focused input field through the IME.
+- The bridge does not disturb normal on-device typing when unused.
+- Transport choice is documented and consistent with the local-first / low-permission direction.
+
 ### P2 — Handoff And File Structure Standardization
 
 Difficulty: Low-Medium
@@ -660,5 +698,5 @@ Minimum regression set:
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
-- Latest archived device report: `tests/v0.01.0025_2026-07-09_133826/REPORT.md`
+- Latest archived device report: `tests/v0.01.0029_2026-07-10_162115/REPORT.md`
 - Failed dictionary-loading experiment branch: `codex-experiment-dict-load-v0.01.0023`

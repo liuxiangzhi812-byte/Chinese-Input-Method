@@ -1,0 +1,132 @@
+
+16:22:24 === v0.01.0029 device test start (no install) ===
+16:22:24 ime=com.mercury.chinesepinyinime/.ChinesePinyinInputMethodService
+16:22:31 dump settings_layout.xml
+16:22:32 shot 01_settings/s01_settings_scroll.png
+16:22:32 layout already 9-key or status text not matched
+16:22:33 shot 01_settings/s02_layout_status.png
+16:22:33 === CASE A: whole-word 64426 ===
+16:22:37 dump focus_field.xml
+16:22:37 tap ime_test_input (720,1293)
+16:22:45 tap 重输 (1292,2556)
+16:22:47 shot 02_case_a_whole_word/a00_ready.png
+16:22:47 tap 6 (996,2556)
+16:22:48 tap 4 (404,2556)
+16:22:49 tap 4 (404,2556)
+16:22:50 tap 2 (700,2364)
+16:22:51 tap 6 (996,2556)
+16:22:53 shot 02_case_a_whole_word/a01_after_64426.png
+16:22:56 dump a01_after_64426.xml
+16:22:56 tap DEL once (1292,2364)
+16:22:58 shot 02_case_a_whole_word/a02_after_del.png
+16:22:58 tap 重输 (1292,2556)
+16:22:59 tap 6 (996,2556)
+16:23:00 tap 4 (404,2556)
+16:23:01 tap 4 (404,2556)
+16:23:02 tap 2 (700,2364)
+16:23:03 tap 6 (996,2556)
+16:23:05 shot 02_case_a_whole_word/a03_retape_64426.png
+16:23:05 tap cand1 whole-word (200,2140)
+16:23:08 shot 02_case_a_whole_word/a04_after_commit.png
+16:23:11 dump field_f6c8b2d7.xml
+16:23:11 CASE_A_field_text=(present_no_text_attr)
+16:23:13 dump a04_final.xml
+16:23:13 === CASE B: syllable path via ni ===
+16:23:18 dump focus_field.xml
+16:23:18 tap ime_test_input (720,1293)
+16:23:25 tap 重输 (1292,2556)
+16:23:27 tap 6 (996,2556)
+16:23:28 tap 4 (404,2556)
+16:23:29 tap 4 (404,2556)
+16:23:29 tap 2 (700,2364)
+16:23:30 tap 6 (996,2556)
+16:23:33 shot 03_case_b_syllable/b01_after_64426.png
+16:23:33 tap pinyin1 ni (128,2440)
+16:23:35 shot 03_case_b_syllable/b02_after_tap_ni.png
+16:23:35 tap cand 你 (200,2140)
+16:23:38 shot 03_case_b_syllable/b03_after_ni_select.png
+16:23:38 tap pinyin remaining hao? (128,2440)
+16:23:40 shot 03_case_b_syllable/b04_remaining_pinyin.png
+16:23:40 tap cand 好 (200,2140)
+16:23:43 shot 03_case_b_syllable/b05_after_hao.png
+16:23:45 dump field_c75bed80.xml
+16:23:45 CASE_B_field_text=(present_no_text_attr)
+16:23:48 dump b05_final.xml
+16:23:48 === CASE C: clear learned + fenpan learn/recall ===
+16:23:54 dump settings_learned.xml
+16:23:55 shot 01_settings/s03_before_clear_learned.png
+16:23:55 tap clear learned data (720,1846)
+16:23:59 dump clear_dialog.xml
+16:24:01 shot 01_settings/s04_after_clear_learned.png
+16:24:09 dump focus_field.xml
+16:24:09 tap ime_test_input (720,1293)
+16:24:15 tap 重输 (1292,2556)
+16:24:17 shot 04_case_c_learn/c00_ready_cleared.png
+16:24:17 tap 3 (996,2364)
+16:24:18 tap 3 (996,2364)
+16:24:19 tap 6 (996,2556)
+16:24:20 tap 7 (404,2748)
+16:24:21 tap 2 (700,2364)
+16:24:22 tap 6 (996,2556)
+16:24:24 shot 04_case_c_learn/c01_after_336726.png
+16:24:26 dump c01_after_336726.xml
+16:24:26 tap pinyin fen? (128,2440)
+16:24:29 shot 04_case_c_learn/c02_after_pinyin_fen.png
+16:24:29 tap cand 分 (200,2140)
+16:24:31 shot 04_case_c_learn/c03_after_fen.png
+16:24:33 dump c03_after_fen.xml
+16:24:33 tap pinyin1 remaining (128,2440)
+16:24:35 shot 04_case_c_learn/c04_remaining1.png
+16:24:37 shot 04_case_c_learn/c05_pinyin_scrolled.png
+16:24:37 tap pinyin2 (128,2520)
+16:24:39 shot 04_case_c_learn/c06_pinyin2.png
+16:24:39 tap pinyin3 (128,2600)
+16:24:41 shot 04_case_c_learn/c07_pinyin3.png
+16:24:41 tap pinyin1 again (128,2440)
+16:24:42 tap cand 盘/三? (200,2140)
+16:24:45 shot 04_case_c_learn/c08_after_second_syllable.png
+16:24:47 dump field_28ebaf3a.xml
+16:24:47 CASE_C_after_compose_field=(present_no_text_attr)
+16:24:50 dump c08_after_compose.xml
+16:24:50 wait for learning...
+16:24:53 tap 重输 (1292,2556)
+16:25:00 dump focus_field.xml
+16:25:00 tap ime_test_input (720,1293)
+16:25:02 tap 重输 (1292,2556)
+16:25:03 tap 3 (996,2364)
+16:25:04 tap 3 (996,2364)
+16:25:05 tap 6 (996,2556)
+16:25:06 tap 7 (404,2748)
+16:25:07 tap 2 (700,2364)
+16:25:08 tap 6 (996,2556)
+16:25:11 shot 04_case_c_learn/c09_recall_336726.png
+16:25:13 dump c09_recall.xml
+16:25:13 tap cand recall whole-word (200,2140)
+16:25:16 shot 04_case_c_learn/c10_after_recall_commit.png
+16:25:18 dump field_7529fcbf.xml
+16:25:18 CASE_C_recall_field=(present_no_text_attr)
+16:25:21 dump c10_final.xml
+16:25:23 shot 01_settings/c11_learned_status.png
+16:25:26 dump learned_status.xml
+16:25:26 === REGRESSION: 64 -> ni/mi smoke ===
+16:25:31 dump focus_field.xml
+16:25:31 tap ime_test_input fb (720,900)
+16:25:38 tap 重输 (1292,2556)
+16:25:39 tap 6 (996,2556)
+16:25:40 tap 4 (404,2556)
+16:25:43 shot 05_regression/r01_64.png
+16:25:43 tap mi (128,2520)
+16:25:45 shot 05_regression/r02_mi.png
+16:25:45 tap 重输 (1292,2556)
+16:25:46 tap 9 (996,2748)
+16:25:47 tap 4 (404,2556)
+16:25:48 tap 6 (996,2556)
+16:25:49 tap 6 (996,2556)
+16:25:50 tap 4 (404,2556)
+16:25:52 shot 05_regression/r03_94664_zhong.png
+16:25:52 tap cand 中 (200,2140)
+16:25:54 shot 05_regression/r04_zhong_commit.png
+16:25:57 dump field_e455e7af.xml
+16:25:57 REGRESSION_field=(no_field)
+16:25:57 === DONE ===
+16:25:57 SUMMARY A=(present_no_text_attr) B=(present_no_text_attr) C1=(present_no_text_attr) C2=(present_no_text_attr) R=(no_field)
