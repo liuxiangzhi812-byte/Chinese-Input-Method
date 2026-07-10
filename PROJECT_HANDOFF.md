@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0030` (local build passed; pending manual/device test)
+- Current display version: `v0.01.0030` (device-tested and accepted for push; see `tests/v0.01.0030_2026-07-10_223106/REPORT.md`)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -78,6 +78,12 @@ Manual/device test procedure (v0.01.0030):
 3. Enter `744` alone. Expected: `shi` remains available for the genuine single-syllable input and its candidates remain usable.
 4. Confirm the compact candidate bar no longer displays left/right paging arrows. Tap the expand arrow and verify all candidates remain scrollable and selectable in the expanded panel.
 5. Regression: repeat `64426 -> 你好`, `336726 -> fen` syllable selection, DEL while composing, and expanded-panel close/reopen.
+
+Device test result (v0.01.0030):
+
+- Passed: compact candidate arrows removed, expanded candidate panel, `744 -> shi`, `744824 -> 奇怪` direct commit, `64426 -> 你好`, DEL, and `fen` syllable-path regression.
+- Known limitation accepted for this push: on `744824`, `qi` is visible but remains second after `shi` because the same digits also exactly match `shitai`; automated tapping did not close the full `qi -> 奇 -> guai -> 怪` path.
+- `726` now visibly includes `pan`, although its default highlighted ambiguity may still be another syllable.
 
 Previous functional node: **v0.01.0029 — 9-key whole-word candidates + syllable fallback**
 
@@ -720,5 +726,5 @@ Minimum regression set:
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
-- Latest archived device report: `tests/v0.01.0029_2026-07-10_162115/REPORT.md`
+- Latest archived device report: `tests/v0.01.0030_2026-07-10_223106/REPORT.md`
 - Failed dictionary-loading experiment branch: `codex-experiment-dict-load-v0.01.0023`

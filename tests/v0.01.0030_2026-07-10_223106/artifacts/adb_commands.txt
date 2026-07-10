@@ -1,0 +1,133 @@
+
+22:31:37 === v0.01.0030 device test start (no install) ===
+22:31:37 ime=com.mercury.chinesepinyinime/.ChinesePinyinInputMethodService
+22:31:44 dump settings_layout.xml
+22:31:45 shot 01_settings/s01_settings_scroll.png
+22:31:45 layout already 9-key or status text not matched
+22:31:45 shot 01_settings/s02_layout_status.png
+22:31:45 === CASE Q: 744824 dictionary-aligned qi + 奇怪 ===
+22:31:50 dump focus_field.xml
+22:31:50 tap ime_test_input fb (720,900)
+22:31:58 tap 重输 (1292,2556)
+22:32:00 shot 02_case_qiguai/q00_ready.png
+22:32:00 tap 7 (404,2748)
+22:32:01 tap 4 (404,2556)
+22:32:02 tap 4 (404,2556)
+22:32:03 tap 8 (700,2748)
+22:32:04 tap 2 (700,2364)
+22:32:05 tap 4 (404,2556)
+22:32:08 shot 02_case_qiguai/q01_after_744824.png
+22:32:10 dump q01_after_744824.xml
+22:32:10 tap pinyin1 expect qi (128,2330)
+22:32:12 shot 02_case_qiguai/q02_after_tap_pinyin1.png
+22:32:12 tap cand1 奇? (200,2140)
+22:32:15 shot 02_case_qiguai/q03_after_cand1.png
+22:32:17 dump q03_after_cand1.xml
+22:32:17 tap pinyin remaining guai? (128,2330)
+22:32:19 shot 02_case_qiguai/q04_remaining_pinyin.png
+22:32:19 tap cand 怪? (200,2140)
+22:32:22 shot 02_case_qiguai/q05_after_second_syllable.png
+22:32:24 dump field_3029862e.xml
+22:32:24 CASE_Q_syllable_field=(no_field)
+22:32:27 dump q05_syllable_final.xml
+22:32:27 === CASE Q2: whole-word commit 奇怪 ===
+22:32:31 dump focus_field.xml
+22:32:31 tap ime_test_input fb (720,900)
+22:32:40 tap 重输 (1292,2556)
+22:32:41 tap 7 (404,2748)
+22:32:42 tap 4 (404,2556)
+22:32:43 tap 4 (404,2556)
+22:32:44 tap 8 (700,2748)
+22:32:45 tap 2 (700,2364)
+22:32:46 tap 4 (404,2556)
+22:32:48 shot 02_case_qiguai/q06_whole_before_commit.png
+22:32:48 tap cand1 whole 奇怪? (200,2140)
+22:32:51 shot 02_case_qiguai/q07_whole_after_commit.png
+22:32:53 dump field_b38e9ce7.xml
+22:32:53 CASE_Q_whole_field=(no_field)
+22:32:56 dump q07_whole_final.xml
+22:32:56 === CASE S: 744 shi regression ===
+22:33:00 dump focus_field.xml
+22:33:00 tap ime_test_input fb (720,900)
+22:33:09 tap 重输 (1292,2556)
+22:33:10 tap 7 (404,2748)
+22:33:11 tap 4 (404,2556)
+22:33:12 tap 4 (404,2556)
+22:33:14 shot 03_case_shi_regression/s01_after_744.png
+22:33:17 dump s01_after_744.xml
+22:33:17 tap pinyin1 for 744 (128,2330)
+22:33:19 shot 03_case_shi_regression/s02_pinyin1.png
+22:33:19 tap 重输 (1292,2556)
+22:33:20 tap 7 (404,2748)
+22:33:21 tap 4 (404,2556)
+22:33:22 tap 4 (404,2556)
+22:33:23 tap pinyin2 for 744 (128,2450)
+22:33:26 shot 03_case_shi_regression/s03_pinyin2.png
+22:33:26 tap cand after shi? (200,2140)
+22:33:28 shot 03_case_shi_regression/s04_after_cand.png
+22:33:31 dump field_8772ad1b.xml
+22:33:31 CASE_S_field=(no_field)
+22:33:53 shot 04_candidate_expand/e02_expanded_panel.png
+22:33:53 tap expanded cand mid (400,2500)
+22:33:56 shot 04_candidate_expand/e03_after_expand_select.png
+22:33:58 dump field_82811020.xml
+22:33:58 CASE_E_expand_select=(no_field)
+22:34:03 dump focus_field.xml
+22:34:03 tap ime_test_input fb (720,900)
+22:34:11 tap 重输 (1292,2556)
+22:34:12 tap 6 (996,2556)
+22:34:13 tap 4 (404,2556)
+22:34:14 tap 4 (404,2556)
+22:34:15 tap 2 (700,2364)
+22:34:16 tap 6 (996,2556)
+22:34:18 shot 04_candidate_expand/e04_64426_compact.png
+22:34:18 tap expand on whole-word (1360,2140)
+22:34:21 shot 04_candidate_expand/e05_64426_expanded.png
+22:34:21 tap collapse expand (1360,2140)
+22:34:23 shot 04_candidate_expand/e06_after_collapse.png
+22:34:23 tap DEL once (1292,2364)
+22:34:25 shot 04_candidate_expand/e07_after_del.png
+22:34:25 tap 重输 (1292,2556)
+22:34:26 tap 6 (996,2556)
+22:34:27 tap 4 (404,2556)
+22:34:28 tap 4 (404,2556)
+22:34:29 tap 2 (700,2364)
+22:34:30 tap 6 (996,2556)
+22:34:32 tap cand 你好 (200,2140)
+22:34:34 shot 04_candidate_expand/e08_nihao_commit.png
+22:34:37 dump field_8d5f4f53.xml
+22:34:37 CASE_E_nihao=(no_field)
+22:34:39 dump e08_final.xml
+22:34:39 === CASE R: 336726 fen + regression smoke ===
+22:34:44 dump focus_field.xml
+22:34:44 tap ime_test_input fb (720,900)
+22:34:52 tap 重输 (1292,2556)
+22:34:53 tap 3 (996,2364)
+22:34:54 tap 3 (996,2364)
+22:34:55 tap 6 (996,2556)
+22:34:56 tap 7 (404,2748)
+22:34:57 tap 2 (700,2364)
+22:34:58 tap 6 (996,2556)
+22:35:01 shot 05_regression/r01_336726.png
+22:35:01 tap pinyin fen? (128,2330)
+22:35:03 shot 05_regression/r02_after_fen.png
+22:35:03 tap cand 分? (200,2140)
+22:35:05 shot 05_regression/r03_after_fen_select.png
+22:35:08 dump field_1132f62c.xml
+22:35:08 CASE_R_after_fen=(no_field)
+22:35:10 dump r03_after_fen.xml
+22:35:10 tap 重输 (1292,2556)
+22:35:18 tap 9 (996,2748)
+22:35:19 tap 4 (404,2556)
+22:35:20 tap 6 (996,2556)
+22:35:21 tap 6 (996,2556)
+22:35:21 tap 4 (404,2556)
+22:35:24 shot 05_regression/r04_94664.png
+22:35:24 tap cand 中? (200,2140)
+22:35:26 shot 05_regression/r05_zhong.png
+22:35:29 dump field_9d052a30.xml
+22:35:29 CASE_R_zhong=(no_field)
+22:35:31 shot 01_settings/s03_final_settings.png
+22:35:34 dump settings_final.xml
+22:35:34 === DONE ===
+22:35:34 SUMMARY Q1=(no_field) Q2=(no_field) S=(no_field) E1=(no_field) E2=(no_field) R1=(no_field) R2=(no_field)

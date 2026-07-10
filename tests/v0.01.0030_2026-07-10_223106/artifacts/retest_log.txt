@@ -1,0 +1,139 @@
+
+22:36:40 === v0.01.0030 retest start ===
+22:36:40 ime=com.mercury.chinesepinyinime/.ChinesePinyinInputMethodService
+22:36:48 shot 01_settings/rt_s01_version_top.png
+22:36:50 dump settings_top.xml
+22:36:50 version=v0.01.0030
+22:36:50 layout=9key OK
+22:36:50 === CASE Q: 744824 qi/奇怪 ===
+22:36:57 dump focus_field.xml
+22:36:57 field bounds center=(720,1006)
+22:36:57 tap ime_test_input (720,1006)
+22:37:07 tap 重输 (1292,2556)
+22:37:09 shot 02_case_qiguai/rt_q00_ready.png
+22:37:09 tap 7 (404,2748)
+22:37:10 tap 4 (404,2556)
+22:37:10 tap 4 (404,2556)
+22:37:11 tap 8 (700,2748)
+22:37:12 tap 2 (700,2364)
+22:37:13 tap 4 (404,2556)
+22:37:15 shot 02_case_qiguai/rt_q01_after_744824.png
+22:37:18 dump rt_q01.xml
+22:37:18 tap pinyin1 (128,2330)
+22:37:20 shot 02_case_qiguai/rt_q02_pinyin1.png
+22:37:20 tap cand1 (200,2140)
+22:37:23 shot 02_case_qiguai/rt_q03_after_cand1.png
+22:37:23 tap pinyin remaining (128,2330)
+22:37:25 shot 02_case_qiguai/rt_q04_remaining.png
+22:37:25 tap cand2 (200,2140)
+22:37:27 shot 02_case_qiguai/rt_q05_syllable_done.png
+22:37:29 dump field_0c6b9395.xml
+22:37:29 Q_syllable_field=是太
+22:37:29 === CASE Q2 whole-word ===
+22:37:36 dump focus_field.xml
+22:37:36 field bounds center=(720,1006)
+22:37:36 tap ime_test_input (720,1006)
+22:37:44 tap 重输 (1292,2556)
+22:37:45 tap 7 (404,2748)
+22:37:46 tap 4 (404,2556)
+22:37:47 tap 4 (404,2556)
+22:37:47 tap 8 (700,2748)
+22:37:48 tap 2 (700,2364)
+22:37:49 tap 4 (404,2556)
+22:37:51 shot 02_case_qiguai/rt_q06_whole.png
+22:37:51 tap whole cand1 (200,2140)
+22:37:54 shot 02_case_qiguai/rt_q07_whole_commit.png
+22:37:56 dump field_1030e709.xml
+22:37:56 Q_whole_field=是太
+22:37:56 === CASE S: 744 shi ===
+22:38:03 dump focus_field.xml
+22:38:03 field bounds center=(720,1006)
+22:38:03 tap ime_test_input (720,1006)
+22:38:11 tap 重输 (1292,2556)
+22:38:12 tap 7 (404,2748)
+22:38:12 tap 4 (404,2556)
+22:38:13 tap 4 (404,2556)
+22:38:16 shot 03_case_shi_regression/rt_s01_744.png
+22:38:18 tap pinyin1 (128,2330)
+22:38:20 shot 03_case_shi_regression/rt_s02_p1.png
+22:38:20 tap 重输 (1292,2556)
+22:38:21 tap 7 (404,2748)
+22:38:22 tap 4 (404,2556)
+22:38:23 tap 4 (404,2556)
+22:38:24 tap pinyin2 (128,2450)
+22:38:26 shot 03_case_shi_regression/rt_s03_p2.png
+22:38:26 tap cand (200,2140)
+22:38:29 shot 03_case_shi_regression/rt_s04_cand.png
+22:38:31 dump field_fd25e221.xml
+22:38:31 S_field=是
+22:38:31 === CASE E: expand panel ===
+22:38:38 dump focus_field.xml
+22:38:38 field bounds center=(720,1006)
+22:38:38 tap ime_test_input (720,1006)
+22:38:48 tap 重输 (1292,2556)
+22:38:50 tap 6 (996,2556)
+22:38:50 tap 4 (404,2556)
+22:38:53 shot 04_candidate_expand/rt_e01_compact.png
+22:38:53 tap expand (1360,2140)
+22:38:55 shot 04_candidate_expand/rt_e02_expanded.png
+22:38:55 tap exp cand (360,2450)
+22:38:58 shot 04_candidate_expand/rt_e03_selected.png
+22:39:00 dump field_6782bf6f.xml
+22:39:00 E_expand_field=孴
+22:39:07 dump focus_field.xml
+22:39:07 field bounds center=(720,1006)
+22:39:07 tap ime_test_input (720,1006)
+22:39:17 tap 重输 (1292,2556)
+22:39:18 tap 6 (996,2556)
+22:39:19 tap 4 (404,2556)
+22:39:20 tap 4 (404,2556)
+22:39:21 tap 2 (700,2364)
+22:39:22 tap 6 (996,2556)
+22:39:24 shot 04_candidate_expand/rt_e04_64426.png
+22:39:24 tap expand whole (1360,2140)
+22:39:27 shot 04_candidate_expand/rt_e05_expanded_ww.png
+22:39:27 tap collapse (1360,2140)
+22:39:29 shot 04_candidate_expand/rt_e06_collapsed.png
+22:39:29 tap DEL (1292,2364)
+22:39:31 shot 04_candidate_expand/rt_e07_del.png
+22:39:31 tap 重输 (1292,2556)
+22:39:32 tap 6 (996,2556)
+22:39:33 tap 4 (404,2556)
+22:39:33 tap 4 (404,2556)
+22:39:34 tap 2 (700,2364)
+22:39:35 tap 6 (996,2556)
+22:39:37 tap 你好 (200,2140)
+22:39:39 shot 04_candidate_expand/rt_e08_nihao.png
+22:39:41 dump field_b50f2d17.xml
+22:39:41 E_nihao=你好
+22:39:41 === CASE R regression ===
+22:39:49 dump focus_field.xml
+22:39:49 field bounds center=(720,1006)
+22:39:49 tap ime_test_input (720,1006)
+22:39:58 tap 重输 (1292,2556)
+22:40:00 tap 3 (996,2364)
+22:40:00 tap 3 (996,2364)
+22:40:01 tap 6 (996,2556)
+22:40:02 tap 7 (404,2748)
+22:40:03 tap 2 (700,2364)
+22:40:04 tap 6 (996,2556)
+22:40:06 shot 05_regression/rt_r01_336726.png
+22:40:06 tap fen? (128,2330)
+22:40:09 shot 05_regression/rt_r02_fen.png
+22:40:09 tap 分? (200,2140)
+22:40:11 shot 05_regression/rt_r03_fen_sel.png
+22:40:13 dump field_586f918d.xml
+22:40:13 R_fen=在这里直接测试输入法
+22:40:13 tap 重输 (1292,2556)
+22:40:22 tap 9 (996,2748)
+22:40:23 tap 4 (404,2556)
+22:40:24 tap 6 (996,2556)
+22:40:25 tap 6 (996,2556)
+22:40:26 tap 4 (404,2556)
+22:40:28 shot 05_regression/rt_r04_94664.png
+22:40:28 tap 中? (200,2140)
+22:40:30 shot 05_regression/rt_r05_zhong.png
+22:40:33 dump field_f527812a.xml
+22:40:33 R_zhong=隐秘
+22:40:33 === DONE ===
+22:40:33 SUMMARY Q1=是太 Q2=是太 S=是 E1=孴 E2=你好 R1=在这里直接测试输入法 R2=隐秘
