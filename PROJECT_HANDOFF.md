@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0031` (local build passed; not yet manually/device-tested)
+- Current display version: `v0.01.0032` (local build passed; not yet manually/device-tested)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -40,8 +40,10 @@ Ownership rule:
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidatePager.java`: width-adaptive candidate paging
 - `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`: keyboard UI
 - `ChinesePinyinIME/app/src/main/assets/pinyin_dict.txt`: runtime dictionary
+- `ChinesePinyinIME/app/src/main/assets/pinyin_syllable_dict.txt`: generated compact single-syllable dictionary loaded before the large runtime dictionary
 - `ChangeLog/`: update-log folder; new files should use `v{version}-{YYYY-MM-DD}.md`
 - `scripts/convert_jieba_dict.py`: reproducible jieba-to-pinyin dictionary conversion
+- `scripts/build_syllable_dict.py`: regenerates the compact single-syllable dictionary from `pinyin_dict.txt`
 - `tests/`: real-device test archives
 - `ENVIRONMENT_SETUP.md`: local build/test environment notes
 
@@ -62,7 +64,27 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0031 — stable keyboard position during candidate updates**
+Latest functional node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
+
+Implementation (Codex; code-complete locally, not yet manually/device-tested):
+
+- Diagnosed the delayed 9-key pinyin choices shown in the user screenshot. The full candidate map was published before its digit, prefix, and single-syllable indexes finished building, so the UI could combine full-dictionary words with fallback-only pinyin choices for roughly 25 seconds.
+- Replaced the separately published runtime maps with one immutable runtime dictionary state. Candidate words and every derived index are now built in the background and published together through one atomic state switch.
+- Added a generated compact dictionary containing all 405 single syllables found in the complete base dictionary. It is loaded before the keyboard is returned, so cold-start pinyin choices are no longer limited to a hand-maintained subset. `744824` is the regression example, not a special-case rule.
+- Added `scripts/build_syllable_dict.py`; whenever the base dictionary changes, this script regenerates `pinyin_syllable_dict.txt` from all valid single-syllable entries and their single-character candidates.
+- During full loading, the UI should now show one internally consistent state: complete fallback data first, then the complete large dictionary. It must never show full words paired with stale fallback syllables.
+- Local `assembleDebug` passed after this change.
+
+Manual/device test procedure (v0.01.0032):
+
+1. Force-stop the app/IME process, reopen the app, focus the test field, and enter `744824` immediately without waiting for the large dictionary readiness message.
+2. Expected during cold start: the left pinyin list includes the `74` choices `qi`, `pi`, `ri`, and `si` (scroll if needed), with `shi` retained as the `744` ambiguity. It must not remain limited to only `shi/ri`.
+3. During the same cold-start window, tap `qi`, select `奇`, continue with `guai`, and select `怪`. Expected: `奇怪` can be composed without waiting roughly 25 seconds.
+4. Repeat `744824` while the full dictionary finishes loading. Expected: candidate words and pinyin choices refresh together; no phase may show full-dictionary words with a stale two-item pinyin list.
+5. After the full dictionary is ready, repeat `744824`, `744`, `64`, `726`, and `64426`; verify the established full-dictionary candidates and pinyin choices still work.
+6. Re-run the v0.01.0031 rapid-input checks (`644` and top-row digits) because v0.01.0032 includes that still-unpushed keyboard-position fix.
+
+Previous functional node: **v0.01.0031 — stable keyboard position during candidate updates**
 
 Implementation (Codex; code-complete locally, not yet manually/device-tested):
 
@@ -739,7 +761,7 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0031-2026-07-10.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0032-2026-07-10.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`

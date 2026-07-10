@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 
 public class PinyinDictionary {
     private static final String DICTIONARY_ASSET_NAME = "pinyin_dict.txt";
+    private static final String SYLLABLE_DICTIONARY_ASSET_NAME = "pinyin_syllable_dict.txt";
     private static final int MAX_CANDIDATES_PER_PINYIN = 20;
     private static final int MAX_PREFIX_PYNYIN_KEYS = 24;
     private static final int MAX_PREFIX_CANDIDATES = 40;
@@ -31,18 +32,11 @@ public class PinyinDictionary {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final List<Runnable> pendingCallbacks = new ArrayList<>();
     private volatile Map<String, String[]> builtInCandidateWords = createFallbackCandidateWords();
-    private volatile Map<String, String[]> candidateWords = builtInCandidateWords;
-    private volatile Map<String, List<String>> digitToPinyinIndex = buildDigitIndex(candidateWords);
-    private volatile Map<String, List<String>> pinyinPrefixIndex = buildPinyinPrefixIndex(candidateWords);
-    private volatile Map<String, List<String>> digitPrefixIndex = buildDigitPrefixIndex(candidateWords);
-    private volatile Map<String, String[]> singleSyllableCandidateWords =
-            buildSingleSyllableCandidateWords(candidateWords);
-    private volatile Map<String, List<String>> singleSyllableDigitIndex =
-            buildDigitIndex(singleSyllableCandidateWords);
-    private volatile Map<String, List<String>> singleSyllableDigitPrefixIndex =
-            buildDigitPrefixIndex(singleSyllableCandidateWords);
+    private volatile RuntimeDictionaryState runtimeState =
+            buildRuntimeDictionaryState(builtInCandidateWords);
     private boolean loadingStarted;
     private boolean loadFinished;
+    private boolean syllableFallbackLoaded;
 
     private PinyinDictionary() {
     }
@@ -55,6 +49,7 @@ public class PinyinDictionary {
         Context appContext = context.getApplicationContext();
         UserFrequencyStore.getInstance().load(appContext);
         UserDictionaryStore.getInstance().load(appContext);
+        ensureSyllableFallbackLoaded(appContext);
         boolean shouldStartLoad = false;
         synchronized (lock) {
             if (loadFinished) {
@@ -76,7 +71,7 @@ public class PinyinDictionary {
     }
 
     public String[] getCandidates(String pinyin) {
-        String[] candidates = candidateWords.get(pinyin);
+        String[] candidates = runtimeState.candidateWords.get(pinyin);
         if (candidates == null) {
             return null;
         }
@@ -128,7 +123,7 @@ public class PinyinDictionary {
         if (digits == null || digits.isEmpty()) {
             return Collections.emptyList();
         }
-        List<String> matches = digitToPinyinIndex.get(digits);
+        List<String> matches = runtimeState.digitToPinyinIndex.get(digits);
         return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
     }
 
@@ -139,8 +134,9 @@ public class PinyinDictionary {
         }
 
         List<String> multiSyllableMatches = new ArrayList<>();
+        Map<String, String[]> singleSyllableWords = runtimeState.singleSyllableCandidateWords;
         for (String pinyin : matches) {
-            if (!singleSyllableCandidateWords.containsKey(pinyin)) {
+            if (!singleSyllableWords.containsKey(pinyin)) {
                 multiSyllableMatches.add(pinyin);
             }
         }
@@ -158,7 +154,7 @@ public class PinyinDictionary {
         if (prefix == null || prefix.isEmpty()) {
             return Collections.emptyList();
         }
-        return getPrefixMatches(pinyinPrefixIndex, prefix);
+        return getPrefixMatches(runtimeState.pinyinPrefixIndex, prefix);
     }
 
     public String resolveBestPinyinForDigitPrefix(String digitsPrefix) {
@@ -170,7 +166,7 @@ public class PinyinDictionary {
         if (digitsPrefix == null || digitsPrefix.isEmpty()) {
             return Collections.emptyList();
         }
-        return getPrefixMatches(digitPrefixIndex, digitsPrefix);
+        return getPrefixMatches(runtimeState.digitPrefixIndex, digitsPrefix);
     }
 
     public String resolveBestLeadingSingleSyllableForDigits(String digits) {
@@ -183,22 +179,23 @@ public class PinyinDictionary {
             return Collections.emptyList();
         }
 
+        RuntimeDictionaryState state = runtimeState;
         List<String> dictionaryAlignedMatches =
-                getDictionaryAlignedLeadingSingleSyllableMatches(digits);
+                getDictionaryAlignedLeadingSingleSyllableMatches(state, digits);
 
-        List<String> exactMatches = getPinyinKeysForDigits(singleSyllableDigitIndex, digits);
+        List<String> exactMatches = getPinyinKeysForDigits(state.singleSyllableDigitIndex, digits);
         if (!exactMatches.isEmpty()) {
             return prependDistinctMatches(dictionaryAlignedMatches, exactMatches);
         }
 
-        List<String> prefixMatches = getPrefixMatches(singleSyllableDigitPrefixIndex, digits);
+        List<String> prefixMatches = getPrefixMatches(state.singleSyllableDigitPrefixIndex, digits);
         if (!prefixMatches.isEmpty()) {
             return prependDistinctMatches(dictionaryAlignedMatches, prefixMatches);
         }
 
         return prependDistinctMatches(
                 dictionaryAlignedMatches,
-                getLeadingConsumedSyllableMatches(digits));
+                getLeadingConsumedSyllableMatches(state, digits));
     }
 
     public String getDigitsForPinyin(String pinyin) {
@@ -218,7 +215,7 @@ public class PinyinDictionary {
         }
 
         UserDictionaryStore.getInstance().recordEntry(pinyin, candidate);
-        if (containsCandidate(candidateWords.get(pinyin), candidate)) {
+        if (containsCandidate(runtimeState.candidateWords.get(pinyin), candidate)) {
             return;
         }
 
@@ -250,10 +247,36 @@ public class PinyinDictionary {
         }
     }
 
+    private void ensureSyllableFallbackLoaded(Context context) {
+        synchronized (lock) {
+            if (syllableFallbackLoaded) {
+                return;
+            }
+            Map<String, String[]> syllableWords = loadCandidateWordsFromAsset(
+                    context,
+                    SYLLABLE_DICTIONARY_ASSET_NAME);
+            if (!syllableWords.isEmpty()) {
+                Map<String, String[]> fallbackWords = new HashMap<>(builtInCandidateWords);
+                fallbackWords.putAll(syllableWords);
+                builtInCandidateWords = Collections.unmodifiableMap(fallbackWords);
+                applyCandidateWords(mergeUserDictionaryWords(
+                        builtInCandidateWords,
+                        UserDictionaryStore.getInstance().snapshotOrderedEntries()));
+            }
+            syllableFallbackLoaded = true;
+        }
+    }
+
     private Map<String, String[]> loadCandidateWordsFromAssets(Context context) {
+        return loadCandidateWordsFromAsset(context, DICTIONARY_ASSET_NAME);
+    }
+
+    private Map<String, String[]> loadCandidateWordsFromAsset(
+            Context context,
+            String assetName) {
         Map<String, String[]> words = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                context.getAssets().open(DICTIONARY_ASSET_NAME), StandardCharsets.UTF_8))) {
+                context.getAssets().open(assetName), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
@@ -288,6 +311,7 @@ public class PinyinDictionary {
 
     private void mergeUserCandidateIntoRuntime(String pinyin, String candidate) {
         synchronized (lock) {
+            Map<String, String[]> candidateWords = runtimeState.candidateWords;
             if (containsCandidate(candidateWords.get(pinyin), candidate)) {
                 return;
             }
@@ -298,13 +322,21 @@ public class PinyinDictionary {
     }
 
     private void applyCandidateWords(Map<String, String[]> words) {
-        candidateWords = words;
-        digitToPinyinIndex = buildDigitIndex(words);
-        pinyinPrefixIndex = buildPinyinPrefixIndex(words);
-        digitPrefixIndex = buildDigitPrefixIndex(words);
-        singleSyllableCandidateWords = buildSingleSyllableCandidateWords(words);
-        singleSyllableDigitIndex = buildDigitIndex(singleSyllableCandidateWords);
-        singleSyllableDigitPrefixIndex = buildDigitPrefixIndex(singleSyllableCandidateWords);
+        runtimeState = buildRuntimeDictionaryState(words);
+    }
+
+    private static RuntimeDictionaryState buildRuntimeDictionaryState(
+            Map<String, String[]> candidateWords) {
+        Map<String, String[]> singleSyllableWords =
+                buildSingleSyllableCandidateWords(candidateWords);
+        return new RuntimeDictionaryState(
+                candidateWords,
+                buildDigitIndex(candidateWords),
+                buildPinyinPrefixIndex(candidateWords),
+                buildDigitPrefixIndex(candidateWords),
+                singleSyllableWords,
+                buildDigitIndex(singleSyllableWords),
+                buildDigitPrefixIndex(singleSyllableWords));
     }
 
     private static Map<String, String[]> createFallbackCandidateWords() {
@@ -552,13 +584,15 @@ public class PinyinDictionary {
         return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
     }
 
-    private List<String> getLeadingConsumedSyllableMatches(String digits) {
+    private List<String> getLeadingConsumedSyllableMatches(
+            RuntimeDictionaryState state,
+            String digits) {
         List<String> matches = new ArrayList<>();
         Set<String> seenMatches = new LinkedHashSet<>();
         int maxPrefixLength = Math.min(6, digits.length() - 1);
         for (int prefixLength = maxPrefixLength; prefixLength >= 1; prefixLength--) {
             List<String> prefixMatches = getPinyinKeysForDigits(
-                    singleSyllableDigitIndex,
+                    state.singleSyllableDigitIndex,
                     digits.substring(0, prefixLength));
             for (String match : prefixMatches) {
                 if (seenMatches.add(match)) {
@@ -572,8 +606,10 @@ public class PinyinDictionary {
         return matches.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(matches);
     }
 
-    private List<String> getDictionaryAlignedLeadingSingleSyllableMatches(String digits) {
-        List<String> fullPinyinMatches = getPinyinKeysForDigits(digitToPinyinIndex, digits);
+    private List<String> getDictionaryAlignedLeadingSingleSyllableMatches(
+            RuntimeDictionaryState state,
+            String digits) {
+        List<String> fullPinyinMatches = getPinyinKeysForDigits(state.digitToPinyinIndex, digits);
         if (fullPinyinMatches.isEmpty()) {
             return Collections.emptyList();
         }
@@ -583,11 +619,11 @@ public class PinyinDictionary {
             int maxLeadingLength = Math.min(6, fullPinyin.length() - 1);
             for (int leadingLength = 1; leadingLength <= maxLeadingLength; leadingLength++) {
                 String syllable = fullPinyin.substring(0, leadingLength);
-                if (!singleSyllableCandidateWords.containsKey(syllable)) {
+                if (!state.singleSyllableCandidateWords.containsKey(syllable)) {
                     continue;
                 }
                 String remainingPinyin = fullPinyin.substring(syllable.length());
-                if (canSegmentIntoSingleSyllables(remainingPinyin)) {
+                if (canSegmentIntoSingleSyllables(state, remainingPinyin)) {
                     alignedMatches.add(syllable);
                 }
             }
@@ -598,11 +634,16 @@ public class PinyinDictionary {
         }
         List<String> orderedMatches = new ArrayList<>(alignedMatches);
         Collections.sort(orderedMatches,
-                (left, right) -> comparePinyinKeys(left, right, singleSyllableCandidateWords));
+                (left, right) -> comparePinyinKeys(
+                        left,
+                        right,
+                        state.singleSyllableCandidateWords));
         return Collections.unmodifiableList(orderedMatches);
     }
 
-    private boolean canSegmentIntoSingleSyllables(String pinyin) {
+    private boolean canSegmentIntoSingleSyllables(
+            RuntimeDictionaryState state,
+            String pinyin) {
         if (pinyin.isEmpty()) {
             return true;
         }
@@ -614,7 +655,7 @@ public class PinyinDictionary {
             }
             int maxEnd = Math.min(pinyin.length(), start + 6);
             for (int end = start + 1; end <= maxEnd; end++) {
-                if (singleSyllableCandidateWords.containsKey(pinyin.substring(start, end))) {
+                if (state.singleSyllableCandidateWords.containsKey(pinyin.substring(start, end))) {
                     reachable[end] = true;
                 }
             }
@@ -631,6 +672,33 @@ public class PinyinDictionary {
         Set<String> mergedMatches = new LinkedHashSet<>(preferredMatches);
         mergedMatches.addAll(fallbackMatches);
         return Collections.unmodifiableList(new ArrayList<>(mergedMatches));
+    }
+
+    private static final class RuntimeDictionaryState {
+        private final Map<String, String[]> candidateWords;
+        private final Map<String, List<String>> digitToPinyinIndex;
+        private final Map<String, List<String>> pinyinPrefixIndex;
+        private final Map<String, List<String>> digitPrefixIndex;
+        private final Map<String, String[]> singleSyllableCandidateWords;
+        private final Map<String, List<String>> singleSyllableDigitIndex;
+        private final Map<String, List<String>> singleSyllableDigitPrefixIndex;
+
+        private RuntimeDictionaryState(
+                Map<String, String[]> candidateWords,
+                Map<String, List<String>> digitToPinyinIndex,
+                Map<String, List<String>> pinyinPrefixIndex,
+                Map<String, List<String>> digitPrefixIndex,
+                Map<String, String[]> singleSyllableCandidateWords,
+                Map<String, List<String>> singleSyllableDigitIndex,
+                Map<String, List<String>> singleSyllableDigitPrefixIndex) {
+            this.candidateWords = candidateWords;
+            this.digitToPinyinIndex = digitToPinyinIndex;
+            this.pinyinPrefixIndex = pinyinPrefixIndex;
+            this.digitPrefixIndex = digitPrefixIndex;
+            this.singleSyllableCandidateWords = singleSyllableCandidateWords;
+            this.singleSyllableDigitIndex = singleSyllableDigitIndex;
+            this.singleSyllableDigitPrefixIndex = singleSyllableDigitPrefixIndex;
+        }
     }
 
     private String[] mergeCandidatesForPinyinKeys(List<String> pinyinKeys) {
