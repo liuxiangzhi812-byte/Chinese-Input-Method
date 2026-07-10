@@ -548,6 +548,11 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     }
 
     private void commitCandidateInternal(InputConnection inputConnection, String candidate) {
+        if (shouldCommitT9WholeWordCandidate()) {
+            commitT9WholeWordCandidate(inputConnection, candidate);
+            return;
+        }
+
         if (keyboardLayoutMode == KeyboardLayoutMode.T9_9
                 && hasCommittedT9Segments()
                 && composingDigits.length() == 0
@@ -978,6 +983,13 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private String[] getCandidatesForCurrentDigits() {
         String digits = composingDigits.toString();
+        if (!isT9SyllableSelectionActive() && !hasCommittedT9Segments()) {
+            String[] wholeWordCandidates = pinyinDictionary.getMultiSyllableCandidatesForDigits(digits);
+            if (wholeWordCandidates != null) {
+                return wholeWordCandidates;
+            }
+        }
+
         String resolvedPinyin = getActiveResolvedPinyinForDigits();
         if (resolvedPinyin == null) {
             return new String[]{digits};
@@ -1012,6 +1024,24 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
 
     private boolean shouldAppendT9CandidateToComposition() {
         return keyboardLayoutMode == KeyboardLayoutMode.T9_9 && composingDigits.length() > 0;
+    }
+
+    private boolean shouldCommitT9WholeWordCandidate() {
+        return keyboardLayoutMode == KeyboardLayoutMode.T9_9
+                && composingDigits.length() > 0
+                && !hasCommittedT9Segments()
+                && !isT9SyllableSelectionActive()
+                && pinyinDictionary.getMultiSyllableCandidatesForDigits(composingDigits.toString()) != null;
+    }
+
+    private void commitT9WholeWordCandidate(InputConnection inputConnection, String candidate) {
+        String pinyin = pinyinDictionary.resolveMultiSyllablePinyinForDigits(composingDigits.toString());
+        inputConnection.commitText(candidate, 1);
+        if (pinyin != null && !pinyin.isEmpty()) {
+            pinyinDictionary.addUserCandidate(pinyin, candidate);
+            UserFrequencyStore.getInstance().recordSelection(pinyin, candidate);
+        }
+        clearComposingState();
     }
 
     private void appendT9CandidateToComposition(InputConnection inputConnection, String candidate) {

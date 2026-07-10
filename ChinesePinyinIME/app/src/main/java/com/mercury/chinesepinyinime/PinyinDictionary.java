@@ -92,6 +92,20 @@ public class PinyinDictionary {
     }
 
     /**
+     * Returns candidates for exact 9-key input that represents a complete
+     * multi-syllable word. Single-syllable keys are deliberately excluded so
+     * the caller can fall back to the per-syllable composition flow.
+     */
+    public String[] getMultiSyllableCandidatesForDigits(String digits) {
+        return mergeCandidatesForPinyinKeys(getMultiSyllablePinyinKeysForDigits(digits));
+    }
+
+    public String resolveMultiSyllablePinyinForDigits(String digits) {
+        List<String> matches = getMultiSyllablePinyinKeysForDigits(digits);
+        return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    /**
      * Resolves a 9-key digit sequence (e.g. "64") to the best matching dictionary
      * pinyin key (e.g. "ni"), or null if no dictionary key maps to these digits.
      * When a digit sequence is ambiguous, the first entry of
@@ -116,6 +130,23 @@ public class PinyinDictionary {
         }
         List<String> matches = digitToPinyinIndex.get(digits);
         return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
+    }
+
+    private List<String> getMultiSyllablePinyinKeysForDigits(String digits) {
+        List<String> matches = getPinyinKeysForDigits(digits);
+        if (matches.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> multiSyllableMatches = new ArrayList<>();
+        for (String pinyin : matches) {
+            if (!singleSyllableCandidateWords.containsKey(pinyin)) {
+                multiSyllableMatches.add(pinyin);
+            }
+        }
+        return multiSyllableMatches.isEmpty()
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(multiSyllableMatches);
     }
 
     public String resolveBestPinyinForPrefix(String prefix) {

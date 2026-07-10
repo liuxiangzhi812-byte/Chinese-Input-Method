@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0028` (current local worktree version; local compile passed, not yet manually/device-tested for this version)
+- Current display version: `v0.01.0029` (current local worktree version; local compile passed, not yet manually/device-tested for this version)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -62,9 +62,23 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0028 — 9-key syllable-by-syllable composition + self-learning custom words**
+Latest functional node: **v0.01.0029 — 9-key whole-word candidates + syllable fallback**
 
-Implementation (Codex; code present in worktree, not yet committed or device-tested for this version):
+Implementation (Codex; code present in worktree, not yet manually/device-tested for this version):
+
+- When a complete 9-key digit sequence exactly matches a multi-syllable dictionary or learned-word entry, the candidate bar now prioritizes whole-word candidates. This makes the dictionary and learned custom words directly usable again.
+- The left-side pinyin chooser remains a single-syllable chooser. Tapping a pinyin entry explicitly enters per-syllable mode and shows candidates for that syllable, then continues with the remaining digits as before.
+- If the complete digit sequence has no multi-syllable match, candidate display automatically falls back to the existing single-syllable composition flow.
+
+Manual test focus:
+
+- Enter a known multi-syllable word such as `nihao`: whole-word candidates should appear and commit directly.
+- On the same digits, tap a left-side pinyin choice: it should show that one syllable's candidates and continue to the remaining syllables after selection.
+- Enter an unmatched sequence such as `fenpan`: it should remain usable through `fen -> pan` single-syllable composition.
+
+Previous functional node: **v0.01.0028 — 9-key syllable-by-syllable composition + self-learning custom words**
+
+Implementation (Codex; completed and pushed in `66776eb`; device test passed without an archived test report):
 
 - Changed 9-key composition to always advance syllable by syllable: regardless of whether the full digit buffer already has a whole-word hit, the left-side pinyin list now stays on the current syllable and then advances to the remaining digits after that syllable is chosen.
 - In that syllable-by-syllable path, the IME consumes the current digit buffer one syllable at a time, appends selected Chinese candidates into an internal phrase buffer, and then continues with the remaining digits.
@@ -85,11 +99,10 @@ Previous local node: **v0.01.0026 — expandable Chinese candidate panel**
 
 Next step:
 
-1. Hand off `v0.01.0028` for manual/device re-testing.
-2. Recheck the two failures from `tests/v0.01.0028_2026-07-09_155530/REPORT.md`:
-   - 9-key must stay in syllable-by-syllable mode even when the full digit string already has a whole-word hit.
-   - committing a learned/custom phrase must no longer freeze or kill the app.
-3. Push `v0.01.0028` only after that retest pass is recorded.
+1. Hand off `v0.01.0029` for manual/device testing.
+2. Verify that an exact multi-syllable hit can be committed directly, while tapping the pinyin chooser still starts the single-syllable path.
+3. Verify that no-full-word-hit input still supports creating and learning a phrase through per-syllable selection.
+4. Archive the test result under `tests/` and push `v0.01.0029` only after a pass.
 
 Planned follow-up after `v0.01.0027` acceptance:
 
@@ -110,13 +123,13 @@ At the time of this handoff update:
 - v0.01.0025 (in-app IME test input box) is already on `origin/main` with its archived device-test report.
 - v0.01.0026 (expandable Chinese candidate panel) was manually verified by the user but has no archived device-test report.
 - v0.01.0027 (prefix pinyin matching) has already been pushed to `origin/main`.
-- v0.01.0028 (9-key syllable-by-syllable composition + self-learning custom words) is implemented in the current worktree and passed local `assembleDebug`, but has not been manually/device-tested to pass yet or pushed.
-- Grok archived a failing test report under `tests/v0.01.0028_2026-07-09_155530/REPORT.md`; the reported issues were the main-thread custom-word merge freeze and an incorrect second-syllable selection path. Follow-up code changes for both are now in the worktree and need re-test.
+- v0.01.0028 (9-key syllable-by-syllable composition + self-learning custom words) was tested by the user and pushed to `origin/main` in `66776eb`; its earlier Grok failure report remains archived for traceability.
+- v0.01.0029 (9-key whole-word candidates + syllable fallback) is code-complete locally and has passed `assembleDebug`, but still needs manual/device testing before push.
 
 Recommended immediate repository action:
 
-1. Manual/device-test `v0.01.0028`, focusing on the always-syllable 9-key flow, especially `fenpan`-style cases.
-2. If pass, archive a `tests/v0.01.0028_{date}_{time}/` report and then commit/push source + test record together.
+1. Manual/device-test `v0.01.0029`, covering direct whole-word candidates, explicit per-syllable selection, and an unmatched `fenpan`-style composition.
+2. If pass, archive a `tests/v0.01.0029_{date}_{time}/` report and then commit/push source + test record together.
 3. Keep `ChinesePinyinIME/.idea/` uncommitted.
 4. Leave PC-side manual dictionary import/export as a later follow-up after this on-device learning path is confirmed stable.
 
@@ -599,7 +612,7 @@ Minimum regression set:
 - Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
 - Prefix pinyin matching is already on `origin/main` as `v0.01.0027`; it was manually verified by the user, but no formal `tests/` archive exists for that version.
-- `v0.01.0028` changes 9-key into an always-syllable-by-syllable flow locally, but this new behavior has not been manually/device-tested yet.
+- `v0.01.0028` established the always-syllable composition path and is already pushed; `v0.01.0029` adds direct whole-word recall while preserving that explicit per-syllable path.
 - No fuzzy pinyin; intentionally deferred because the user can spell pinyin and wants exact/prefix behavior first.
 - No mistyped-pinyin correction.
 - No tone support.
@@ -611,7 +624,7 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0028-2026-07-09.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0029-2026-07-10.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
