@@ -12,9 +12,15 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0032` (local build passed; not yet manually/device-tested)
+- Current display version: `v0.02.0001` (major-upgrade development baseline; local build passed; dictionary import/export not yet implemented)
 
-The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
+Version-stage decision:
+
+- The `v0.01` series is now closed as the **basic-function foundation**. It delivered the usable IME shell, 26-key/9-key input, pinyin and prefix lookup, candidate display/expansion, symbol and editing controls, large local dictionary loading, user-frequency learning, syllable-by-syllable 9-key composition, and basic self-learned words.
+- `v0.01.0032` is the final `v0.01` foundation release and has been pushed to `origin/main`.
+- The `v0.02` series starts a **major dictionary-system upgrade**. The first target is maintainable manual dictionary import/export and explicit merge priority; ranking optimization follows after real imported data is available.
+
+The immediate goal is now to turn the existing large but mostly static dictionary into a maintainable three-layer system: manually curated dictionary, self-learned dictionary, and built-in base dictionary.
 
 Detailed implemented behavior has been moved out of this handoff to keep handoff reading short:
 
@@ -64,7 +70,25 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
+Latest development node: **v0.02.0001 — major-upgrade baseline and manual dictionary management**
+
+Current status:
+
+- Version and documentation baseline created; manual dictionary import/export is **not implemented yet**.
+- Planned first delivery: a stable UTF-8 TSV format, Android file-picker import, export for PC editing/backup, validation summary, and background runtime reload.
+- Planned merge priority: manually curated entries first, self-learned entries second, built-in base dictionary third. Exact conflict and ranking rules must be covered by tests before release.
+- Candidate ranking is intentionally the second step. Imported and real-world word data should first reveal whether a problem is a missing entry or an existing entry ranked too low.
+- Keep all dictionary operations local-only and avoid broad storage permission by using Android's document picker.
+
+Initial v0.02.0001 acceptance direction:
+
+1. Import a valid custom dictionary file and report imported, duplicate, and rejected row counts.
+2. Make imported words available without rebuilding the APK and without freezing the IME.
+3. Export manual and self-learned entries to a user-selected file for PC editing or backup.
+4. Verify manual entries outrank learned and built-in entries predictably, while malformed files cannot corrupt existing data.
+5. Preserve all v0.01 input behavior, especially cold-start syllables, rapid 9-key input, whole-word candidates, and syllable-by-syllable composition.
+
+Final v0.01 foundation node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
 
 Implementation (Codex; code-complete locally, not yet manually/device-tested):
 
@@ -191,13 +215,16 @@ At the time of this handoff update:
 - v0.01.0027 (prefix pinyin matching) has already been pushed to `origin/main`.
 - v0.01.0028 (9-key syllable-by-syllable composition + self-learning custom words) was tested by the user and pushed to `origin/main` in `66776eb`; its earlier Grok failure report remains archived for traceability.
 - v0.01.0029 (9-key whole-word candidates + syllable fallback) has an archived device report: Cases A/B passed; Case C remains incomplete because `726` does not expose `pan`. The user accepted this as a non-blocking follow-up for the release.
+- v0.01.0030 (dictionary-aligned leading syllables + simplified candidate bar) was device-tested and pushed with its archived report.
+- v0.01.0031 (stable keyboard position) and v0.01.0032 (atomic dictionary readiness + generated single-syllable base) have been pushed to `origin/main`; they close the v0.01 basic-function stage.
+- v0.02.0001 is the current local development baseline. No dictionary import/export implementation is present yet.
 
 Recommended immediate repository action:
 
-1. Commit the v0.01.0029 test archive and push `v0.01.0029`.
-2. Plan the non-blocking single-syllable ambiguity fix for keys like `726`, then retest Case C only.
-4. Keep `ChinesePinyinIME/.idea/` uncommitted.
-5. Leave PC-side manual dictionary import/export as a later follow-up.
+1. Design and implement the v0.02.0001 manual dictionary file format, import/export flow, and three-layer merge priority.
+2. Add core automated tests for parsing, validation, deduplication, conflict priority, and bad-row tolerance before device testing.
+3. Keep `ChinesePinyinIME/.idea/` and unrelated local layout work uncommitted.
+4. After import/export is stable, collect real ranking failures and begin the candidate-ranking phase of the v0.02 upgrade.
 
 ## 6. Collaboration Workflow
 
@@ -761,7 +788,7 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0032-2026-07-10.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.02.0001-2026-07-10.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
