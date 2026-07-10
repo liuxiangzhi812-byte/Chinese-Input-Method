@@ -1,0 +1,7 @@
+# mixed fixture for v0.02.0001
+ni	妮	100
+ni	妮	50
+ni hao	你好	5
+hao	好	bad
+ceshici	测试词	80
+shurufa	输入法	60

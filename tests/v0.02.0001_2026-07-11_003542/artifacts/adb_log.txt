@@ -1,0 +1,196 @@
+
+00:35:58 fixtures pushed
+00:36:06 shot 01_baseline/s01_app_open.png
+00:36:09 dump baseline_top.xml
+00:36:09 version=v0.02.0001
+00:36:14 shot 01_baseline/s02_settings_scrolled.png
+00:36:16 dump settings_manual_section.xml
+00:36:16 MISSING com.mercury.chinesepinyinime:id/manual_dictionary_status in dump (may need more scroll)
+00:36:16 MISSING com.mercury.chinesepinyinime:id/manual_dictionary_result in dump (may need more scroll)
+00:36:16 found com.mercury.chinesepinyinime:id/import_manual_dictionary_button center=720,187
+00:36:16 found com.mercury.chinesepinyinime:id/export_dictionary_button center=720,419
+00:36:16 found com.mercury.chinesepinyinime:id/clear_manual_dictionary_button center=720,651
+00:36:16 MISSING com.mercury.chinesepinyinime:id/ime_test_input in dump (may need more scroll)
+00:36:16 text=导入人工词库 bounds=[96,91][1344,283]
+00:36:16 text=导出人工词库和自学习词 bounds=[96,323][1344,515]
+00:36:16 text=清空人工词库 bounds=[96,555][1344,747]
+00:36:16 text=当前输入、词库和学习数据都保存在本机；本项目现阶段不联网、不同步、不做云端预测。 bounds=[96,2824][1344,2992]
+00:36:30 shot 02_import_valid/i00_before_import.png
+00:36:33 dump before_import.xml
+00:36:33 tap import_manual_dictionary (720,187)
+00:36:36 shot 02_import_valid/i01_picker_open.png
+00:36:39 dump picker1.xml
+00:36:39 picker text=大型文件 bounds=[96,333][528,525]
+00:36:39 picker text=本周 bounds=[560,333][880,525]
+00:36:39 picker text=浏览其他应用中的文件 bounds=[0,525][542,717]
+00:36:39 picker text=错误报告 bounds=[624,909][816,974]
+00:36:39 picker text=近期的文件 bounds=[96,998][1152,1238]
+00:36:39 picker text=最近 bounds=[288,179][448,286]
+00:36:39 picker text=settings_t08.xml bounds=[288,1298][760,1384]
+00:36:39 picker text=6月20日, 8.89 kB, XML 文档 bounds=[288,1400][875,1465]
+00:36:39 picker text=settings.xml bounds=[288,1590][638,1676]
+00:36:39 picker text=6月20日, 8.91 kB, XML 文档 bounds=[288,1692][875,1757]
+00:36:39 picker text=edge_field.xml bounds=[288,1882][699,1968]
+00:36:39 picker text=6月20日, 36.76 kB, XML 文档 bounds=[288,1984][902,2049]
+00:36:39 picker text=settings_ui.xml bounds=[288,2174][718,2260]
+00:36:39 picker text=6月20日, 8.91 kB, XML 文档 bounds=[288,2276][875,2341]
+00:36:39 picker text=edge_ui.xml bounds=[288,2466][629,2552]
+00:36:39 picker text=6月20日, 23.02 kB, XML 文档 bounds=[288,2568][902,2633]
+00:36:39 desc=错误报告 bounds=[624,909][816,974]
+00:36:39 desc=网格视图 bounds=[1152,1022][1344,1214]
+00:36:39 desc=显示根目录 bounds=[0,137][224,329]
+00:36:39 desc=搜索 bounds=[1056,137][1248,329]
+00:36:39 desc=更多选项 bounds=[1248,137][1440,329]
+00:36:39 desc=预览“settings_t08.xml”文件 bounds=[1152,1238][1440,1526]
+00:36:39 desc=预览“settings.xml”文件 bounds=[1152,1530][1440,1818]
+00:36:39 desc=预览“edge_field.xml”文件 bounds=[1152,1822][1440,2110]
+00:36:39 desc=预览“settings_ui.xml”文件 bounds=[1152,2114][1440,2402]
+00:36:39 desc=预览“edge_ui.xml”文件 bounds=[1152,2406][1440,2694]
+00:36:47 tap search (1152,233)
+00:36:52 shot 02_import_valid/i02_search_mixed.png
+00:36:54 dump picker_search.xml
+00:36:54 hit text=mixed.tsv bounds=[320,161][1216,305]
+00:37:21 shot 02_import_valid/i03_search_results.png
+00:37:23 dump picker_results.xml
+00:37:23 text=大型文件 bounds=[96,333][528,525]
+00:37:23 text=本周 bounds=[560,333][880,525]
+00:37:23 text=浏览其他应用中的文件 bounds=[0,525][542,717]
+00:37:23 text=错误报告 bounds=[624,909][816,974]
+00:37:23 text=文件 bounds=[96,998][1152,1238]
+00:37:23 text=mixed.tsv bounds=[320,161][1216,305]
+00:37:23 text=“最近”中没有任何相符项 bounds=[0,2438][1440,2524]
+00:37:31 tap show roots (112,233)
+00:37:34 shot 02_import_valid/i04_roots.png
+00:37:36 dump picker_roots.xml
+00:37:36 root text=大型文件 bounds=[96,333][528,525]
+00:37:36 root text=本周 bounds=[560,333][880,525]
+00:37:36 root text=浏览其他应用中的文件 bounds=[0,525][542,717]
+00:37:36 root text=错误报告 bounds=[624,909][816,974]
+00:37:36 root text=近期的文件 bounds=[96,998][1152,1238]
+00:37:36 root text=最近 bounds=[288,179][448,286]
+00:37:36 root text=settings_t08.xml bounds=[288,1298][760,1384]
+00:37:36 root text=6月20日, 8.89 kB, XML 文档 bounds=[288,1400][875,1465]
+00:37:36 root text=settings.xml bounds=[288,1590][638,1676]
+00:37:36 root text=6月20日, 8.91 kB, XML 文档 bounds=[288,1692][875,1757]
+00:37:36 root text=edge_field.xml bounds=[288,1882][699,1968]
+00:37:36 root text=6月20日, 36.76 kB, XML 文档 bounds=[288,1984][902,2049]
+00:37:36 root text=settings_ui.xml bounds=[288,2174][718,2260]
+00:37:36 root text=6月20日, 8.91 kB, XML 文档 bounds=[288,2276][875,2341]
+00:37:36 root text=edge_ui.xml bounds=[288,2466][629,2552]
+00:37:36 root text=6月20日, 23.02 kB, XML 文档 bounds=[288,2568][902,2633]
+00:37:36 root text=打开文档 bounds=[64,168][448,297]
+00:37:36 root text=最近 bounds=[256,435][1088,511]
+00:37:36 root text=文档 bounds=[256,659][1088,735]
+00:37:36 root text=下载 bounds=[256,883][1088,959]
+00:37:36 root text=紫苏的OnePlus bounds=[256,1207][1088,1283]
+00:37:36 root text=错误报告 bounds=[256,1531][1088,1607]
+00:37:36 root desc=错误报告 bounds=[624,909][816,974]
+00:37:36 root desc=网格视图 bounds=[1152,1022][1344,1214]
+00:37:36 root desc=显示根目录 bounds=[0,137][224,329]
+00:37:36 root desc=搜索 bounds=[1056,137][1248,329]
+00:37:36 root desc=更多选项 bounds=[1248,137][1440,329]
+00:37:36 root desc=预览“settings_t08.xml”文件 bounds=[1152,1238][1440,1526]
+00:37:36 root desc=预览“settings.xml”文件 bounds=[1152,1530][1440,1818]
+00:37:36 root desc=预览“edge_field.xml”文件 bounds=[1152,1822][1440,2110]
+00:37:36 root desc=预览“settings_ui.xml”文件 bounds=[1152,2114][1440,2402]
+00:37:36 root desc=预览“edge_ui.xml”文件 bounds=[1152,2406][1440,2694]
+00:37:43 tap 下载 Downloads (672,921)
+00:37:46 shot 02_import_valid/i05_downloads.png
+00:37:48 dump downloads.xml
+00:37:48 dl text=下载 bounds=[0,333][272,525]
+00:37:48 dl text=大型文件 bounds=[96,525][528,717]
+00:37:48 dl text=本周 bounds=[560,525][880,717]
+00:37:48 dl text=“下载”中的文件 bounds=[96,717][1152,957]
+00:37:48 dl text=下载 bounds=[288,179][448,286]
+00:37:48 dl text=ime_test_v020001 bounds=[284,1031][656,1107]
+00:37:48 dl text=微信输入法 bounds=[924,1031][1204,1107]
+00:37:48 dl text=QQ bounds=[284,1255][362,1331]
+00:37:48 dl text=QQ bounds=[924,1255][1002,1331]
+00:37:48 dl text=device bounds=[284,1479][446,1555]
+00:37:48 dl text=kk bounds=[924,1479][980,1555]
+00:37:48 dl text=WeiXin bounds=[284,1703][458,1779]
+00:37:48 dl text=kaiheila bounds=[924,1703][1115,1779]
+00:37:48 dl text=Browser bounds=[284,1927][490,2003]
+00:37:48 dl text=com_account_usercenter bounds=[924,1927][1296,2003]
+00:37:48 dl text=com_account_usercenter_new bounds=[284,2151][656,2227]
+00:37:48 dl text=netease bounds=[924,2151][1122,2227]
+00:37:48 dl text=QuarkDownloads bounds=[284,2375][656,2451]
+00:37:48 dl text=Avatar bounds=[924,2375][1084,2451]
+00:37:48 dl text=update bounds=[284,2599][456,2675]
+00:37:48 dl text=MEGA Downloads bounds=[924,2599][1296,2675]
+00:37:48 dl text=jpush bounds=[284,2823][419,2899]
+00:37:48 dl text=MaoerFM bounds=[924,2823][1164,2899]
+00:37:48 dl text=tempfiles bounds=[284,3047][516,3120]
+00:37:48 dl text=com.ge.video.merge bounds=[924,3047][1296,3120]
+00:37:55 tap ime_test_v020001 folder (470,1069)
+00:37:58 shot 02_import_valid/i06_fixture_folder.png
+00:38:00 dump fixture_folder.xml
+00:38:00 t=下载 [0,333]
+00:38:00 t=ime_test_v020001 [336,333]
+00:38:00 t=大型文件 [96,525]
+00:38:00 t=本周 [560,525]
+00:38:00 t=“下载”中的文件 [96,717]
+00:38:00 t=ime_test_v020001 [288,179]
+00:38:00 t=无任何文件 [80,2157]
+00:38:21 tap reopen fixture folder (470,1069)
+00:38:24 shot 02_import_valid/i07_folder_with_txt.png
+00:38:26 dump folder_txt.xml
+00:38:26 file=大型文件 bounds=[96,525][528,717]
+00:38:27 file=“下载”中的文件 bounds=[96,717][1152,957]
+00:38:27 file=无任何文件 bounds=[80,2157][1360,2243]
+00:38:59 tap import again (720,187)
+00:39:02 tap roots (112,233)
+00:39:05 shot 02_import_valid/i08_roots2.png
+00:39:07 dump roots2.xml
+00:39:07 root=最近 bounds=[288,179][448,286]
+00:39:07 root=00:38, 16.80 kB, XML 文档 bounds=[288,1400][843,1465]
+00:39:07 root=00:35, 121 B, TSV 文档 bounds=[288,1692][770,1757]
+00:39:07 root=00:35, 47 B, TSV 文档 bounds=[288,1984][743,2049]
+00:39:07 root=00:35, 121 B, TXT 文档 bounds=[288,2276][769,2341]
+00:39:07 root=00:35, 47 B, TXT 文档 bounds=[288,2568][742,2633]
+00:39:07 root=00:15, 138 B, TSV 文档 bounds=[288,2860][770,2925]
+00:39:07 root=打开文档 bounds=[64,168][448,297]
+00:39:07 root=最近 bounds=[256,435][1088,511]
+00:39:07 root=文档 bounds=[256,659][1088,735]
+00:39:07 root=下载 bounds=[256,883][1088,959]
+00:39:07 root=紫苏的OnePlus bounds=[256,1207][1088,1283]
+00:39:19 dump picker_recent_list.xml
+00:39:20 shot 02_import_valid/i09_recent.png
+00:39:20 recent=mixed.tsv bounds=[288,1590][564,1676]
+00:39:20 recent=00:35, 121 B, TSV 文档 bounds=[288,1692][770,1757]
+00:39:20 recent=malformed_only.tsv bounds=[288,1882][848,1968]
+00:39:20 recent=00:35, 47 B, TSV 文档 bounds=[288,1984][743,2049]
+00:39:20 recent=mixed.txt bounds=[288,2174][553,2260]
+00:39:20 recent=00:35, 121 B, TXT 文档 bounds=[288,2276][769,2341]
+00:39:20 recent=malformed_only.txt bounds=[288,2466][837,2552]
+00:39:20 recent=00:35, 47 B, TXT 文档 bounds=[288,2568][742,2633]
+00:39:20 recent=example.tsv bounds=[288,2758][633,2844]
+00:39:20 recent=00:15, 138 B, TSV 文档 bounds=[288,2860][770,2925]
+00:39:20 recent=example.txt bounds=[288,3050][622,3120]
+00:39:26 tap select mixed.tsv (426,1633)
+00:39:31 shot 02_import_valid/i10_after_import_mixed.png
+00:39:43 dump after_import_mixed.xml
+00:40:10 shot 02_import_valid/i11_manual_status.png
+00:40:13 dump manual_status.xml
+00:40:13 ui=词库状态：已就绪，268353 个拼音条目，349039 个候选词
+00:40:13 ui=已学习数据：24 组词频，累计选择 49 次，自造词 9 条
+00:40:13 ui=人工词库
+00:40:13 ui=人工词库：3 条
+00:40:13 ui=UTF-8 TSV：拼音 + Tab + 词语 + Tab + 权重。导入会替换当前人工词库。
+00:40:13 ui=导入人工词库
+00:40:13 ui=导出人工词库和自学习词
+00:40:13 ui=清空人工词库
+00:40:17 dump field_top.xml
+00:40:17 tap field fb (720,1006)
+00:40:24 tap 重输 (1292,2556)
+00:40:24 tap 6 (996,2556)
+00:40:25 tap 4 (404,2556)
+00:40:28 shot 03_priority_input/p01_64_ni_priority.png
+00:40:30 dump p01_64.xml
+00:40:34 dump layout_for_26.xml
+00:40:35 shot 03_priority_input/p02_toggled_26.png
+00:40:36 tap field (720,1006)
+00:40:43 shot 03_priority_input/p03_26key_ready.png
+00:40:43 tap n? (980,2748)
+00:40:44 tap i? (1100,2364)
+00:40:47 shot 03_priority_input/p04_26key_ni.png

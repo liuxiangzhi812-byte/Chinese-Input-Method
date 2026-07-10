@@ -1,0 +1,5 @@
+# ChinesePinyinIME v0.02 manual dictionary example
+# pinyin<TAB>candidate<TAB>weight
+ni	妮	100
+ceshici	测试词	80
+shurufa	输入法	60

@@ -1,0 +1,38 @@
+
+00:48:31 tap import (720,187)
+00:48:36 shot 03_priority_input/fx01_picker.png FAIL
+00:48:36 tap roots (112,233)
+00:48:38 tap 最近 (672,473)
+00:48:43 shot 03_priority_input/fx02_recent.png FAIL
+00:48:43 tap mixed.tsv (426,1925)
+00:48:53 shot 03_priority_input/fx03_after_reimport.png FAIL
+00:48:53 UI:导入人工词库
+00:48:53 UI:导出人工词库和自学习词
+00:48:53 UI:清空人工词库
+00:48:54 store:# ChinesePinyinIME custom dictionary
+00:48:54 store:# UTF-8 TSV format: pinyin<TAB>candidate<TAB>weight
+00:48:54 store:# Import replaces the current manual dictionary. Manual entries outrank learned and built-in entries.
+00:48:54 store:ceshici	测试词	80
+00:48:54 store:ni	妮	100
+00:48:54 store:shurufa	输入法	60
+00:49:02 tap 重输 (1292,2556)
+00:49:03 tap 6 (996,2556)
+00:49:03 tap 4 (404,2556)
+00:49:06 shot 03_priority_input/fx04_64_ni_priority.png FAIL
+00:49:06 priority shot done
+00:49:10 tap import2 fb (720,187)
+00:49:16 shot 04_import_malformed/fx05_picker_bad.png FAIL
+00:49:16 malformed not in recent
+00:49:21 shot 04_import_malformed/fx06_after_malformed.png FAIL
+00:49:22 store_after_bad:# ChinesePinyinIME custom dictionary
+00:49:22 store_after_bad:# UTF-8 TSV format: pinyin<TAB>candidate<TAB>weight
+00:49:22 store_after_bad:# Import replaces the current manual dictionary. Manual entries outrank learned and built-in entries.
+00:49:22 store_after_bad:ceshici	测试词	80
+00:49:22 store_after_bad:ni	妮	100
+00:49:22 store_after_bad:shurufa	输入法	60
+00:49:23 tap field (720,1006)
+00:49:28 tap 重输 (1292,2556)
+00:49:29 tap 6 (996,2556)
+00:49:30 tap 4 (404,2556)
+00:49:32 shot 04_import_malformed/fx07_64_still_ni.png FAIL
+00:49:32 DONE

@@ -1,0 +1,15 @@
+# ChinesePinyinIME custom dictionary
+# UTF-8 TSV format: pinyin<TAB>candidate<TAB>weight
+# Import replaces the current manual dictionary. Manual entries outrank learned and built-in entries.
+bugan	不好	1
+ceshici	测试词	80
+enen	恩恩	1
+fenpan	分爿	1
+fenran	分爿	7
+fensan	分三	1
+migao	你好	4
+ni	妮	100
+niubi	牛逼	6
+shitai	是太	3
+shitai	奇怪	2
+shurufa	输入法	60

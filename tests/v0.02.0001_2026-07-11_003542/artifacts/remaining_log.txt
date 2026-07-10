@@ -1,0 +1,226 @@
+
+00:41:56 === remaining tests start ===
+00:41:56 manual store before:
+00:41:56 store: # ChinesePinyinIME custom dictionary
+00:41:56 store: # UTF-8 TSV format: pinyin<TAB>candidate<TAB>weight
+00:41:56 store: # Import replaces the current manual dictionary. Manual entries outrank learned and built-in entries.
+00:41:56 store: ceshici	测试词	80
+00:41:56 store: ni	妮	100
+00:41:56 store: shurufa	输入法	60
+00:41:56 === PRIORITY 64 ===
+00:42:03 dump layout_check.xml
+00:42:03 layout is9=False want9=True
+00:42:09 dump focus.xml
+00:42:09 tap field fb (720,1006)
+00:42:17 tap 重输 (1292,2556)
+00:42:19 shot 03_priority_input/p01_ready.png size=184188
+00:42:19 tap 6 (996,2556)
+00:42:19 tap 4 (404,2556)
+00:42:22 shot 03_priority_input/p02_64_candidates.png size=183714
+00:42:25 dump p02_64.xml
+00:42:25 === PRIORITY 26-key ni ===
+00:42:31 dump layout_check.xml
+00:42:31 layout is9=True want9=False
+00:42:31 tap toggle to 26 (720,1205)
+00:42:38 dump focus.xml
+00:42:38 tap field (720,1006)
+00:42:46 shot 03_priority_input/p03_26_ready.png size=273233
+00:42:46 tap n (950,2748)
+00:42:47 tap i (1080,2364)
+00:42:50 shot 03_priority_input/p04_26_ni.png size=293550
+00:42:52 dump p04_26_ni.xml
+00:42:59 dump layout_check.xml
+00:42:59 layout is9=False want9=True
+00:42:59 tap toggle to 9 (720,1205)
+00:43:00 === MALFORMED ONLY ===
+00:43:01 before_malformed_import_len=6
+00:43:08 dump import_btn.xml
+00:43:08 tap import fb (720,187)
+00:43:12 shot 04_import_malformed/m01_picker.png size=1428871
+00:43:14 dump picker_for_malformed_only.tsv.xml
+00:43:15 shot 04_import_malformed/picker_before_malformed_only.tsv.png size=1428805
+00:43:19 dump picker2_for_malformed_only.tsv.xml
+00:43:19 FILE_NOT_FOUND malformed_only.tsv
+00:43:20 shot 04_import_malformed/m02_file_missing.png size=1429010
+00:43:20 === EXPORT ===
+00:43:27 dump export_btn.xml
+00:43:27 tap export (720,419)
+00:43:30 shot 05_export/e01_export_picker.png size=184465
+00:43:33 dump export_picker.xml
+00:43:33 tap save (1208,3024)
+00:43:37 shot 05_export/e02_after_export.png size=335050
+00:43:46 dump manual_status_check.xml
+00:43:47 shot 02_import_valid/status_check.png size=1953393
+00:43:47 export_ls: -rw-rw---- 1 root everybody 383 2026-07-11 00:43 /sdcard/Download/ChinesePinyinIME_dictionary.tsv
+00:43:47 export_ls: -rw-rw---- 1 root everybody 383 2026-07-11 00:43 /sdcard/Download/ChinesePinyinIME_dictionary.tsv
+00:43:47 export_ls: 
+00:43:47 export_ls: -rw-rw---- 1 root everybody   33 2021-11-12 12:19 /sdcard/Documents/env.pub
+00:43:47 export_ls: -rw-rw---- 1 root everybody  385 2019-06-10 21:43 /sdcard/Documents/environment.pub
+00:43:47 export_ls: -rw-rw---- 1 root everybody  106 2025-12-12 23:00 /sdcard/Documents/jdtest.txt
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/-1250978742:
+00:43:47 export_ls: total 0
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/-138386686:
+00:43:47 export_ls: total 16
+00:43:47 export_ls: -rw-rw---- 1 root everybody  34 2021-06-14 15:12 environment.priv
+00:43:47 export_ls: -rw-rw---- 1 root everybody 331 2021-06-14 15:12 environment.pub
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/1994036591:
+00:43:47 export_ls: total 16
+00:43:47 export_ls: -rw-rw---- 1 root everybody  40 2021-04-27 00:25 environment.priv
+00:43:47 export_ls: -rw-rw---- 1 root everybody 425 2021-04-27 00:25 environment.pub
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/467897871:
+00:43:47 export_ls: total 0
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/4984356:
+00:43:47 export_ls: total 0
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/Unicom:
+00:43:47 export_ls: total 8
+00:43:47 export_ls: -rw-rw---- 1 root everybody 160 2024-07-15 13:57 appid
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/google_play_updater:
+00:43:47 export_ls: total 1968
+00:43:47 export_ls: -rw-rw---- 1 root everybody 2008921 2020-08-06 10:19 open_source_licenses_v82113402.html
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/qqmusic:
+00:43:47 export_ls: total 8
+00:43:47 export_ls: drwxrwx--- 3 root everybody 4096 2024-10-15 17:29 mv
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/ringtone:
+00:43:47 export_ls: total 8
+00:43:47 export_ls: drwxrwx--- 7 root everybody 4096 2024-01-13 00:20 gamefree
+00:43:47 export_ls: 
+00:43:47 export_ls: /sdcard/Documents/tap_sandbox_backup:
+00:43:47 export_ls: total 8
+00:43:47 export_ls: drwxrwx--- 3 root everybody 4096 2024-09-02 01:48 com.nanostudios.games.twenty.minutes
+00:43:47 export_candidates=/sdcard/Download/ChinesePinyinIME_dictionary.tsv
+00:43:47 === CLEAR MANUAL ===
+00:43:54 dump clear_manual_btn.xml
+00:43:54 shot 06_clear_layers/c01_before_clear_manual.png size=316026
+00:43:54 tap clear manual (720,651)
+00:43:59 shot 06_clear_layers/c02_after_clear_manual.png size=316366
+00:44:07 dump manual_status_check.xml
+00:44:08 shot 02_import_valid/status_check.png size=1954778
+00:44:08 after_clear_manual: profileInstalled
+00:44:08 after_clear_manual: user_dictionary.tsv
+00:44:08 after_clear_manual: user_frequency.tsv
+00:44:08 after_clear_manual: cat: files/manual_dictionary.tsv: No such file or directory
+00:44:08 after_clear_manual: bugan	不好	1
+00:44:08 after_clear_manual: enen	恩恩	1
+00:44:08 after_clear_manual: fenpan	分爿	1
+00:44:08 after_clear_manual: fenran	分爿	7
+00:44:08 after_clear_manual: fensan	分三	1
+00:44:08 after_clear_manual: migao	你好	4
+00:44:08 after_clear_manual: niubi	牛逼	6
+00:44:08 after_clear_manual: shitai	是太	3
+00:44:08 after_clear_manual: shitai	奇怪	2
+00:44:20 dump layout_check.xml
+00:44:20 layout is9=False want9=True
+00:44:26 dump focus.xml
+00:44:26 tap field (720,1006)
+00:44:32 tap 重输 (1292,2556)
+00:44:33 tap 6 (996,2556)
+00:44:34 tap 4 (404,2556)
+00:44:36 shot 06_clear_layers/c03_64_after_clear_manual.png size=289123
+00:44:36 === CLEAR LEARNED ===
+00:44:43 dump import_btn.xml
+00:44:43 tap import (720,187)
+00:44:48 dump picker_for_mixed.tsv.xml
+00:44:49 shot 04_import_malformed/picker_before_mixed.tsv.png size=186063
+00:44:52 dump picker2_for_mixed.tsv.xml
+00:44:52 FILE_NOT_FOUND mixed.tsv
+00:45:02 dump clear_learned_btn.xml
+00:45:03 shot 06_clear_layers/c04_before_clear_learned.png size=316381
+00:45:03 tap clear learned (720,1846)
+00:45:07 dump clear_learned_dialog.xml
+00:45:10 shot 06_clear_layers/c05_after_clear_learned.png size=316379
+00:45:10 after_clear_learned: cat: files/manual_dictionary.tsv: No such file or directory
+00:45:10 after_clear_learned: ---
+00:45:10 after_clear_learned: cat: files/user_dictionary.tsv: No such file or directory
+00:45:10 after_clear_learned: ---
+00:45:10 after_clear_learned: cat: files/user_frequency.tsv: No such file or directory
+00:45:25 dump manual_status_check.xml
+00:45:26 shot 02_import_valid/status_check.png size=1954872
+00:45:26 === REGRESSION ===
+00:45:33 dump layout_check.xml
+00:45:33 layout is9=False want9=True
+00:45:39 dump focus.xml
+00:45:39 tap field (720,1006)
+00:45:45 tap 重输 (1292,2556)
+00:45:47 shot 07_regression/r01_ready.png size=262471
+00:45:47 tap 6 (996,2556)
+00:45:48 tap 4 (404,2556)
+00:45:49 tap 4 (404,2556)
+00:45:49 tap 2 (700,2364)
+00:45:50 tap 6 (996,2556)
+00:45:53 shot 07_regression/r02_64426.png size=283548
+00:45:53 tap cand 你好? (200,2140)
+00:45:55 shot 07_regression/r03_nihao.png size=248762
+00:46:01 dump layout_check.xml
+00:46:01 layout is9=True want9=True
+00:46:07 dump focus.xml
+00:46:07 tap field (720,1006)
+00:46:14 tap 重输 (1292,2556)
+00:46:14 tap 6 (996,2556)
+00:46:15 tap 4 (404,2556)
+00:46:16 tap 4 (404,2556)
+00:46:17 tap 2 (700,2364)
+00:46:18 tap 6 (996,2556)
+00:46:19 tap DEL (1292,2364)
+00:46:21 shot 07_regression/r04_del.png size=291203
+00:46:28 dump layout_check.xml
+00:46:28 layout is9=True want9=True
+00:46:34 dump focus.xml
+00:46:34 tap field (720,1006)
+00:46:42 tap 重输 (1292,2556)
+00:46:43 tap 6 (996,2556)
+00:46:44 tap 4 (404,2556)
+00:46:45 tap expand (1360,2140)
+00:46:48 shot 07_regression/r05_expand.png size=268261
+00:46:48 === COLD START 744824 ===
+00:46:54 dump focus.xml
+00:46:54 tap field (720,1006)
+00:46:56 tap 7 (404,2748)
+00:46:56 tap 4 (404,2556)
+00:46:57 tap 4 (404,2556)
+00:46:58 tap 8 (700,2748)
+00:46:59 tap 2 (700,2364)
+00:47:00 tap 4 (404,2556)
+00:47:02 shot 07_regression/r06_cold_744824.png size=287442
+00:47:06 shot 07_regression/r07_after_load_744824.png size=287507
+00:47:06 === RAPID 644 smoke ===
+00:47:12 dump layout_check.xml
+00:47:12 layout is9=True want9=True
+00:47:18 dump focus.xml
+00:47:18 tap field (720,1006)
+00:47:24 tap 重输 (1292,2556)
+00:47:25 tap 重输 (1292,2556)
+00:47:26 tap 6 (996,2556)
+00:47:26 tap 4 (404,2556)
+00:47:27 tap 4 (404,2556)
+00:47:29 shot 07_regression/r08_rapid644_1.png size=289673
+00:47:29 tap 重输 (1292,2556)
+00:47:30 tap 6 (996,2556)
+00:47:31 tap 4 (404,2556)
+00:47:31 tap 4 (404,2556)
+00:47:33 shot 07_regression/r08_rapid644_2.png size=289591
+00:47:33 tap 重输 (1292,2556)
+00:47:34 tap 6 (996,2556)
+00:47:35 tap 4 (404,2556)
+00:47:36 tap 4 (404,2556)
+00:47:38 shot 07_regression/r08_rapid644_3.png size=290111
+00:47:38 tap 重输 (1292,2556)
+00:47:39 tap 6 (996,2556)
+00:47:39 tap 4 (404,2556)
+00:47:40 tap 4 (404,2556)
+00:47:42 shot 07_regression/r08_rapid644_4.png size=289193
+00:47:42 tap 重输 (1292,2556)
+00:47:43 tap 6 (996,2556)
+00:47:44 tap 4 (404,2556)
+00:47:45 tap 4 (404,2556)
+00:47:47 shot 07_regression/r08_rapid644_5.png size=289439
+00:47:47 === DONE ===
+00:47:47 final_manual: cat: files/manual_dictionary.tsv: No such file or directory
