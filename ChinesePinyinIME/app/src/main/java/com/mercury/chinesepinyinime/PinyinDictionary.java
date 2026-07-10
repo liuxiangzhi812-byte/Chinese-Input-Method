@@ -183,17 +183,22 @@ public class PinyinDictionary {
             return Collections.emptyList();
         }
 
+        List<String> dictionaryAlignedMatches =
+                getDictionaryAlignedLeadingSingleSyllableMatches(digits);
+
         List<String> exactMatches = getPinyinKeysForDigits(singleSyllableDigitIndex, digits);
         if (!exactMatches.isEmpty()) {
-            return exactMatches;
+            return prependDistinctMatches(dictionaryAlignedMatches, exactMatches);
         }
 
         List<String> prefixMatches = getPrefixMatches(singleSyllableDigitPrefixIndex, digits);
         if (!prefixMatches.isEmpty()) {
-            return prefixMatches;
+            return prependDistinctMatches(dictionaryAlignedMatches, prefixMatches);
         }
 
-        return getLeadingConsumedSyllableMatches(digits);
+        return prependDistinctMatches(
+                dictionaryAlignedMatches,
+                getLeadingConsumedSyllableMatches(digits));
     }
 
     public String getDigitsForPinyin(String pinyin) {
@@ -565,6 +570,67 @@ public class PinyinDictionary {
             }
         }
         return matches.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(matches);
+    }
+
+    private List<String> getDictionaryAlignedLeadingSingleSyllableMatches(String digits) {
+        List<String> fullPinyinMatches = getPinyinKeysForDigits(digitToPinyinIndex, digits);
+        if (fullPinyinMatches.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Set<String> alignedMatches = new LinkedHashSet<>();
+        for (String fullPinyin : fullPinyinMatches) {
+            int maxLeadingLength = Math.min(6, fullPinyin.length() - 1);
+            for (int leadingLength = 1; leadingLength <= maxLeadingLength; leadingLength++) {
+                String syllable = fullPinyin.substring(0, leadingLength);
+                if (!singleSyllableCandidateWords.containsKey(syllable)) {
+                    continue;
+                }
+                String remainingPinyin = fullPinyin.substring(syllable.length());
+                if (canSegmentIntoSingleSyllables(remainingPinyin)) {
+                    alignedMatches.add(syllable);
+                }
+            }
+        }
+
+        if (alignedMatches.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> orderedMatches = new ArrayList<>(alignedMatches);
+        Collections.sort(orderedMatches,
+                (left, right) -> comparePinyinKeys(left, right, singleSyllableCandidateWords));
+        return Collections.unmodifiableList(orderedMatches);
+    }
+
+    private boolean canSegmentIntoSingleSyllables(String pinyin) {
+        if (pinyin.isEmpty()) {
+            return true;
+        }
+        boolean[] reachable = new boolean[pinyin.length() + 1];
+        reachable[0] = true;
+        for (int start = 0; start < pinyin.length(); start++) {
+            if (!reachable[start]) {
+                continue;
+            }
+            int maxEnd = Math.min(pinyin.length(), start + 6);
+            for (int end = start + 1; end <= maxEnd; end++) {
+                if (singleSyllableCandidateWords.containsKey(pinyin.substring(start, end))) {
+                    reachable[end] = true;
+                }
+            }
+        }
+        return reachable[pinyin.length()];
+    }
+
+    private static List<String> prependDistinctMatches(
+            List<String> preferredMatches,
+            List<String> fallbackMatches) {
+        if (preferredMatches.isEmpty()) {
+            return fallbackMatches;
+        }
+        Set<String> mergedMatches = new LinkedHashSet<>(preferredMatches);
+        mergedMatches.addAll(fallbackMatches);
+        return Collections.unmodifiableList(new ArrayList<>(mergedMatches));
     }
 
     private String[] mergeCandidatesForPinyinKeys(List<String> pinyinKeys) {

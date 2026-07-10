@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0029` (device-tested 2026-07-10; see `tests/v0.01.0029_2026-07-10_162115/REPORT.md`)
+- Current display version: `v0.01.0030` (local build passed; pending manual/device test)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -62,7 +62,24 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0029 — 9-key whole-word candidates + syllable fallback**
+Latest functional node: **v0.01.0030 — dictionary-aligned leading syllables + simplified candidate bar**
+
+Implementation (Codex; code-complete locally, not yet manually/device-tested):
+
+- When a 9-key digit sequence has an exact whole-word pinyin match, the left pinyin column now prioritizes leading syllables that can validly segment that matched pinyin. Example: `744824` matching `qiguai` should put `qi` before the longer raw digit-prefix ambiguity `shi`.
+- Raw digit ambiguities are still appended after dictionary-aligned choices, so valid alternatives are not discarded.
+- Removed the compact candidate bar's left/right page buttons. The compact row keeps its first-page candidates, and the existing expand control is now the single way to browse the full candidate list.
+- Local `assembleDebug` passed after this change.
+
+Manual/device test procedure (v0.01.0030):
+
+1. In 9-key mode, enter `744824` (`qiguai`). Expected: whole-word candidates include `奇怪`, and the visible left pinyin choices include `qi` in the first visible position; `shi` may remain as a later ambiguity but must not hide `qi`.
+2. Tap `qi`, select `奇`, and confirm the remaining `4824` can continue as `guai`; select `怪` and confirm `奇怪` commits without leftover digits or a crash.
+3. Enter `744` alone. Expected: `shi` remains available for the genuine single-syllable input and its candidates remain usable.
+4. Confirm the compact candidate bar no longer displays left/right paging arrows. Tap the expand arrow and verify all candidates remain scrollable and selectable in the expanded panel.
+5. Regression: repeat `64426 -> 你好`, `336726 -> fen` syllable selection, DEL while composing, and expanded-panel close/reopen.
+
+Previous functional node: **v0.01.0029 — 9-key whole-word candidates + syllable fallback**
 
 Implementation (Codex; device-tested by Grok on 2026-07-10):
 
@@ -272,9 +289,14 @@ Implementation brief:
 - Make the field suitable for basic candidate, delete, paging, Enter, and 26-key/9-key layout checks.
 - Do **not** change IME candidate ranking or keyboard behavior in this version; this is a testability improvement only.
 
+Tester note (moved out of the app UI):
+
+- The section is now titled **"输入测试"** (previously "快速测试"); the on-screen explanatory paragraph under it was removed to keep the settings page clean.
+- What that paragraph told testers, kept here for reference: open the app and type directly in this field to immediately check candidates, delete key, paging, Enter, and 26-key/9-key switching; this field is the default first test target, so there is no need to switch to Edge first.
+
 Testing brief for Grok:
 
-- Open the app and confirm the new "快速测试" section is visible near the top.
+- Open the app and confirm the "输入测试" section is visible near the top.
 - Confirm the test input box already has focus or can be focused with one tap, then switch to ChinesePinyinIME and type directly inside the app.
 - Run the basic smoke path in this field first:
   - 26-key `ni -> 你`
@@ -694,7 +716,7 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0029-2026-07-10.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0030-2026-07-10.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`

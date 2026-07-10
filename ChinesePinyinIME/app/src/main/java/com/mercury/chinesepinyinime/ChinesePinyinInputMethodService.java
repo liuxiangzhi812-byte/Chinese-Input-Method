@@ -52,8 +52,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
     private LinearLayout candidateExpandedList;
     private LinearLayout t9PinyinChoiceList;
     private TextView candidateExpandToggle;
-    private TextView candidatePagePrev;
-    private TextView candidatePageNext;
     private TextView keyboardStatus;
     private Button modeButton;
     private Button shiftButton;
@@ -79,8 +77,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         candidateExpandedList = keyboardView.findViewById(R.id.candidate_expanded_list);
         t9PinyinChoiceList = keyboardView.findViewById(R.id.t9_pinyin_choice_list);
         candidateExpandToggle = keyboardView.findViewById(R.id.candidate_expand_toggle);
-        candidatePagePrev = keyboardView.findViewById(R.id.candidate_page_prev);
-        candidatePageNext = keyboardView.findViewById(R.id.candidate_page_next);
         keyboardStatus = keyboardView.findViewById(R.id.keyboard_status);
         modeButton = keyboardView.findViewById(R.id.key_mode);
         shiftButton = keyboardView.findViewById(R.id.key_shift);
@@ -92,7 +88,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         symbolKeyboardZhSection = keyboardView.findViewById(R.id.symbol_keyboard_zh_section);
         candidateExpandedPanel = keyboardView.findViewById(R.id.candidate_expanded_panel);
         bindKeyboardButtons(keyboardView);
-        bindCandidatePageButtons();
+        bindCandidateControls();
         bindCandidateListContainerWidthListener(keyboardView);
         refreshKeyboardLayoutModeFromPreferences();
         updateKeyboardLayout();
@@ -634,20 +630,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         updateKeyboardStatus();
     }
 
-    private void goToPreviousCandidatePage() {
-        if (candidatePageIndex > 0) {
-            candidatePageIndex--;
-            updateKeyboardStatus();
-        }
-    }
-
-    private void goToNextCandidatePage() {
-        if (candidatePager.hasNextPage(candidatePageIndex)) {
-            candidatePageIndex++;
-            updateKeyboardStatus();
-        }
-    }
-
     private void updateKeyboardStatus() {
         if (keyboardStatus != null) {
             if (keyboardLayoutMode == KeyboardLayoutMode.T9_9) {
@@ -751,7 +733,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             candidatePanelExpanded = false;
             candidateListContainer.removeAllViews();
             clearExpandedCandidatePanel();
-            updateCandidatePageButtons(false, false);
             updateCandidateExpandToggle();
             return;
         }
@@ -768,9 +749,6 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             candidateListContainer.addView(createCandidateView(allCandidates[i]));
         }
 
-        updateCandidatePageButtons(
-                candidatePager.hasPreviousPage(candidatePageIndex),
-                candidatePager.hasNextPage(candidatePageIndex));
         updateCandidateExpandToggle();
         updateExpandedCandidatePanel(allCandidates);
     }
@@ -882,22 +860,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         }
     }
 
-    private void updateCandidatePageButtons(boolean hasPrevPage, boolean hasNextPage) {
-        if (candidatePagePrev != null) {
-            candidatePagePrev.setVisibility(hasPrevPage ? View.VISIBLE : View.INVISIBLE);
-        }
-        if (candidatePageNext != null) {
-            candidatePageNext.setVisibility(hasNextPage ? View.VISIBLE : View.INVISIBLE);
-        }
-    }
-
-    private void bindCandidatePageButtons() {
-        if (candidatePagePrev != null) {
-            candidatePagePrev.setOnClickListener(view -> goToPreviousCandidatePage());
-        }
-        if (candidatePageNext != null) {
-            candidatePageNext.setOnClickListener(view -> goToNextCandidatePage());
-        }
+    private void bindCandidateControls() {
         if (candidateExpandToggle != null) {
             candidateExpandToggle.setOnClickListener(view -> toggleCandidatePanel());
         }
