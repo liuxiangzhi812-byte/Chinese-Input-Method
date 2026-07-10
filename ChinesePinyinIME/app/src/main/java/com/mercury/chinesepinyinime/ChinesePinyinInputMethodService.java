@@ -728,7 +728,9 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         }
 
         boolean showCandidates = isComposingActive();
-        candidateBar.setVisibility(showCandidates ? View.VISIBLE : View.GONE);
+        // Keep the row's height reserved so the keyboard never moves between
+        // the first and subsequent taps of a fast input sequence.
+        candidateBar.setVisibility(showCandidates ? View.VISIBLE : View.INVISIBLE);
         if (!showCandidates) {
             candidatePanelExpanded = false;
             candidateListContainer.removeAllViews();

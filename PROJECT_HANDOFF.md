@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.01.0030` (device-tested and accepted for push; see `tests/v0.01.0030_2026-07-10_223106/REPORT.md`)
+- Current display version: `v0.01.0031` (local build passed; not yet manually/device-tested)
 
 The project is still in early on-device testing. The immediate goal is not performance perfection; it is a simple, reliable, personally usable Chinese Pinyin IME. Current priority is input smoothness: 9-key pinyin selection, candidate expansion, and incomplete-pinyin lookup.
 
@@ -62,7 +62,24 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest functional node: **v0.01.0030 — dictionary-aligned leading syllables + simplified candidate bar**
+Latest functional node: **v0.01.0031 — stable keyboard position during candidate updates**
+
+Implementation (Codex; code-complete locally, not yet manually/device-tested):
+
+- Diagnosed the repeated fast-typing mis-taps as layout movement rather than oversized key hitboxes. Previously the 40dp candidate bar changed from `GONE` to `VISIBLE` after the first composing key, shifting the complete keyboard downward between taps.
+- The candidate row now always reserves its 40dp height and switches between `INVISIBLE` and `VISIBLE`. Keys should remain at identical screen coordinates before the first digit, while composing, and immediately after commit/clear.
+- This explains both observed symptoms: a fast intended `4` could hit the previous position of `1/符号`, while a top-row digit such as `3` could land on the newly inserted candidate row.
+- Local `assembleDebug` passed after the layout-stability change.
+
+Manual/device test procedure (v0.01.0031):
+
+1. Open an empty input field in 9-key mode and note the numeric-key positions before composing. Tap the first digit slowly; expected: the candidate row appears without any numeric key moving vertically.
+2. Clear composition and rapidly enter `644` at least 20 times. Expected: every run records `644`; it must not open the `1/符号` keyboard.
+3. Clear composition and rapidly tap `3` followed by other top-row digits at least 20 times. Expected: no candidate is accidentally committed and the input remains in digit composition.
+4. Repeat the rapid-input checks immediately after committing a candidate, pressing DEL until empty, closing/reopening the IME, and expanding/collapsing the candidate panel.
+5. Regression: verify candidate row contents, expand arrow, `64426 -> 你好`, and 26-key first-letter input remain functional.
+
+Previous functional node: **v0.01.0030 — dictionary-aligned leading syllables + simplified candidate bar**
 
 Implementation (Codex; code-complete locally, not yet manually/device-tested):
 
@@ -722,7 +739,7 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0030-2026-07-10.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.01.0031-2026-07-10.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
