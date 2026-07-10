@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.02.0001` (major-upgrade development baseline; local build passed; dictionary import/export not yet implemented)
+- Current display version: `v0.02.0001` (manual dictionary import/export code-complete locally; JVM tests and local build passed; pending device test)
 
 Version-stage decision:
 
@@ -43,6 +43,9 @@ Ownership rule:
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidateRanker.java`: candidate ranking and manual overrides
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserFrequencyStore.java`: local user selection frequency
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/UserDictionaryStore.java`: local custom-word dictionary learned from user-composed phrases
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/ManualDictionaryStore.java`: persisted manually imported dictionary
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/DictionaryTsvCodec.java`: TSV parsing, validation, and export
+- `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/DictionaryLayerMerger.java`: strict manual > learned > built-in merge policy
 - `ChinesePinyinIME/app/src/main/java/com/mercury/chinesepinyinime/CandidatePager.java`: width-adaptive candidate paging
 - `ChinesePinyinIME/app/src/main/res/layout/keyboard_view.xml`: keyboard UI
 - `ChinesePinyinIME/app/src/main/assets/pinyin_dict.txt`: runtime dictionary
@@ -50,6 +53,7 @@ Ownership rule:
 - `ChangeLog/`: update-log folder; new files should use `v{version}-{YYYY-MM-DD}.md`
 - `scripts/convert_jieba_dict.py`: reproducible jieba-to-pinyin dictionary conversion
 - `scripts/build_syllable_dict.py`: regenerates the compact single-syllable dictionary from `pinyin_dict.txt`
+- `docs/MANUAL_DICTIONARY.md`: manual dictionary format and usage
 - `tests/`: real-device test archives
 - `ENVIRONMENT_SETUP.md`: local build/test environment notes
 
@@ -65,6 +69,7 @@ High-level completed features:
 - Basic settings page exists: version, built-in IME test input box, dictionary status, learned-data status/clear action, input-method settings shortcut, 26-key/9-key layout toggle.
 - Expandable Chinese candidate panel is implemented locally: compact candidate row now has a far-right expand arrow that can replace the main keyboard area with a scrollable multi-row candidate panel.
 - 9-key/T9 prototype is implemented through pinyin-choice UI: digit grid, digit-to-pinyin index, ambiguous pinyin choice bar, shared ranking/paging/learning pipeline.
+- Settings now provide local manual dictionary import, combined manual/self-learned export, manual dictionary clear, and entry-count/result status.
 
 Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
@@ -74,19 +79,26 @@ Latest development node: **v0.02.0001 — major-upgrade baseline and manual dict
 
 Current status:
 
-- Version and documentation baseline created; manual dictionary import/export is **not implemented yet**.
-- Planned first delivery: a stable UTF-8 TSV format, Android file-picker import, export for PC editing/backup, validation summary, and background runtime reload.
-- Planned merge priority: manually curated entries first, self-learned entries second, built-in base dictionary third. Exact conflict and ranking rules must be covered by tests before release.
+- Implemented a stable UTF-8 TSV format: `pinyin<TAB>candidate<TAB>weight`; comments and blank lines are allowed.
+- Implemented Android document-picker import. A successful import atomically replaces the manual dictionary; if the file has no valid rows, existing manual data is preserved.
+- Implemented export to a user-selected TSV file. Export combines manual entries and self-learned phrase entries so the result can be edited on PC and imported again.
+- Implemented import summaries for valid, duplicate, and rejected rows; duplicate pinyin/candidate rows keep the highest weight.
+- Implemented strict final candidate priority: manually curated entries first, self-learned entries second, built-in base dictionary third. Manual order cannot be undone by existing frequency or built-in override ranking.
+- Runtime dictionary/index rebuild runs on the dictionary executor and publishes atomically, so import/clear does not rebuild indexes on the UI thread.
+- Replaced the template JVM test with parser/export and three-layer priority tests; `testDebugUnitTest` passes locally.
 - Candidate ranking is intentionally the second step. Imported and real-world word data should first reveal whether a problem is a missing entry or an existing entry ranked too low.
-- Keep all dictionary operations local-only and avoid broad storage permission by using Android's document picker.
+- All dictionary operations remain local-only and use Android's document picker without broad storage permission.
 
-Initial v0.02.0001 acceptance direction:
+Manual/device test procedure (v0.02.0001):
 
-1. Import a valid custom dictionary file and report imported, duplicate, and rejected row counts.
-2. Make imported words available without rebuilding the APK and without freezing the IME.
-3. Export manual and self-learned entries to a user-selected file for PC editing or backup.
-4. Verify manual entries outrank learned and built-in entries predictably, while malformed files cannot corrupt existing data.
-5. Preserve all v0.01 input behavior, especially cold-start syllables, rapid 9-key input, whole-word candidates, and syllable-by-syllable composition.
+1. Use `docs/manual_dictionary_example.tsv` or create a UTF-8 TSV file containing valid rows, a duplicate row with a higher weight, and at least one malformed row. Import it from the new settings section.
+2. Expected: the status reports unique valid, duplicate, and rejected counts; the manual entry count updates; the app and IME remain responsive while indexes rebuild.
+3. Include `ni<TAB>妮<TAB>100`, then type `ni` on 26-key and `64`/`ni` on 9-key. Expected: `妮` appears before built-in/manual-override `你`, proving manual source priority is strict.
+4. Import a file containing only malformed rows. Expected: import fails clearly and the previously imported manual entries still work.
+5. Export the dictionary. Expected: the selected file is valid UTF-8 TSV, contains manual entries and any existing self-learned phrases, and can be imported again.
+6. Clear only the manual dictionary. Expected: manual count becomes zero, imported candidates disappear after background reload, and self-learned/built-in candidates remain.
+7. Clear learned data. Expected: learned phrases disappear from runtime immediately after background reload, while manual entries remain.
+8. Regression: verify `64426 -> 你好`, `744824`, cold-start pinyin choices, rapid `644`, DEL, candidate expansion, and 26-key/9-key switching.
 
 Final v0.01 foundation node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
 
@@ -217,14 +229,13 @@ At the time of this handoff update:
 - v0.01.0029 (9-key whole-word candidates + syllable fallback) has an archived device report: Cases A/B passed; Case C remains incomplete because `726` does not expose `pan`. The user accepted this as a non-blocking follow-up for the release.
 - v0.01.0030 (dictionary-aligned leading syllables + simplified candidate bar) was device-tested and pushed with its archived report.
 - v0.01.0031 (stable keyboard position) and v0.01.0032 (atomic dictionary readiness + generated single-syllable base) have been pushed to `origin/main`; they close the v0.01 basic-function stage.
-- v0.02.0001 is the current local development baseline. No dictionary import/export implementation is present yet.
+- v0.02.0001 manual dictionary import/export and strict three-layer priority are code-complete locally; JVM tests and `assembleDebug` pass, but device testing has not started.
 
 Recommended immediate repository action:
 
-1. Design and implement the v0.02.0001 manual dictionary file format, import/export flow, and three-layer merge priority.
-2. Add core automated tests for parsing, validation, deduplication, conflict priority, and bad-row tolerance before device testing.
-3. Keep `ChinesePinyinIME/.idea/` and unrelated local layout work uncommitted.
-4. After import/export is stable, collect real ranking failures and begin the candidate-ranking phase of the v0.02 upgrade.
+1. Hand off v0.02.0001 for the manual/device test procedure in Section 4 and archive the result under `tests/`.
+2. Test import/export with the included example, a malformed-only file, a duplicate/higher-weight file, and at least one existing self-learned phrase.
+3. Push only after the device pass is accepted; then collect real ranking failures for the next v0.02 candidate-ranking phase.
 
 ## 6. Collaboration Workflow
 
@@ -770,6 +781,7 @@ Minimum regression set:
 - After v0.01.0026: verify the candidate expand panel opens/closes cleanly and the compact candidate row still behaves normally.
 - After v0.01.0027: verify partial pinyin / digit-prefix matching before full spelling (when that version lands).
 - Performance-sensitive changes only: repeat cold-process dictionary load measurement.
+- After v0.02.0001: verify valid/invalid/duplicate import, strict manual priority, combined export/re-import, layer-specific clear behavior, and responsiveness during background index rebuild.
 
 ## 10. Known Limitations
 
@@ -780,15 +792,13 @@ Minimum regression set:
 - No fuzzy pinyin; intentionally deferred because the user can spell pinyin and wants exact/prefix behavior first.
 - No mistyped-pinyin correction.
 - No tone support.
-- No custom user dictionary UI yet.
-- No PC-side manual dictionary import/edit workflow yet.
-- PC-side manual dictionary import/edit workflow is still not implemented.
+- Manual dictionary import/export exists in v0.02.0001; there is no in-app row-by-row dictionary editor yet.
 - No detailed privacy page beyond the local-only note.
 - No cloud sync, networking, handwriting, speech input, or AI prediction planned for early versions.
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.02.0001-2026-07-10.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.02.0001-2026-07-11.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`

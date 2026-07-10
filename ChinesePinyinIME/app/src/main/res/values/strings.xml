@@ -5,6 +5,7 @@
     <string name="app_version_display">v0.02.0001</string>
     <string name="settings_section_quick_test">输入测试</string>
     <string name="settings_section_status">状态</string>
+    <string name="settings_section_manual_dictionary">人工词库</string>
     <string name="settings_section_actions">操作</string>
     <string name="settings_section_layout">键盘布局</string>
     <string name="keyboard_layout_status_26">当前布局：26 键</string>
@@ -19,6 +20,19 @@
     <string name="dictionary_status_failed">词库状态：读取失败，将使用内置小词库</string>
     <string name="learned_data_status_placeholder">已学习数据：读取中</string>
     <string name="learned_data_status">已学习数据：%1$d 组词频，累计选择 %2$d 次，自造词 %3$d 条</string>
+    <string name="manual_dictionary_status_placeholder">人工词库：读取中</string>
+    <string name="manual_dictionary_status">人工词库：%1$d 条</string>
+    <string name="manual_dictionary_import_hint">UTF-8 TSV：拼音 + Tab + 词语 + Tab + 权重。导入会替换当前人工词库。</string>
+    <string name="import_manual_dictionary">导入人工词库</string>
+    <string name="export_dictionary">导出人工词库和自学习词</string>
+    <string name="clear_manual_dictionary">清空人工词库</string>
+    <string name="manual_dictionary_importing">正在导入并重建词库索引…</string>
+    <string name="manual_dictionary_import_success">导入完成：%1$d 条有效，%2$d 条重复，%3$d 条无效</string>
+    <string name="manual_dictionary_import_no_valid">导入失败：文件中没有有效词条，原人工词库未改变</string>
+    <string name="manual_dictionary_exporting">正在导出词库…</string>
+    <string name="manual_dictionary_export_success">导出完成：%1$d 条</string>
+    <string name="manual_dictionary_cleared">人工词库已清空</string>
+    <string name="manual_dictionary_operation_failed">词库操作失败，原数据未改变</string>
     <string name="clear_learned_data">清除学习数据</string>
     <string name="learned_data_cleared">已清除学习数据</string>
     <string name="open_input_settings">打开系统输入法设置</string>

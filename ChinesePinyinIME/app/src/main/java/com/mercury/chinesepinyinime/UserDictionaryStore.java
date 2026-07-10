@@ -83,6 +83,16 @@ public class UserDictionaryStore {
         }
     }
 
+    public Map<String, Map<String, Integer>> snapshotWeightedEntries() {
+        synchronized (lock) {
+            Map<String, Map<String, Integer>> snapshot = new LinkedHashMap<>();
+            for (Map.Entry<String, Map<String, Integer>> entry : entryCounts.entrySet()) {
+                snapshot.put(entry.getKey(), new HashMap<>(entry.getValue()));
+            }
+            return snapshot;
+        }
+    }
+
     public int getLearnedPhraseCount(Context context) {
         load(context);
         synchronized (lock) {

@@ -39,10 +39,6 @@
             android:layout_marginTop="28dp"
             android:text="@string/settings_section_quick_test" />
 
-        <TextView
-            style="@style/SettingsBodyText"
-            android:text="@string/quick_test_description" />
-
         <EditText
             android:id="@+id/ime_test_input"
             style="@style/SettingsInputField"
@@ -70,6 +66,38 @@
             style="@style/SettingsBodyText"
             android:layout_marginTop="10dp"
             android:text="@string/learned_data_status_placeholder" />
+
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
+            android:text="@string/settings_section_manual_dictionary" />
+
+        <TextView
+            android:id="@+id/manual_dictionary_status"
+            style="@style/SettingsBodyText"
+            android:text="@string/manual_dictionary_status_placeholder" />
+
+        <TextView
+            android:id="@+id/manual_dictionary_result"
+            style="@style/SettingsBodyText"
+            android:text="@string/manual_dictionary_import_hint" />
+
+        <Button
+            android:id="@+id/import_manual_dictionary_button"
+            style="@style/SettingsPrimaryButton"
+            android:text="@string/import_manual_dictionary" />
+
+        <Button
+            android:id="@+id/export_dictionary_button"
+            style="@style/SettingsSecondaryButton"
+            android:layout_marginTop="10dp"
+            android:text="@string/export_dictionary" />
+
+        <Button
+            android:id="@+id/clear_manual_dictionary_button"
+            style="@style/SettingsSecondaryButton"
+            android:layout_marginTop="10dp"
+            android:text="@string/clear_manual_dictionary" />
 
         <TextView
             style="@style/SettingsSectionTitle"

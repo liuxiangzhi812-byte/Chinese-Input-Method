@@ -17,7 +17,7 @@ Ownership:
 - The keyboard opens in Chinese mode by default.
 - Candidate words appear when the pinyin buffer has content.
 - Candidate buttons use measured width instead of fixed equal slots, so longer candidates are not truncated as easily.
-- Candidate paging is width-adaptive. `‹` and `›` appear only when previous/next pages exist.
+- The compact candidate row is width-adaptive; the expand arrow opens a scrollable multi-row panel for the full candidate list.
 - Space commits the first candidate of the current visible page.
 - Tapping a candidate commits that candidate.
 - If no dictionary match exists, raw pinyin is used as fallback candidate.
@@ -27,8 +27,8 @@ Ownership:
 - Symbol keyboards are language-specific: ZH uses Chinese punctuation, EN uses ASCII symbols.
 - Chinese punctuation commits directly and clears composing state first.
 - Local user-frequency learning records `(pinyin, candidate)` selections.
-- Candidate ranking combines dictionary order, word-length preference, manual overrides, and local frequency boost.
-- The settings page shows app version, dictionary status, learned-data status, clear learned data, input-method settings shortcut, privacy note, and 26-key/9-key toggle.
+- Candidate ranking combines dictionary order, word-length preference, built-in overrides, and local frequency boost, with strict source priority applied afterward.
+- The settings page shows app version, dictionary status, learned/manual data status, manual dictionary import/export/clear, clear learned data, input-method settings shortcut, privacy note, and 26-key/9-key toggle.
 
 ## Dictionary
 
@@ -43,6 +43,14 @@ pinyin=candidate1,candidate2,candidate3
 ```
 
 The current dictionary was converted from jieba's `dict.txt`.
+
+Dictionary layers, highest priority first:
+
+1. Manually imported UTF-8 TSV dictionary
+2. Self-learned phrases
+3. Built-in base dictionary
+
+Manual dictionary details and an importable example are in `docs/MANUAL_DICTIONARY.md` and `docs/manual_dictionary_example.tsv`. Import/export uses Android's document picker, stores data locally, and rebuilds runtime indexes in the background before atomically publishing the updated dictionary.
 
 Source and provenance:
 
@@ -75,7 +83,7 @@ Implemented:
 - `PinyinDictionary` builds a digit-to-pinyin reverse index from dictionary pinyin keys.
 - `resolveBestPinyinForDigits()` picks a default pinyin for ambiguous digit sequences.
 - `getPinyinKeysForDigits()` exposes all matching pinyin keys for the pinyin-choice UI.
-- `pinyin_choice_bar` shows ambiguous pinyin labels such as `ni` and `mi` for `64`.
+- A fixed-width vertical list beside the digit grid shows ambiguous pinyin labels such as `ni` and `mi` for `64`.
 - Tapping a pinyin label changes the active pinyin and refreshes Chinese candidates.
 - Candidate ranking, paging, commit, and local learning reuse the 26-key pipeline.
 
