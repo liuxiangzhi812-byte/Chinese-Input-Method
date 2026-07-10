@@ -70,11 +70,43 @@ Implementation (Codex; code present in worktree, not yet manually/device-tested 
 - The left-side pinyin chooser remains a single-syllable chooser. Tapping a pinyin entry explicitly enters per-syllable mode and shows candidates for that syllable, then continues with the remaining digits as before.
 - If the complete digit sequence has no multi-syllable match, candidate display automatically falls back to the existing single-syllable composition flow.
 
-Manual test focus:
+Manual/device test procedure (v0.01.0029):
 
-- Enter a known multi-syllable word such as `nihao`: whole-word candidates should appear and commit directly.
-- On the same digits, tap a left-side pinyin choice: it should show that one syllable's candidates and continue to the remaining syllables after selection.
-- Enter an unmatched sequence such as `fenpan`: it should remain usable through `fen -> pan` single-syllable composition.
+Preparation:
+
+1. Install the latest debug APK, enable ChinesePinyinIME, and switch to its 9-key Chinese keyboard.
+2. Open the built-in test input box in the app settings, or any editable text field. Start each case with no active composition.
+
+Case A — whole-word direct candidate:
+
+1. Enter `64426` (`nihao`) without tapping the left-side pinyin column.
+2. Expected: the candidate bar contains a multi-character word such as `你好`, rather than only candidates for `ni`.
+3. Tap `你好`.
+4. Expected: `你好` is committed in one action; no remaining digits or composition state is left behind, and the IME does not freeze or close.
+
+Case B — explicit single-syllable path despite whole-word match:
+
+1. Enter `64426` again, then tap `ni` in the left-side pinyin column.
+2. Expected: the candidate bar changes to candidates for `ni` (for example `你`), not whole-word candidates.
+3. Select `你`.
+4. Expected: the remaining `426` stays available and the left-side column can select `hao`.
+5. Select `hao`, then select `好`.
+6. Expected: `你好` is committed, with no freeze, crash, duplicate text, or leftover composing digits.
+
+Case C — no whole-word match and self-learning recall:
+
+1. If needed, clear learned data in settings so this case starts without a previous `fenpan` entry.
+2. Enter `336726` (`fenpan`) without tapping a pinyin choice.
+3. Expected: no fabricated whole-word candidate is required; the candidate area stays usable for the first syllable and the left-side column offers `fen`.
+4. Tap `fen`, select `分`; then tap `pan` from the remaining-syllable choices and select `盘`.
+5. Expected: `分盘` commits successfully and the IME remains responsive.
+6. Wait briefly for local learning to finish, then enter `336726` again without tapping the pinyin column.
+7. Expected: `分盘` now appears as a direct whole-word candidate. Tap it and confirm it commits in one action.
+
+Regression and evidence:
+
+1. In all cases, test Backspace once while digits are still composing; it should remove input or return safely without a crash.
+2. Record pass/fail for Cases A-C, attach screenshots or UI dumps for failures, and archive the result under `tests/v0.01.0029_{YYYY-MM-DD}_{HHMMSS}/`.
 
 Previous functional node: **v0.01.0028 — 9-key syllable-by-syllable composition + self-learning custom words**
 
