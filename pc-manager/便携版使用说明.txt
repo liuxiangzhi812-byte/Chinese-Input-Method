@@ -1,10 +1,11 @@
 ChinesePinyinIME 电脑词库管理 v0.02.0002
 
 1. 请先完整解压 ZIP 文件。
-2. 打开“ChinesePinyinIME词库管理”文件夹。
-3. 双击“ChinesePinyinIME词库管理.exe”。
+2. 打开“ChinesePinyinIME-PC-Manager”文件夹。
+3. 双击“ChinesePinyinIME-PC-Manager.exe”。
 
 请勿只复制或发送 EXE 文件。
 程序运行必须同时保留旁边的 app 和 runtime 文件夹，否则会提示 Failed to launch JVM。
+为避免部分 Windows 环境的 JVM 启动器兼容问题，程序目录、EXE 和启动配置统一使用英文名称；网页界面仍为中文。
 
 首次运行若 Windows 防火墙询问网络权限，只允许“专用网络”。
