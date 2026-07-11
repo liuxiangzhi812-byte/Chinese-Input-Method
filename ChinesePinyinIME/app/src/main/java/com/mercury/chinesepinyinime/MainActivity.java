@@ -1,7 +1,13 @@
 package com.mercury.chinesepinyinime;
 
+import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,6 +22,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
@@ -39,9 +46,18 @@ public class MainActivity extends AppCompatActivity {
     private TextView manualDictionaryResult;
     private TextView keyboardLayoutStatus;
     private Button keyboardLayoutToggleButton;
+    private TextView computerManagerStatus;
+    private Button computerManagerToggleButton;
     private EditText imeTestInput;
     private ActivityResultLauncher<String[]> importDictionaryLauncher;
     private ActivityResultLauncher<String> exportDictionaryLauncher;
+    private ActivityResultLauncher<String> notificationPermissionLauncher;
+    private final BroadcastReceiver computerManagerReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            updateComputerManagerStatus();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +68,18 @@ public class MainActivity extends AppCompatActivity {
         exportDictionaryLauncher = registerForActivityResult(
                 new ActivityResultContracts.CreateDocument("text/tab-separated-values"),
                 this::exportDictionaryToUri);
+        notificationPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                granted -> {
+                    if (granted) {
+                        startComputerManager();
+                    } else {
+                        Toast.makeText(
+                                this,
+                                R.string.computer_manager_notification_permission_required,
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
         dictionaryStatus = findViewById(R.id.dictionary_status);
@@ -60,6 +88,8 @@ public class MainActivity extends AppCompatActivity {
         manualDictionaryResult = findViewById(R.id.manual_dictionary_result);
         keyboardLayoutStatus = findViewById(R.id.keyboard_layout_status);
         keyboardLayoutToggleButton = findViewById(R.id.keyboard_layout_toggle_button);
+        computerManagerStatus = findViewById(R.id.computer_manager_status);
+        computerManagerToggleButton = findViewById(R.id.computer_manager_toggle_button);
         imeTestInput = findViewById(R.id.ime_test_input);
         Button clearLearnedDataButton = findViewById(R.id.clear_learned_data_button);
         Button importManualDictionaryButton = findViewById(R.id.import_manual_dictionary_button);
@@ -76,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
         openInputSettingsButton.setOnClickListener(view ->
                 startActivity(new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)));
         keyboardLayoutToggleButton.setOnClickListener(view -> toggleKeyboardLayoutPreference());
+        computerManagerToggleButton.setOnClickListener(view -> toggleComputerManager());
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -86,7 +117,24 @@ public class MainActivity extends AppCompatActivity {
         updateLearnedDataStatus();
         updateManualDictionaryStatus();
         updateKeyboardLayoutStatus();
+        updateComputerManagerStatus();
         mainHandler.post(() -> imeTestInput.requestFocus());
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        ContextCompat.registerReceiver(
+                this,
+                computerManagerReceiver,
+                new IntentFilter(ComputerDictionaryService.ACTION_STATE_CHANGED),
+                ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+    @Override
+    protected void onStop() {
+        unregisterReceiver(computerManagerReceiver);
+        super.onStop();
     }
 
     @Override
@@ -285,6 +333,40 @@ public class MainActivity extends AppCompatActivity {
         boolean isCurrentlyT9 = KeyboardLayoutPreferences.isT9Enabled(getApplicationContext());
         KeyboardLayoutPreferences.setT9Enabled(getApplicationContext(), !isCurrentlyT9);
         updateKeyboardLayoutStatus();
+    }
+
+    private void toggleComputerManager() {
+        if (ComputerDictionaryService.isRunning()) {
+            Intent intent = new Intent(this, ComputerDictionaryService.class)
+                    .setAction(ComputerDictionaryService.ACTION_STOP);
+            startService(intent);
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            return;
+        }
+        startComputerManager();
+    }
+
+    private void startComputerManager() {
+        Intent intent = new Intent(this, ComputerDictionaryService.class)
+                .setAction(ComputerDictionaryService.ACTION_START);
+        ContextCompat.startForegroundService(this, intent);
+    }
+
+    private void updateComputerManagerStatus() {
+        if (!ComputerDictionaryService.isRunning()) {
+            computerManagerStatus.setText(R.string.computer_manager_stopped);
+            computerManagerToggleButton.setText(R.string.start_computer_manager);
+        } else {
+            computerManagerStatus.setText(ComputerDictionaryService.isConnected()
+                    ? R.string.computer_manager_connected
+                    : R.string.computer_manager_running);
+            computerManagerToggleButton.setText(R.string.stop_computer_manager);
+        }
     }
 
     private static final class DictionaryStats {

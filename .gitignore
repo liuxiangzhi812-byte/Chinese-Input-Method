@@ -5,6 +5,9 @@ ChinesePinyinIME/build/
 ChinesePinyinIME/app/build/
 ChinesePinyinIME/local.properties
 ChinesePinyinIME/gradle/gradle-daemon-jvm.properties
+pc-manager/build/
+pc-manager/build-check/
+pc-manager/dist/
 
 # Android Studio local state
 ChinesePinyinIME/.idea/

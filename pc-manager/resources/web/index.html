@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ChinesePinyinIME 词库管理</title>
+  <style>
+    :root{--ink:#17211b;--paper:#f4f0e7;--card:#fffdf6;--green:#195b43;--gold:#d59b3d;--line:#d8d1c3;--bad:#a3342d}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 5%,#e0e8d7,transparent 32%),linear-gradient(135deg,var(--paper),#ece4d6);color:var(--ink);font:16px/1.55 Georgia,"Noto Serif SC",serif;min-height:100vh}
+    main{width:min(1000px,calc(100% - 32px));margin:42px auto}.hero{display:flex;justify-content:space-between;gap:20px;align-items:end;border-bottom:2px solid var(--ink);padding-bottom:18px}h1{font-size:clamp(28px,5vw,52px);line-height:1;margin:0}.version{letter-spacing:.15em;color:var(--green)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}.card{background:rgba(255,253,246,.9);border:1px solid var(--line);border-radius:6px;padding:22px;box-shadow:5px 6px 0 rgba(25,91,67,.12)}.wide{grid-column:1/-1}h2{margin:0 0 12px;font-size:21px}.muted{color:#647066}.status{padding:10px 12px;background:#edf2e9;border-left:4px solid var(--green);margin:12px 0;white-space:pre-wrap}
+    button,.button{font:inherit;border:1px solid var(--ink);background:var(--green);color:white;padding:9px 15px;border-radius:3px;cursor:pointer;margin:4px 5px 4px 0}button.secondary,.button.secondary{background:transparent;color:var(--ink)}button.danger{background:var(--bad)}button:disabled{opacity:.45;cursor:not-allowed}.device{border-top:1px solid var(--line);padding:12px 0}.device strong{display:block}input[type=file]{width:100%;border:1px dashed var(--green);padding:18px;background:#f8faf4}pre{max-height:250px;overflow:auto;background:#18211c;color:#e8f1e7;padding:14px;border-radius:3px}.metrics{display:flex;gap:22px;flex-wrap:wrap}.metrics b{font-size:27px;display:block;color:var(--green)}
+    @media(max-width:700px){main{margin:22px auto}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.hero{display:block}.version{margin-top:10px}}
+  </style>
+</head>
+<body><main>
+  <header class="hero"><div><h1>词库管理台</h1><div class="muted">ChinesePinyinIME · 本地局域网</div></div><div class="version">v0.02.0002</div></header>
+  <div class="grid">
+    <section class="card"><h2>1. 选择手机</h2><p class="muted">先在手机应用中开启“电脑词库管理”。</p><button onclick="discover()">搜索同一网络的手机</button><div id="devices"></div></section>
+    <section class="card"><h2>2. 建立连接</h2><div id="connection" class="status">尚未选择手机</div><button id="connectBtn" disabled onclick="connectPhone()">请求手机确认</button></section>
+    <section class="card wide"><h2>词库概况</h2><div class="metrics"><span><b id="manualCount">-</b>人工词条</span><span><b id="learnedCount">-</b>自学习词条</span><span><b id="selectionCount">-</b>累计选择</span></div><button class="secondary" onclick="loadStatus()">刷新</button></section>
+    <section class="card"><h2>导入人工词库</h2><input id="file" type="file" accept=".tsv,text/tab-separated-values"><div id="preview" class="status">选择 UTF-8 TSV 文件后先预览。</div><button onclick="previewFile()">检查文件</button><button id="importBtn" disabled onclick="importFile()">确认导入并替换</button><pre id="rows" hidden></pre></section>
+    <section class="card"><h2>导出与维护</h2><p>导出文件可直接在电脑上编辑，再从左侧导回手机。</p><button onclick="download('manual')">导出人工词库</button><button onclick="download('combined')">导出人工 + 自学习</button><hr><p class="muted">清空操作提交后，仍需在手机通知中再次确认。</p><button class="danger" onclick="clearData('manual')">清空人工词库</button><button class="danger" onclick="clearData('learned')">清空学习数据</button><div id="operation" class="status">等待操作</div></section>
+  </div>
+</main><script>
+let selected=null,connected=false,lastFile=null;
+async function api(path,options={}){const r=await fetch(path,options);const type=r.headers.get('content-type')||'';const data=type.includes('json')?await r.json():await r.blob();if(!r.ok)throw new Error(data.error||`请求失败 ${r.status}`);return data}
+async function discover(){set('devices','正在搜索…');try{const d=await api('/api/discover');set('devices',d.devices.length?'':'未找到设备。请确认手机服务已开启，并且电脑与手机在同一 Wi-Fi。');d.devices.forEach(x=>{const el=document.createElement('div');el.className='device';el.innerHTML=`<strong>${esc(x.name)}</strong>${esc(x.model)} · ${esc(x.version)}<br><span class="muted">${esc(x.host)}</span><br>`;const b=document.createElement('button');b.textContent='选择这台手机';b.onclick=()=>selectPhone(x);el.appendChild(b);document.querySelector('#devices').appendChild(el)})}catch(e){set('devices',e.message)}}
+async function selectPhone(x){try{await api(`/api/select?host=${encodeURIComponent(x.host)}&port=${encodeURIComponent(x.port)}`);selected=x;connected=false;set('connection',`已选择：${x.name}\n请点击下方按钮并在手机通知中允许连接。`);document.querySelector('#connectBtn').disabled=false}catch(e){set('connection',e.message)}}
+async function connectPhone(){try{const r=await api('/api/connect',{method:'POST'});set('connection','已发送请求，等待手机确认…');pollRequest(r.requestId,true)}catch(e){set('connection',e.message)}}
+async function pollRequest(id,isConnect=false){for(let i=0;i<90;i++){await sleep(1000);try{const r=await api(`/api/request?id=${encodeURIComponent(id)}`);if(r.status==='approved'&&isConnect){connected=true;set('connection','连接成功，可以管理词库。');loadStatus();return}if(r.status==='completed'){set('operation','手机已确认，操作完成。');loadStatus();return}if(r.status==='rejected'||r.status==='failed'){set(isConnect?'connection':'operation',`操作结果：${r.status}`);return}}catch(e){set(isConnect?'connection':'operation',e.message);return}}set(isConnect?'connection':'operation','等待超时，请重试。')}
+async function loadStatus(){try{const s=await api('/api/status');text('manualCount',s.manualEntries);text('learnedCount',s.learnedEntries);text('selectionCount',s.selectionCount)}catch(e){set('operation',e.message)}}
+async function previewFile(){const f=document.querySelector('#file').files[0];if(!f)return set('preview','请先选择文件。');lastFile=await f.arrayBuffer();try{const p=await api('/api/import/preview',{method:'POST',body:lastFile});set('preview',`有效 ${p.valid} 条，重复 ${p.duplicates} 条，无效 ${p.rejected} 条。手机导入时会再次进行权威检查。`);document.querySelector('#importBtn').disabled=p.valid===0;const rows=document.querySelector('#rows');rows.hidden=false;rows.textContent=p.rows.map(x=>(x.valid?'✓ ':'× ')+x.line).join('\n')}catch(e){set('preview',e.message)}}
+async function importFile(){if(!connected||!lastFile)return set('preview','请先连接手机并检查文件。');if(!confirm('导入会替换手机当前的人工词库，是否继续？'))return;try{const r=await api('/api/import',{method:'POST',body:lastFile});set('preview',`导入完成：有效 ${r.valid} 条，重复 ${r.duplicates} 条，无效 ${r.rejected} 条。`);loadStatus()}catch(e){set('preview',e.message)}}
+async function download(scope){try{const r=await fetch(`/api/export?scope=${scope}`);if(!r.ok){const e=await r.json();throw new Error(e.error)}const blob=await r.blob(),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ChinesePinyinIME_${scope}.tsv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}catch(e){set('operation',e.message)}}
+async function clearData(kind){const name=kind==='manual'?'人工词库':'学习数据';if(!confirm(`将请求清空${name}，还需在手机上确认。是否继续？`))return;try{const r=await api(`/api/clear?kind=${kind}`,{method:'POST'});set('operation','请求已发送，请在手机通知中确认。');pollRequest(r.requestId)}catch(e){set('operation',e.message)}}
+function set(id,v){document.querySelector('#'+id).textContent=v}function text(id,v){document.querySelector('#'+id).textContent=v}function sleep(ms){return new Promise(r=>setTimeout(r,ms))}function esc(v){const d=document.createElement('div');d.textContent=v;return d.innerHTML}
+</script></body></html>

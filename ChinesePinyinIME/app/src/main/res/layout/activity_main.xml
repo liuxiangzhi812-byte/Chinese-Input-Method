@@ -102,6 +102,25 @@
         <TextView
             style="@style/SettingsSectionTitle"
             android:layout_marginTop="28dp"
+            android:text="@string/settings_section_computer_manager" />
+
+        <TextView
+            android:id="@+id/computer_manager_status"
+            style="@style/SettingsBodyText"
+            android:text="@string/computer_manager_stopped" />
+
+        <Button
+            android:id="@+id/computer_manager_toggle_button"
+            style="@style/SettingsPrimaryButton"
+            android:text="@string/start_computer_manager" />
+
+        <TextView
+            style="@style/SettingsBodyText"
+            android:text="@string/computer_manager_hint" />
+
+        <TextView
+            style="@style/SettingsSectionTitle"
+            android:layout_marginTop="28dp"
             android:text="@string/settings_section_layout" />
 
         <TextView

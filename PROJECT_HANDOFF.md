@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.02.0001` (manual dictionary import/export code-complete locally; JVM tests and local build passed; pending device test)
+- Current display version: `v0.02.0002` (PC local-web dictionary manager implemented locally; pending device/LAN test)
 
 Version-stage decision:
 
@@ -75,32 +75,21 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest development node: **v0.02.0001 — major-upgrade baseline and manual dictionary management**
+Latest development node: **v0.02.0002 — PC local-web dictionary manager**
 
 Current status:
 
-- Implemented a stable UTF-8 TSV format: `pinyin<TAB>candidate<TAB>weight`; comments and blank lines are allowed.
-- Implemented Android document-picker import. A successful import atomically replaces the manual dictionary; if the file has no valid rows, existing manual data is preserved.
-- Implemented export to a user-selected TSV file. Export combines manual entries and self-learned phrase entries so the result can be edited on PC and imported again.
-- Implemented import summaries for valid, duplicate, and rejected rows; duplicate pinyin/candidate rows keep the highest weight.
-- Implemented strict final candidate priority: manually curated entries first, self-learned entries second, built-in base dictionary third. Manual order cannot be undone by existing frequency or built-in override ranking.
-- Runtime dictionary/index rebuild runs on the dictionary executor and publishes atomically, so import/clear does not rebuild indexes on the UI thread.
-- Replaced the template JVM test with parser/export and three-layer priority tests; `testDebugUnitTest` passes locally.
-- Candidate ranking is intentionally the second step. Imported and real-world word data should first reveal whether a problem is a missing entry or an existing entry ranked too low.
-- All dictionary operations remain local-only and use Android's document picker without broad storage permission.
+- Android settings now starts/stops a visible temporary foreground management service; it is off by default.
+- Windows helper serves its UI only on `127.0.0.1:37620`, discovers enabled phones over UDP `37622`, and sends dictionary commands to phone TCP `37621`.
+- Device selection uses phone name/model. Connection requires phone notification approval and returns a temporary random token; every command also requires an increasing sequence number.
+- PC page implements dictionary counts, TSV preview, authoritative phone import, manual-only export, combined export, and separate manual/learned clear requests.
+- Clear requests do not execute until separately confirmed from the phone notification. Service stop invalidates the active session.
+- Phone retains the v0.02.0001 file-picker workflow and reuses the same validation, atomic replacement, three-layer priority, and background index publication.
+- Android `testDebugUnitTest` and `assembleDebug` pass. The PC helper compiles, packages with a private runtime, and its localhost/origin checks pass locally.
 
-Manual/device test procedure (v0.02.0001):
+Manual/device test procedure (v0.02.0002) is frozen in `tests/README.md` under “v0.02.0002 电脑管理词库测试重点”. Archive the report as `tests/v0.02.0002_{YYYY-MM-DD}_{HHMMSS}/REPORT.md`.
 
-1. Use `docs/manual_dictionary_example.tsv` or create a UTF-8 TSV file containing valid rows, a duplicate row with a higher weight, and at least one malformed row. Import it from the new settings section.
-2. Expected: the status reports unique valid, duplicate, and rejected counts; the manual entry count updates; the app and IME remain responsive while indexes rebuild.
-3. Include `ni<TAB>妮<TAB>100`, then type `ni` on 26-key and `64`/`ni` on 9-key. Expected: `妮` appears before built-in/manual-override `你`, proving manual source priority is strict.
-4. Import a file containing only malformed rows. Expected: import fails clearly and the previously imported manual entries still work.
-5. Export the dictionary. Expected: the selected file is valid UTF-8 TSV, contains manual entries and any existing self-learned phrases, and can be imported again.
-6. Clear only the manual dictionary. Expected: manual count becomes zero, imported candidates disappear after background reload, and self-learned/built-in candidates remain.
-7. Clear learned data. Expected: learned phrases disappear from runtime immediately after background reload, while manual entries remain.
-8. Regression: verify `64426 -> 你好`, `744824`, cold-start pinyin choices, rapid `644`, DEL, candidate expansion, and 26-key/9-key switching.
-
-Planned next node after v0.02.0001 acceptance: **v0.02.0002 — PC local-web dictionary manager**. This is planning only; no implementation has started. The detailed brief is in Section 8.
+The v0.02.0001 manual dictionary baseline passed device testing and is archived under `tests/v0.02.0001_2026-07-11_003542/`. v0.02.0002 now implements the PC local-web manager described in Section 8 and awaits device/LAN testing.
 
 Final v0.01 foundation node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
 
@@ -231,13 +220,13 @@ At the time of this handoff update:
 - v0.01.0029 (9-key whole-word candidates + syllable fallback) has an archived device report: Cases A/B passed; Case C remains incomplete because `726` does not expose `pan`. The user accepted this as a non-blocking follow-up for the release.
 - v0.01.0030 (dictionary-aligned leading syllables + simplified candidate bar) was device-tested and pushed with its archived report.
 - v0.01.0031 (stable keyboard position) and v0.01.0032 (atomic dictionary readiness + generated single-syllable base) have been pushed to `origin/main`; they close the v0.01 basic-function stage.
-- v0.02.0001 manual dictionary import/export and strict three-layer priority are code-complete locally; JVM tests and `assembleDebug` pass, but device testing has not started.
+- v0.02.0001 passed device testing and is pushed. v0.02.0002 is code-complete locally and awaits cross-device LAN testing.
 
 Recommended immediate repository action:
 
-1. Hand off v0.02.0001 for the manual/device test procedure in Section 4 and archive the result under `tests/`.
-2. Test import/export with the included example, a malformed-only file, a duplicate/higher-weight file, and at least one existing self-learned phrase.
-3. Push only after the device pass is accepted; then collect real ranking failures for the next v0.02 candidate-ranking phase.
+1. Build/install the v0.02.0002 APK and PC application image, then run the fixed LAN test procedure in `tests/README.md`.
+2. Archive the report under `tests/`; do not push v0.02.0002 until the user accepts the device result.
+3. After acceptance, push and resume the dictionary-ranking/data-expansion roadmap.
 
 ## 6. Collaboration Workflow
 
@@ -661,81 +650,76 @@ Acceptance:
 ### P1 — PC Local-Web Dictionary Manager
 
 Target version: `v0.02.0002`
-Status: **planned only; do not implement until v0.02.0001 device testing is accepted and pushed**
+Status: **code-complete locally; automated build passed; pending cross-device LAN test**
 Difficulty: High
 Depth: Deep
-Estimated size: about `1.5-2x` the v0.02.0001 phone-side import/export update for the LAN + local-web release; a project-owned internet relay would be substantially larger and is excluded.
 Recommended implementation engineer: Codex
 Recommended tester: Grok plus human cross-device testing
 
-Product goal:
+Frozen scope:
 
-- The user operates dictionary import/export from a graphical webpage opened on the PC.
-- The webpage and its backend run locally on the PC; dictionary files are not uploaded to a project cloud service.
-- After a phone has opened an explicit management session and paired, the PC initiates status, preview, import, export, and manual-dictionary clear operations.
-- Both wired and ADB-based workflows are out of scope for the primary UX. The target transport is wireless.
+- Windows-only PC helper packaged with its runtime; double-click starts a localhost graphical webpage.
+- Same-LAN wireless transport only. No internet, VPN, cloud relay, wired transport, ADB, public endpoint, account, or automatic sync.
+- Web UI binds only to `127.0.0.1:37620`; phone protocol uses fixed TCP port `37621` and UDP discovery port `37622`.
+- Phone management is off by default. The user starts a visible temporary foreground-service session; stopping it immediately disables discovery and commands.
+- Communication content is plaintext by accepted product decision for trusted home networks.
+- No manually entered pairing secret. PC discovers active phones by model/name; the user selects one; the phone confirms the incoming computer connection.
+- Phone returns an automatically generated temporary session token after confirmation. Commands require that token plus increasing sequence numbers. Session stop invalidates it.
+- Clear-manual and clear-learned commands require a second phone-side confirmation. Import requires PC preview/confirmation and phone-side authoritative validation.
+- Reuse v0.02.0001 TSV codec, stores, strict source priority, atomic writes, and background atomic index publication.
 
-Network decision:
+PC web UI:
 
-- **Same LAN is the default direct mode.** PC and phone can connect when they are on the same Wi-Fi/Ethernet private network.
-- **Different physical networks are supported through an existing private overlay network**, recommended first choice: Tailscale; WireGuard is an acceptable equivalent. Both devices must join the same private VPN/tailnet, after which the connection behaves like a private network even if the phone is on mobile data and the PC is elsewhere.
-- Without a shared LAN, private VPN, publicly routable endpoint, or relay service, direct connectivity is not technically reliable because of NAT/firewall boundaries.
-- Do **not** build a project-owned cloud relay in v0.02.0002. It would add account/authentication, server deployment, abuse prevention, retention/privacy, availability, and ongoing operations. Revisit only if the Tailscale/WireGuard option proves unacceptable.
-- Do not recommend exposing the PC helper through router port forwarding as the normal path.
+- Device discovery/selection with phone model, name, IP, app version, and connection state.
+- Dashboard with manual, self-learned, and built-in counts plus latest operation state.
+- TSV choose/drop, local preview, valid/duplicate/rejected counts, first 20 valid rows, first 20 errors, explicit confirm, upload, phone validation, rebuild progress, and final result.
+- Separate downloads for manual-only export and combined manual + self-learned export.
+- Separate manual-clear and learned-clear controls. Each requires typing `CLEAR`, PC confirmation, then phone confirmation.
+- Local operation history contains only timestamp, command, counts, success, and error category; never dictionary contents or tokens; retain at most 100 records.
 
-Architecture decision:
+Phone UI and lifecycle:
 
-- A small PC helper process serves the graphical UI only on `http://127.0.0.1:{port}`. The browser is a local frontend, not the network server by itself.
-- The helper also exposes a separate phone bridge on a user-selected LAN or private-VPN interface.
-- The phone initiates the bridge connection during an explicitly enabled management session. This avoids inbound mobile-network reachability problems and makes LAN/VPN behavior consistent.
-- Use a persistent encrypted channel for commands and progress events. Prefer TLS/WebSocket with a generated PC identity; the phone pins the paired certificate/fingerprint.
-- Reuse v0.02.0001 `DictionaryTsvCodec`, `ManualDictionaryStore`, export logic, strict layer priority, and background atomic index publication. Do not create a second dictionary format or bypass validation.
-- Keep the transport abstraction reusable for the later PC-to-phone text-entry bridge, but dictionary management is the only v0.02.0002 deliverable.
+- Settings section shows inactive, waiting, pending confirmation, connected, processing, and stopped states.
+- Start session, stop session, accept connection, reject connection, and revoke current session controls.
+- Foreground notification remains visible during the session and provides stop plus pending request actions.
+- App/process restart returns to inactive state; no permanent background connection.
 
-Pairing and security:
+Protocol and limits:
 
-- Phone-side computer management is off by default.
-- The user starts a temporary management session from the app; use a visible foreground-service notification while the session is active so Android does not silently kill the connection.
-- First pairing uses a QR code or short one-time code containing the helper address, one-time secret, and certificate fingerprint.
-- Store a revocable paired-device identity on the phone. Provide “disconnect/revoke computer” and a clearly visible session stop control.
-- Use short-lived session tokens and reject commands from unpaired devices.
-- The localhost webpage must never bind its UI to all network interfaces. Only the dedicated authenticated phone bridge may listen on the selected LAN/VPN interface.
-- Do not log dictionary contents or secrets. Logs may retain timestamps, counts, operation type, and error category only.
-- Import and clear are state-changing operations: show a PC-side preview/confirmation before sending. Export may be initiated directly during an authorized session.
+- Plain HTTP-style phone protocol over the LAN, with a 128-bit random temporary token and increasing sequence header.
+- UTF-8 TSV only; 10MB upload limit; 50,000 unique-entry limit; existing line, pinyin, candidate, and weight limits remain authoritative.
+- Interrupted import never replaces existing data. Incomplete export is discarded on the PC.
+- Import/export/clear operations are serialized; concurrent state-changing commands are rejected.
+- No dictionary contents or tokens in logs.
 
-PC web UI scope:
+Required operations:
 
-- Connection card: paired phone name, connection state, transport address, dictionary counts, app version, and last operation.
-- Import card: choose/drop TSV, parse preview, show valid/duplicate/rejected counts, confirm, upload, and show phone-side rebuild progress/result.
-- Export card: request combined manual + self-learned export from the phone and download it through the local browser.
-- Manual dictionary clear: destructive confirmation showing the number of entries to be removed.
-- Connection setup: LAN address guidance, QR/one-time pairing, and a separate help path for Tailscale/WireGuard remote use.
-- No account system, cloud storage, multi-user administration, public hosting, or general phone file manager.
+- Status, connect, disconnect, import manual dictionary, export manual dictionary, export combined manual/self-learned dictionary, request clear manual, request clear learned.
+- Export filenames include scope plus local timestamp.
+- v0.02.0001 phone file-picker import/export remains available independently.
 
 Operation flow:
 
 1. User starts the PC helper; it opens the local webpage.
 2. User enables a temporary “computer dictionary management” session on the phone.
-3. First use: scan QR/enter one-time code. Later sessions reconnect only to a still-authorized PC identity.
-4. Phone creates the encrypted outbound connection to the helper over LAN or private VPN.
-5. PC requests status or initiates preview/import/export/clear.
-6. Phone validates every imported TSV using the existing codec, writes atomically, rebuilds indexes in the background, then returns counts and completion state.
-7. Stopping the phone session or revoking the PC immediately closes the bridge and rejects later commands.
+3. PC discovers active phones and user selects the target model/name.
+4. Phone displays computer name/IP and user accepts this temporary connection.
+5. PC receives the automatic temporary token and initiates status/import/export/clear commands.
+6. Phone validates, writes atomically, rebuilds in the background, and returns final counts/state.
+7. Session stop, disconnect timeout, app restart, and explicit revoke invalidate the token.
 
 Testing brief:
 
-- Same-LAN Windows PC + phone: first pairing, reconnect, status, valid/partial-invalid/all-invalid import, export/re-import, clear, progress, cancellation/disconnect, and app/IME responsiveness.
-- Different-network test: PC on one internet connection and phone on mobile data, both joined to the same Tailscale/WireGuard private network; repeat status/import/export without changing application protocol.
-- Confirm failure is clear when devices have no shared LAN/VPN route.
-- Attempt unpaired connection, replayed/expired token, wrong certificate fingerprint, stopped session, and revoked PC; every case must be rejected.
-- Confirm the webpage is reachable from the PC at localhost but not exposed as an unauthenticated LAN website.
+- Same-LAN Windows PC + phone: discovery, device selection, phone accept/reject, status, import variants, both exports, both clear flows, stop/restart, timeout, and app/IME responsiveness.
+- Attempt missing/wrong/expired token, repeated/out-of-order sequence, stopped session, oversized body, concurrent write command, and unconfirmed clear; every case must be rejected.
+- Confirm the webpage is reachable from PC localhost and is not served to LAN clients.
 - Regression: phone-side file-picker import/export from v0.02.0001 remains usable without the PC helper.
 
 Acceptance:
 
-- A non-technical user can manage the phone dictionary from a PC browser after starting one local helper and pairing once.
-- Import/export works on the same LAN and across different physical networks through the same private VPN, without project-owned cloud storage or relay.
-- Dictionary data and pairing secrets are encrypted in transit and never exposed to unauthenticated LAN clients.
+- A non-technical user can start the Windows helper, discover the active phone, approve the connection on the phone, and manage dictionaries from the local browser.
+- Same-LAN wireless import/export/clear works without external services, accounts, manually entered secrets, ADB, and wired transport.
+- Plaintext transport is accepted for trusted home LAN use and documented clearly.
 - All phone-side validation, layer priority, atomic replacement, and background rebuild behavior remains identical to v0.02.0001.
 - The management session is explicit, visible, stoppable, and off by default.
 
