@@ -775,6 +775,37 @@ Acceptance:
 - Whole-word candidate ranking is unchanged; the single character is only an additive trailing option.
 - 26-key and 9-key composing both behave consistently.
 
+### P1 — Complete Scrollable Candidate Dropdown
+
+Status: **reported by user; record only, do not implement in v0.02.0002**
+
+Observed problem:
+
+- In 26-key Chinese input, typing single-syllable `ji` does not expose every available `ji` character in the candidate UI; `激` is not selectable.
+- The same built-in dictionary can produce the whole-word candidate `激动`, proving `激` exists in dictionary data. This should be investigated as candidate extraction, truncation, paging, or display coverage rather than fixed by adding one special `ji -> 激` entry.
+
+Frozen next-optimization target:
+
+- Replace/extend the limited candidate browsing experience with a dropdown candidate panel that exposes the complete candidate result set for the current pinyin.
+- The dropdown must support vertical scrolling and direct tap selection of both single characters and words.
+- Compact first-row candidates may remain for fast selection, but opening the dropdown must not reuse the compact row's truncated subset.
+- Apply the behavior consistently to 26-key and 9-key candidate results without changing dictionary source priority.
+- Do not special-case `ji`, `激`, or `激动`; correct the shared candidate retrieval and display path for all pinyin.
+
+Required regression checks:
+
+- Type `ji`, open the dropdown, scroll vertically, and confirm `激` is selectable.
+- Type the full pinyin for `激动` and confirm the existing whole-word candidate remains available.
+- Use other high-candidate syllables such as `shi`, `yi`, and `li` to confirm later candidates are reachable rather than silently dropped.
+- Verify selecting a scrolled candidate commits the correct text and closes or refreshes the panel consistently.
+- Recheck candidate ranking, manual > learned > built-in priority, DEL, candidate expansion, and 26-key/9-key switching.
+
+Acceptance:
+
+- Every candidate returned by the authoritative lookup for the active pinyin is reachable through vertical scrolling.
+- A candidate is not hidden merely because it falls outside the compact row or an internal first-page limit.
+- The solution is generic and requires no per-word dictionary patch.
+
 ### P2 — PC-Enter To Phone Remote Input Bridge
 
 Difficulty: Medium-High
@@ -851,6 +882,7 @@ Minimum regression set:
 
 ## 10. Known Limitations
 
+- Single-syllable candidate display can currently omit later dictionary characters. Confirmed example: `ji` does not expose `激`, although the dictionary can produce `激动`. This is recorded for the complete scrollable candidate dropdown optimization and must not be patched as a one-word exception.
 - Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
 - Prefix pinyin matching is already on `origin/main` as `v0.01.0027`; it was manually verified by the user, but no formal `tests/` archive exists for that version.
@@ -864,7 +896,7 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.02.0001-2026-07-11.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.02.0002-2026-07-11.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
