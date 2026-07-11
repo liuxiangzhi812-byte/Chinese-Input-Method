@@ -87,6 +87,7 @@ Current status:
 - Clear requests do not execute until separately confirmed from the phone notification. Service stop invalidates the active session.
 - Phone retains the v0.02.0001 file-picker workflow and reuses the same validation, atomic replacement, three-layer priority, and background index publication.
 - Android `testDebugUnitTest` and `assembleDebug` pass. The PC helper compiles, packages with a private runtime, and its localhost/origin checks pass locally.
+- OnePlus 7 Pro exposed an Android 12 compatibility crash during PC request polling: `URLDecoder.decode(String, Charset)` raised `NoSuchMethodError`. The phone parser now uses the older UTF-8 overload; rebuild/install and repeat the complete confirmation flow before accepting v0.02.0002.
 
 Manual/device test procedure (v0.02.0002) is frozen in `tests/README.md` under “v0.02.0002 电脑管理词库测试重点”. Archive the report as `tests/v0.02.0002_{YYYY-MM-DD}_{HHMMSS}/REPORT.md`.
 

@@ -29,6 +29,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.URLDecoder;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -618,11 +619,17 @@ public class ComputerDictionaryService extends Service {
                 int separator = pair.indexOf('=');
                 String key = separator < 0 ? pair : pair.substring(0, separator);
                 String value = separator < 0 ? "" : pair.substring(separator + 1);
-                result.put(
-                        URLDecoder.decode(key, StandardCharsets.UTF_8),
-                        URLDecoder.decode(value, StandardCharsets.UTF_8));
+                result.put(decodeUtf8(key), decodeUtf8(value));
             }
             return result;
+        }
+
+        private static String decodeUtf8(String value) {
+            try {
+                return URLDecoder.decode(value, StandardCharsets.UTF_8.name());
+            } catch (UnsupportedEncodingException impossible) {
+                throw new IllegalStateException("UTF-8 is unavailable", impossible);
+            }
         }
 
         private static String readLine(BufferedInputStream input) throws IOException {
