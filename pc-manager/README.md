@@ -11,6 +11,6 @@ Requirements: JDK 17 or newer.
 .\dist\package\ChinesePinyinIME词库管理\ChinesePinyinIME词库管理.exe
 ```
 
-The generated application image includes a private Java runtime. The browser opens automatically. On the phone, open ChinesePinyinIME and enable **电脑词库管理** before searching. Connection requests and destructive clears require phone notification confirmation.
+Distribute and extract `dist/ChinesePinyinIME-PC-Manager-v0.02.0002-portable.zip` as a complete package. Do not copy the EXE by itself: the adjacent `app` and `runtime` directories contain the application and its private Java runtime. The browser opens automatically. On the phone, open ChinesePinyinIME and enable **电脑词库管理** before searching. Connection requests and destructive clears require phone notification confirmation.
 
 The helper uses UDP port `37622` for discovery and the phone uses TCP port `37621` for dictionary operations. Windows Firewall may ask for permission the first time; allow private networks only.

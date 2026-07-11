@@ -81,6 +81,7 @@ Current status:
 
 - Android settings now starts/stops a visible temporary foreground management service; it is off by default.
 - Windows helper serves its UI only on `127.0.0.1:37620`, discovers enabled phones over UDP `37622`, and sends dictionary commands to phone TCP `37621`.
+- Windows test artifact is `pc-manager/dist/ChinesePinyinIME-PC-Manager-v0.02.0002-portable.zip`. Extract the entire archive; never test a copied standalone EXE because its adjacent `app` and `runtime` directories are required.
 - Device selection uses phone name/model. Connection requires phone notification approval and returns a temporary random token; every command also requires an increasing sequence number.
 - PC page implements dictionary counts, TSV preview, authoritative phone import, manual-only export, combined export, and separate manual/learned clear requests.
 - Clear requests do not execute until separately confirmed from the phone notification. Service stop invalidates the active session.
