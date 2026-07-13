@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.02.0002` (PC LAN manager main path mostly verified; blocked by repeatable dictionary-index OOM crashes and incomplete clear-confirm testing)
+- Current display version: `v0.02.0002` (development snapshot pushed 2026-07-13; PC LAN main path mostly verified, but stable acceptance is blocked by repeatable dictionary-index OOM crashes and incomplete clear-confirm testing)
 
 Version-stage decision:
 
@@ -101,7 +101,7 @@ Recommended next step:
 
 1. Treat the runtime dictionary OOM as P0: eliminate full prefix/digit index reconstruction on every learned candidate and reduce peak index memory before further feature work.
 2. Add a 10-minute management idle timeout, then complete clear reject/confirm and short 9-key priority regression.
-3. Retest the actual packaged EXE launch rather than checking for `runtime\bin\java.exe`; only then accept and push v0.02.0002.
+3. Retest the actual packaged EXE launch rather than checking for `runtime\bin\java.exe`; only then mark the already-pushed v0.02.0002 snapshot as accepted/stable.
 
 Final v0.01 foundation node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
 
@@ -232,13 +232,13 @@ At the time of this handoff update:
 - v0.01.0029 (9-key whole-word candidates + syllable fallback) has an archived device report: Cases A/B passed; Case C remains incomplete because `726` does not expose `pan`. The user accepted this as a non-blocking follow-up for the release.
 - v0.01.0030 (dictionary-aligned leading syllables + simplified candidate bar) was device-tested and pushed with its archived report.
 - v0.01.0031 (stable keyboard position) and v0.01.0032 (atomic dictionary readiness + generated single-syllable base) have been pushed to `origin/main`; they close the v0.01 basic-function stage.
-- v0.02.0001 passed device testing and is pushed. v0.02.0002 LAN protocol was mostly device-tested on 2026-07-11, but engineering review found blocking dictionary-index OOM crashes; clear-confirm also remains incomplete.
+- v0.02.0001 passed device testing and is pushed. The v0.02.0002 development snapshot was pushed on 2026-07-13 by user request; engineering review found blocking dictionary-index OOM crashes and clear-confirm remains incomplete, so push status must not be read as stable acceptance.
 
 Recommended immediate repository action:
 
 1. Fix and stress-test the P0 runtime dictionary/index OOM before candidate UI or ranking work.
 2. Add the 10-minute inactive management shutdown, then finish clear reject/confirm + short IME regression.
-3. Do not push v0.02.0002 until the user accepts the completed stability/device result.
+3. After the fixes, archive a new stability/device result and explicitly mark the already-pushed v0.02.0002 snapshot accepted or superseded.
 
 ## 6. Collaboration Workflow
 
@@ -695,7 +695,7 @@ Acceptance:
 ### P1 — PC Local-Web Dictionary Manager
 
 Target version: `v0.02.0002`
-Status: **LAN main path device-tested with gaps; not releasable** — discovery/connect/import/export/localhost OK; repeated dictionary-index OOM is blocking; clear-confirm not closed. The report's `java.exe` packaging criterion is disputed. Report: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`.
+Status: **development snapshot pushed; LAN main path device-tested with gaps; not accepted as stable** — discovery/connect/import/export/localhost OK; repeated dictionary-index OOM is blocking; clear-confirm not closed. The report's `java.exe` packaging criterion is disputed. Report: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`.
 Difficulty: High
 Depth: Deep
 Recommended implementation engineer: Codex
