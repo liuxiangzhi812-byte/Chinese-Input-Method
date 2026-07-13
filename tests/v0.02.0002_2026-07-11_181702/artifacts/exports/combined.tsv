@@ -1,0 +1,7 @@
+# ChinesePinyinIME custom dictionary
+# UTF-8 TSV format: pinyin<TAB>candidate<TAB>weight
+# Import replaces the current manual dictionary. Manual entries outrank learned and built-in entries.
+ceshici	测试词	80
+lalala	啦啦啦	1
+ni	妮	100
+shurufa	输入法	60

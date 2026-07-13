@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.mercury.chinesepinyinime.ComputerManagerSessionTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-07-11T10:08:05.982Z" hostname="MERCURYPOWER" time="0.011">
+  <properties/>
+  <testcase name="reopeningInvalidatesPreviousToken" classname="com.mercury.chinesepinyinime.ComputerManagerSessionTest" time="0.004"/>
+  <testcase name="acceptsOnlyCurrentTokenAndIncreasingSequence" classname="com.mercury.chinesepinyinime.ComputerManagerSessionTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

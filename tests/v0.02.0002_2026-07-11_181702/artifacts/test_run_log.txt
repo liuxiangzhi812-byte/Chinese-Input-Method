@@ -1,0 +1,157 @@
+18:19:52 T01 discover PASS - 紫苏的OnePlus 192.168.1.2
+18:19:52 T02 select response: {"deviceId":"07e12dbb6436d25f","name":"紫苏的OnePlus","model":"OnePlus GM1910","version":"v0.02.0002"}
+18:19:52 T03 connect: {"requestId":"ec08414d-2b5b-4aaa-9e67-545f451f8a58"}
+18:19:52 requestId=ec08414d-2b5b-4aaa-9e67-545f451f8a58
+18:19:59 允许 not in notification UI, trying adb service approve
+18:19:59 approve_cmd: Starting service: Intent { act=computer_manager.approve_connect cmp=com.mercury.chinesepinyinime/.ComputerDictionaryService (has extras) }
+18:19:59 approve_cmd: Error: Requires permission not exported from uid 10798
+18:20:00 poll 0 : {"status":"pending"}
+18:20:02 poll 1 : {"status":"pending"}
+18:20:03 poll 2 : {"status":"pending"}
+18:20:04 poll 3 : {"status":"pending"}
+18:20:05 poll 4 : {"status":"pending"}
+18:20:07 poll 5 : {"status":"pending"}
+18:20:08 poll 6 : {"status":"pending"}
+18:20:09 poll 7 : {"status":"pending"}
+18:20:10 poll 8 : {"status":"pending"}
+18:20:11 poll 9 : {"status":"pending"}
+18:20:12 poll 10 : {"status":"pending"}
+18:20:13 poll 11 : {"status":"pending"}
+18:20:15 poll 12 : {"status":"pending"}
+18:20:16 poll 13 : {"status":"pending"}
+18:20:17 poll 14 : {"status":"pending"}
+18:20:18 T03 approve result=FAIL
+18:20:19 === PARTIAL RESULTS ===
+18:20:19 T01_discover=PASS
+18:20:19 T02_select=PASS
+18:20:19 T03_connect_approve=FAIL
+18:20:41 Tap expand on ChinesePinyinIME group
+18:20:47 允许 still missing, try expanding connection request notification body
+18:20:51 Tap 允许 at 192,1852
+18:20:53 poll 0 : {"status":"approved"}
+18:20:53 approved=True
+18:20:53 FINAL approved=True
+18:21:16 T04 status: {"manualEntries":3,"learnedEntries":1,"selectionCount":5}
+18:21:16 T05 preview: {"valid":3,"duplicates":1,"rejected":2,"rows":[{"line":"ni\t妮\t100","valid":true},{"line":"ni\t妮\t50","valid":true},{"line":"ni hao\t你好\t5","valid":false},{"line":"hao\t好\tbad","valid":false},{"line":"ceshici\t测试词\t80","valid":true},{"line":"shurufa\t输入法\t60","valid":true}]}
+18:21:34 T06 FAIL: {"error":"phone_unreachable"}
+18:21:36 status after import err: {"error":"phone_unreachable"}
+18:21:39 T07 FAIL: {"error":"phone_unreachable"}
+18:21:42 T08 FAIL: {"error":"phone_unreachable"}
+18:21:44 re-import err: {"error":"phone_unreachable"}
+18:21:47 T09a FAIL: {"error":"phone_unreachable"}
+18:21:50 T09b FAIL: {"error":"phone_unreachable"}
+18:22:08 T10 status after stop correctly failed: {"error":"phone_unreachable"}
+18:22:10 discover after stop: {"devices":[]}
+18:22:12 T11 LAN access blocked/failed as expected: 无法连接到远程服务器
+18:22:12 === RESULTS ===
+18:22:12 T01_discover = PASS
+18:22:12 T02_select = PASS
+18:22:12 T03_connect_approve = PASS
+18:22:12 T04_detail = {"manualEntries":3,"learnedEntries":1,"selectionCount":5}
+18:22:12 T04_status = PASS
+18:22:12 T05_preview = PASS
+18:22:12 T06_import = FAIL: {"error":"phone_unreachable"}
+18:22:12 T07_export_manual = FAIL: {"error":"phone_unreachable"}
+18:22:12 T08_export_combined = FAIL: {"error":"phone_unreachable"}
+18:22:12 T09a_clear_reject = FAIL: {"error":"phone_unreachable"}
+18:22:12 T09b_clear_confirm = FAIL: {"error":"phone_unreachable"}
+18:22:12 T10_discover_empty = PASS
+18:22:12 T10_session_stop = PASS
+18:22:12 T11_localhost_only = PASS
+18:24:22 TAP 开启电脑管理 720,732
+18:24:23 started=True
+18:24:27 discover 
+18:24:27 NO DEVICE
+18:24:43 PC manager pid=28512
+18:24:46 PC page 200
+18:24:46   * ServiceRecord{55187ef u0 com.mercury.chinesepinyinime/.ComputerDictionaryService}
+18:24:46     intent={act=computer_manager.start cmp=com.mercury.chinesepinyinime/.ComputerDictionaryService}
+18:24:46     infoAllowStartForeground=[callingPackage: com.mercury.chinesepinyinime; callingUid: 10798; uidState: TOP ; intent: Intent { act=computer_manager.start cmp=com.mercury.chinesepinyinime/.ComputerDictionaryService }; code:PROC_STATE_TOP; tempAllowListReason:<null>; targetSdkVersion:36; callerTargetSdkVersion:36; startForegroundCount:0; bindFromPackage:null]
+18:24:46     isForeground=true foregroundId=2100 foregroundNoti=Notification(channel=computer_dictionary_manager shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 actions=1 vis=PRIVATE)
+18:24:47 discover {"devices":[{"id":"07e12dbb6436d25f","name":"紫苏的OnePlus","model":"OnePlus GM1910","host":"192.168.1.2","port":"37621","version":"v0.02.0002"}]}
+18:24:48 connect 9ca63c4d-eaf3-4565-b3e3-7bd99472782f
+18:24:53 approved 192,1852
+18:24:54 poll 0 {"status":"approved"}
+18:24:54 status {"manualEntries":3,"learnedEntries":1,"selectionCount":5}
+18:24:54 importing 121 bytes...
+18:24:54 IMPORT OK {"valid":3,"duplicates":1,"rejected":2}
+18:24:54 status2 {"manualEntries":3,"learnedEntries":1,"selectionCount":5}
+18:24:54 export manual len=230 sample=# ChinesePinyinIME custom dictionary
+# UTF-8 TSV format: pinyin<TAB>candidate<TAB>weight
+# Import replaces the current m
+18:24:55 export combined len=243
+18:24:55 round3 done
+18:25:16 before reject 
+18:25:23 拒绝 missing
+18:25:25 reject poll 0 
+18:25:28 reject poll 1 
+18:25:31 reject poll 2 
+18:25:34 reject poll 3 
+18:25:37 reject poll 4 
+18:25:40 reject poll 5 
+18:25:43 reject poll 6 
+18:25:46 reject poll 7 
+18:25:49 reject poll 8 
+18:25:53 reject poll 9 
+18:25:56 after reject  learned still 
+18:26:03 确认 missing
+18:26:05 confirm poll 0 
+18:26:08 confirm poll 1 
+18:26:11 confirm poll 2 
+18:26:14 confirm poll 3 
+18:26:17 confirm poll 4 
+18:26:20 confirm poll 5 
+18:26:23 confirm poll 6 
+18:26:26 confirm poll 7 
+18:26:29 confirm poll 8 
+18:26:32 confirm poll 9 
+18:26:35 confirm poll 10 
+18:26:38 confirm poll 11 
+18:26:42 confirm poll 12 
+18:26:45 confirm poll 13 
+18:26:48 confirm poll 14 
+18:26:51 after clear manual 
+18:26:59 确认 missing
+18:27:01 learned clear poll 0 
+18:27:04 learned clear poll 1 
+18:27:07 learned clear poll 2 
+18:27:10 learned clear poll 3 
+18:27:13 learned clear poll 4 
+18:27:16 learned clear poll 5 
+18:27:19 learned clear poll 6 
+18:27:22 learned clear poll 7 
+18:27:25 learned clear poll 8 
+18:27:28 learned clear poll 9 
+18:27:31 learned clear poll 10 
+18:27:35 learned clear poll 11 
+18:27:38 learned clear poll 12 
+18:27:41 learned clear poll 13 
+18:27:44 learned clear poll 14 
+18:27:47 after clear learned 
+18:27:49 reimport for regression 
+18:27:51 final status 
+18:28:13 status after stop GOOD
+18:28:15 discover after stop 
+18:28:43 focus field 720,1006
+18:28:49 clear/export/stop done; starting coord discovery
+18:28:55 PC pid=45260 alive=True
+18:28:57 alive2=True
+18:28:58 PC OK
+18:28:59 dev {"devices":[{"id":"07e12dbb6436d25f","name":"紫苏的OnePlus","model":"OnePlus GM1910","host":"192.168.1.2","port":"37621","version":"v0.02.0002"}]}
+18:29:18 status 
+18:29:18 import 
+18:29:27 missing 拒绝
+18:29:27 rej 0 
+18:29:27 after reject manual= (was ) learned=
+18:29:36 missing 确认
+18:29:36 conf 0 
+18:29:36 after confirm clear manual= learned=
+18:29:46 missing 确认
+18:29:46 learn 0 
+18:29:46 after clear learned manual= learned= sel=
+18:29:46 reimport 
+18:30:06 stop PASS status dead
+18:30:07 discover empty? count=1 {"devices":[{"id":"07e12dbb6436d25f","name":"紫苏的OnePlus","model":"OnePlus GM1910","host":"192.168.1.2","port":"37621","version":"v0.02.0002"}]}
+18:30:07 CLEAR/STOP DONE
+18:30:07 pc alive=True
+18:30:07 portable package has java.exe=False

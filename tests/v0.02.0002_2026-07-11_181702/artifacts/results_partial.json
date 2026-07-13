@@ -1,0 +1,5 @@
+﻿{
+    "T01_discover":  "PASS",
+    "T02_select":  "PASS",
+    "T03_connect_approve":  "FAIL"
+}

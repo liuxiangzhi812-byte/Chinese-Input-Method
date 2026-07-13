@@ -1,0 +1,16 @@
+﻿{
+    "T05_preview":  "PASS",
+    "T04_status":  "PASS",
+    "T01_discover":  "PASS",
+    "T06_import":  "FAIL: {\"error\":\"phone_unreachable\"}",
+    "T09b_clear_confirm":  "FAIL: {\"error\":\"phone_unreachable\"}",
+    "T10_session_stop":  "PASS",
+    "T03_connect_approve":  "PASS",
+    "T07_export_manual":  "FAIL: {\"error\":\"phone_unreachable\"}",
+    "T04_detail":  "{\"manualEntries\":3,\"learnedEntries\":1,\"selectionCount\":5}",
+    "T10_discover_empty":  "PASS",
+    "T09a_clear_reject":  "FAIL: {\"error\":\"phone_unreachable\"}",
+    "T08_export_combined":  "FAIL: {\"error\":\"phone_unreachable\"}",
+    "T02_select":  "PASS",
+    "T11_localhost_only":  "PASS"
+}

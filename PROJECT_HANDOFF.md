@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.02.0002` (PC local-web dictionary manager implemented locally; pending device/LAN test)
+- Current display version: `v0.02.0002` (PC LAN manager main path mostly verified; blocked by repeatable dictionary-index OOM crashes and incomplete clear-confirm testing)
 
 Version-stage decision:
 
@@ -89,9 +89,19 @@ Current status:
 - Android `testDebugUnitTest` and `assembleDebug` pass. The PC helper compiles, packages with a private runtime, and its localhost/origin checks pass locally.
 - OnePlus 7 Pro exposed an Android 12 compatibility crash during PC request polling: `URLDecoder.decode(String, Charset)` raised `NoSuchMethodError`. The phone parser now uses the older UTF-8 overload; rebuild/install and repeat the complete confirmation flow before accepting v0.02.0002.
 
-Manual/device test procedure (v0.02.0002) is frozen in `tests/README.md` under “v0.02.0002 电脑管理词库测试重点”. Archive the report as `tests/v0.02.0002_{YYYY-MM-DD}_{HHMMSS}/REPORT.md`.
+Device/LAN test result (v0.02.0002) — archive: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`:
 
-The v0.02.0001 manual dictionary baseline passed device testing and is archived under `tests/v0.02.0001_2026-07-11_003542/`. v0.02.0002 now implements the PC local-web manager described in Section 8 and awaits device/LAN testing.
+- **Passed**: same-LAN discovery, device select, notification approve connect, status counts, TSV preview (`valid=3/dup=1/rejected=2`), import replace, manual export, combined export, webpage localhost-only, first-round session stop invalidation, Android 12 poll without crash.
+- **Test-report claim disputed**: missing `runtime\bin\java.exe` is not a valid `jpackage` app-image failure criterion; the packaged EXE was independently started with a clean port and served HTTP 200. Retest actual Explorer launch if needed, but do not require a standalone `java.exe` inside the private runtime.
+- **Not closed**: clear-manual / clear-learned reject+confirm notification path; IME `64→妮` / `64426→你好` smoke not re-run in this session.
+- **Blocking stability defect found during engineering review**: repeated `OutOfMemoryError` at the 402,653,184-byte heap limit while `PinyinDictionary.buildPinyinPrefixIndex` rebuilds the complete runtime state. It occurs both after dictionary reload/import and after `addUserCandidate`, matching the user's frequent apparently random typing crashes.
+- Tester used `java -cp ...PcDictionaryManager.jar` with Android Studio JBR after treating the absent `java.exe` as incomplete packaging; engineering review does not accept that criterion because the packaged launcher was independently verified to run.
+
+Recommended next step:
+
+1. Treat the runtime dictionary OOM as P0: eliminate full prefix/digit index reconstruction on every learned candidate and reduce peak index memory before further feature work.
+2. Add a 10-minute management idle timeout, then complete clear reject/confirm and short 9-key priority regression.
+3. Retest the actual packaged EXE launch rather than checking for `runtime\bin\java.exe`; only then accept and push v0.02.0002.
 
 Final v0.01 foundation node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
 
@@ -222,13 +232,13 @@ At the time of this handoff update:
 - v0.01.0029 (9-key whole-word candidates + syllable fallback) has an archived device report: Cases A/B passed; Case C remains incomplete because `726` does not expose `pan`. The user accepted this as a non-blocking follow-up for the release.
 - v0.01.0030 (dictionary-aligned leading syllables + simplified candidate bar) was device-tested and pushed with its archived report.
 - v0.01.0031 (stable keyboard position) and v0.01.0032 (atomic dictionary readiness + generated single-syllable base) have been pushed to `origin/main`; they close the v0.01 basic-function stage.
-- v0.02.0001 passed device testing and is pushed. v0.02.0002 is code-complete locally and awaits cross-device LAN testing.
+- v0.02.0001 passed device testing and is pushed. v0.02.0002 LAN protocol was mostly device-tested on 2026-07-11, but engineering review found blocking dictionary-index OOM crashes; clear-confirm also remains incomplete.
 
 Recommended immediate repository action:
 
-1. Build/install the v0.02.0002 APK and PC application image, then run the fixed LAN test procedure in `tests/README.md`.
-2. Archive the report under `tests/`; do not push v0.02.0002 until the user accepts the device result.
-3. After acceptance, push and resume the dictionary-ranking/data-expansion roadmap.
+1. Fix and stress-test the P0 runtime dictionary/index OOM before candidate UI or ranking work.
+2. Add the 10-minute inactive management shutdown, then finish clear reject/confirm + short IME regression.
+3. Do not push v0.02.0002 until the user accepts the completed stability/device result.
 
 ## 6. Collaboration Workflow
 
@@ -649,10 +659,43 @@ Acceptance:
 - Manual entries and learned entries have predictable merge priority.
 - This feature does not block `v0.01.0028`.
 
+### P0 — Runtime Dictionary Index OOM Stability
+
+Status: **repeatable production crash confirmed from device logcat; highest priority before new features**
+
+Evidence and cause:
+
+- OnePlus 7 Pro / Android 12 has a 402,653,184-byte app heap limit. Confirmed OOM timestamps include 2026-07-11 18:21:34 and 2026-07-13 09:56:22 / 09:57:58.
+- Crashes allocate inside `PinyinDictionary.buildPinyinPrefixIndex`, reached from both `reloadUserDictionariesAsync` after dictionary operations and `addUserCandidate -> mergeUserCandidateIntoRuntime` during normal typing.
+- Every new learned candidate currently calls `applyDictionaryLayers`, rebuilding candidate words, digit indexes, pinyin-prefix indexes, digit-prefix indexes, and syllable indexes for the complete 268k-key dictionary while the previous immutable state is still live. Peak duplication exhausts the heap.
+- A later main-thread OOM inside ColorOS UI code is secondary heap exhaustion, not evidence that ColorOS caused the leak.
+
+Frozen repair target:
+
+- Do not rebuild the complete runtime state for every learned candidate. Existing-pinyin candidate additions must update only candidate data; genuinely new pinyin keys must use a small delta index or a bounded deferred batch.
+- Replace prefix indexes that duplicate every full pinyin key across many `HashMap<String,List<String>>` buckets with a compact representation, such as sorted key arrays plus prefix-range lookup, while preserving exact current lookup behavior.
+- Full import/reload must keep peak memory below the device heap limit. Build compact replacement structures in the background and publish atomically without retaining multiple expanded index copies longer than necessary.
+- Do not treat `OutOfMemoryError` catching, `largeHeap`, forced GC, or reducing the dictionary as the primary fix. Memory growth must be structurally removed.
+- Add lightweight diagnostic logging for rebuild reason, duration, key counts, and approximate heap before/after; never log dictionary contents.
+
+Required tests:
+
+- Record at least 100 distinct self-created words during continuous 26-key and 9-key use; no process restart, OOM, ANR, or missing learned recall.
+- Repeat manual import, combined export/re-import, manual clear, and learned clear at least 10 cycles while typing between operations.
+- Measure heap before and after each cycle and after idle GC. Memory must stabilize rather than grow toward 400MB.
+- Verify prefix results, 9-key digit choices, cold-start `744824`, `64426 -> 你好`, manual > learned > built-in priority, and atomic publication remain unchanged.
+- Stress while the 10-minute PC management service is active and after it auto-stops, proving network lifecycle does not retain old runtime dictionary states.
+
+Acceptance:
+
+- No dictionary/index OOM in the stress sequence on the OnePlus 7 Pro.
+- Adding a learned candidate does not trigger a complete runtime index rebuild.
+- Full reload peak memory stays safely below the 402MB device limit with repeatable headroom.
+
 ### P1 — PC Local-Web Dictionary Manager
 
 Target version: `v0.02.0002`
-Status: **code-complete locally; automated build passed; pending cross-device LAN test**
+Status: **LAN main path device-tested with gaps; not releasable** — discovery/connect/import/export/localhost OK; repeated dictionary-index OOM is blocking; clear-confirm not closed. The report's `java.exe` packaging criterion is disputed. Report: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`.
 Difficulty: High
 Depth: Deep
 Recommended implementation engineer: Codex
@@ -685,6 +728,7 @@ Phone UI and lifecycle:
 - Start session, stop session, accept connection, reject connection, and revoke current session controls.
 - Foreground notification remains visible during the session and provides stop plus pending request actions.
 - App/process restart returns to inactive state; no permanent background connection.
+- After 10 minutes without a valid management action, automatically stop the complete phone management service, close discovery/TCP sockets, invalidate the token, remove its foreground notification, and update the settings state to inactive. Discovery packets and rejected/unauthorized traffic must not reset the timer; successful authenticated status/import/export/clear requests and connection approval do reset it.
 
 Protocol and limits:
 
@@ -716,6 +760,7 @@ Testing brief:
 - Attempt missing/wrong/expired token, repeated/out-of-order sequence, stopped session, oversized body, concurrent write command, and unconfirmed clear; every case must be rejected.
 - Confirm the webpage is reachable from PC localhost and is not served to LAN clients.
 - Regression: phone-side file-picker import/export from v0.02.0001 remains usable without the PC helper.
+- Idle timeout: after the last valid action, verify the service remains active before 10 minutes and shuts down at 10 minutes; discovery, old tokens, and commands must then fail until the user explicitly starts a new phone session.
 
 Acceptance:
 
@@ -883,6 +928,7 @@ Minimum regression set:
 
 ## 10. Known Limitations
 
+- Frequent typing crashes are now attributed to repeatable runtime dictionary-index OOM, not an unknown random trigger. Full prefix-index reconstruction after self-learning/import can exhaust the 402MB heap; this is the P0 blocker above.
 - Single-syllable candidate display can currently omit later dictionary characters. Confirmed example: `ji` does not expose `激`, although the dictionary can produce `激动`. This is recorded for the complete scrollable candidate dropdown optimization and must not be patched as a one-word exception.
 - Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
