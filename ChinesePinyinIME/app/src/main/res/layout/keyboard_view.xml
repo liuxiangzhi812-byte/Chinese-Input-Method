@@ -41,12 +41,16 @@
             android:text="▴" />
     </LinearLayout>
 
+    <!-- Full candidate dropdown: replaces the keyboard section while open;
+         vertical scroll exposes every candidate for the active pinyin. -->
     <ScrollView
         android:id="@+id/candidate_expanded_panel"
         android:layout_width="match_parent"
-        android:layout_height="144dp"
+        android:layout_height="192dp"
         android:background="#DDE5EF"
         android:fillViewport="true"
+        android:scrollbars="vertical"
+        android:fadeScrollbars="false"
         android:paddingStart="4dp"
         android:paddingTop="4dp"
         android:paddingEnd="4dp"

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.mercury.chinesepinyinime.SortedIndexTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-07-13T06:17:21.800Z" hostname="MERCURYPOWER" time="0.005">
+  <properties/>
+  <testcase name="prefixIndex_returnsKeysStartingWithPrefixInRankOrder" classname="com.mercury.chinesepinyinime.SortedIndexTest" time="0.001"/>
+  <testcase name="prefixIndex_withKey_addsWithoutDuplicates" classname="com.mercury.chinesepinyinime.SortedIndexTest" time="0.001"/>
+  <testcase name="digitIndex_withKey_addsNewPinyin" classname="com.mercury.chinesepinyinime.SortedIndexTest" time="0.002"/>
+  <testcase name="digitIndex_exactAndPrefix" classname="com.mercury.chinesepinyinime.SortedIndexTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

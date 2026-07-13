@@ -814,6 +814,10 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         candidateExpandToggle.setText(candidatePanelExpanded ? "▾" : "▴");
     }
 
+    /**
+     * Fills the expanded dropdown with the complete candidate array for the
+     * active pinyin/digits. Compact-row paging must not truncate this list.
+     */
     private void updateExpandedCandidatePanel(String[] allCandidates) {
         if (candidateExpandedList == null) {
             return;
@@ -824,6 +828,14 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
             return;
         }
 
+        // Always use the full composing candidate set, not the compact page.
+        String[] completeCandidates = allCandidates == null
+                ? getCandidatesForComposing()
+                : allCandidates;
+        if (completeCandidates == null) {
+            completeCandidates = new String[0];
+        }
+
         candidateExpandedList.removeAllViews();
         int availableWidth = candidateExpandedContainerWidthPx > 0
                 ? candidateExpandedContainerWidthPx
@@ -831,7 +843,7 @@ public class ChinesePinyinInputMethodService extends InputMethodService {
         LinearLayout currentRow = createExpandedCandidateRow();
         int usedWidth = 0;
 
-        for (String candidate : allCandidates) {
+        for (String candidate : completeCandidates) {
             int candidateWidth = measureExpandedCandidateViewWidth(candidate);
             if (usedWidth + candidateWidth > availableWidth && currentRow.getChildCount() > 0) {
                 candidateExpandedList.addView(currentRow);

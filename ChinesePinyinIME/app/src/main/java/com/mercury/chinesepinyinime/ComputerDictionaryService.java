@@ -8,7 +8,10 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 
 import androidx.core.app.NotificationCompat;
@@ -60,6 +63,8 @@ public class ComputerDictionaryService extends Service {
     private static final int TCP_PORT = 37621;
     private static final int UDP_PORT = 37622;
     private static final int MAX_BODY_BYTES = 10 * 1024 * 1024;
+    /** Idle shutdown after this much time without a valid management action. */
+    private static final long IDLE_TIMEOUT_MS = 10 * 60 * 1000L;
     private static final String DISCOVERY_REQUEST = "CIME_DISCOVER_V1";
 
     private static volatile boolean running;
@@ -69,12 +74,15 @@ public class ComputerDictionaryService extends Service {
     private final ComputerManagerSession session = new ComputerManagerSession();
     private final Object requestLock = new Object();
     private final Map<String, RequestState> requests = new HashMap<>();
+    private final Handler idleHandler = new Handler(Looper.getMainLooper());
+    private final Runnable idleTimeoutRunnable = this::onIdleTimeout;
     private volatile boolean stopping;
     private ServerSocket serverSocket;
     private DatagramSocket discoverySocket;
     private Thread tcpThread;
     private Thread discoveryThread;
     private String connectedComputer = "";
+    private long lastValidActionElapsedMs;
 
     public static boolean isRunning() {
         return running;
@@ -140,11 +148,40 @@ public class ComputerDictionaryService extends Service {
         stopping = false;
         running = true;
         connected = false;
+        touchValidAction();
         broadcastState();
         tcpThread = new Thread(this::runTcpServer, "dictionary-manager-tcp");
         discoveryThread = new Thread(this::runDiscoveryServer, "dictionary-manager-discovery");
         tcpThread.start();
         discoveryThread.start();
+    }
+
+    /**
+     * Resets the 10-minute idle timer. Only successful authenticated management
+     * actions and connection approval should call this — not discovery or 401s.
+     */
+    private void touchValidAction() {
+        lastValidActionElapsedMs = SystemClock.elapsedRealtime();
+        idleHandler.removeCallbacks(idleTimeoutRunnable);
+        idleHandler.postDelayed(idleTimeoutRunnable, IDLE_TIMEOUT_MS);
+    }
+
+    private void onIdleTimeout() {
+        if (!running || stopping) {
+            return;
+        }
+        long idleFor = SystemClock.elapsedRealtime() - lastValidActionElapsedMs;
+        if (idleFor < IDLE_TIMEOUT_MS - 1_000L) {
+            // Another action advanced the timer after this runnable was posted.
+            long remaining = IDLE_TIMEOUT_MS - idleFor;
+            idleHandler.postDelayed(idleTimeoutRunnable, Math.max(1_000L, remaining));
+            return;
+        }
+        stopSelfSafely();
+    }
+
+    private void cancelIdleTimeout() {
+        idleHandler.removeCallbacks(idleTimeoutRunnable);
     }
 
     private void runTcpServer() {
@@ -186,7 +223,7 @@ public class ComputerDictionaryService extends Service {
     private String discoveryPayload() {
         return "CIME_DEVICE_V1\t" + deviceId() + "\t" + safeField(deviceName())
                 + "\t" + safeField(Build.MANUFACTURER + " " + Build.MODEL)
-                + "\t" + TCP_PORT + "\tv0.02.0002";
+                + "\t" + TCP_PORT + "\tv0.02.0003";
     }
 
     private void handleClient(Socket socket) {
@@ -209,7 +246,7 @@ public class ComputerDictionaryService extends Service {
             return HttpResponse.json(200, "{\"deviceId\":\"" + json(deviceId())
                     + "\",\"name\":\"" + json(deviceName()) + "\",\"model\":\""
                     + json(Build.MANUFACTURER + " " + Build.MODEL)
-                    + "\",\"version\":\"v0.02.0002\"}");
+                    + "\",\"version\":\"v0.02.0003\"}");
         }
         if ("POST".equals(request.method) && "/v1/connect".equals(request.path)) {
             String computer = new String(request.body, StandardCharsets.UTF_8).trim();
@@ -229,6 +266,8 @@ public class ComputerDictionaryService extends Service {
         if (!authorize(request)) {
             return HttpResponse.error(401, "invalid_session_or_sequence");
         }
+        // Authenticated command accepted: count as valid management activity.
+        touchValidAction();
         if ("GET".equals(request.method) && "/v1/status".equals(request.path)) {
             return statusResponse();
         }
@@ -359,6 +398,7 @@ public class ComputerDictionaryService extends Service {
         connectedComputer = request.value;
         String token = session.open();
         connected = true;
+        touchValidAction();
         finishRequest(id, "approved", token);
         getSystemService(NotificationManager.class).cancel(REQUEST_NOTIFICATION_ID);
         refreshServiceNotification();
@@ -485,6 +525,7 @@ public class ComputerDictionaryService extends Service {
     private void shutdownServers() {
         stopping = true;
         running = false;
+        cancelIdleTimeout();
         closeSession();
         if (serverSocket != null) {
             try {

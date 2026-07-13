@@ -3,6 +3,7 @@ package com.mercury.chinesepinyinime;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -19,9 +21,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class PinyinDictionary {
+    private static final String TAG = "PinyinDict";
     private static final String DICTIONARY_ASSET_NAME = "pinyin_dict.txt";
     private static final String SYLLABLE_DICTIONARY_ASSET_NAME = "pinyin_syllable_dict.txt";
-    private static final int MAX_CANDIDATES_PER_PINYIN = 20;
+    /** High enough for complete single-syllable browsing (e.g. ji has ~174 entries). */
+    private static final int MAX_CANDIDATES_PER_PINYIN = 512;
     private static final int MAX_PREFIX_PYNYIN_KEYS = 24;
     private static final int MAX_PREFIX_CANDIDATES = 40;
     private static final Map<Character, Character> LETTER_TO_DIGIT = createLetterToDigitMap();
@@ -115,31 +119,16 @@ public class PinyinDictionary {
         return matches.isEmpty() ? null : matches.get(0);
     }
 
-    /**
-     * Resolves a 9-key digit sequence (e.g. "64") to the best matching dictionary
-     * pinyin key (e.g. "ni"), or null if no dictionary key maps to these digits.
-     * When a digit sequence is ambiguous, the first entry of
-     * {@link #getPinyinKeysForDigits} wins; see {@link #buildDigitIndex} for the
-     * tie-break order.
-     */
     public String resolveBestPinyinForDigits(String digits) {
         List<String> matches = getPinyinKeysForDigits(digits);
         return matches.isEmpty() ? null : matches.get(0);
     }
 
-    /**
-     * Returns every dictionary pinyin key that maps to {@code digits}, ordered by
-     * the same tie-break {@link #resolveBestPinyinForDigits} uses to pick its
-     * default. Used by the 9-key pinyin-choice UI to let the user pick a
-     * different pinyin than the default when a digit sequence is ambiguous
-     * (e.g. "64" matches both "ni" and "mi"). Empty if there is no match.
-     */
     public List<String> getPinyinKeysForDigits(String digits) {
         if (digits == null || digits.isEmpty()) {
             return Collections.emptyList();
         }
-        List<String> matches = runtimeState.digitToPinyinIndex.get(digits);
-        return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
+        return runtimeState.digitIndex.exact(digits);
     }
 
     private List<String> getMultiSyllablePinyinKeysForDigits(String digits) {
@@ -169,7 +158,11 @@ public class PinyinDictionary {
         if (prefix == null || prefix.isEmpty()) {
             return Collections.emptyList();
         }
-        return getPrefixMatches(runtimeState.pinyinPrefixIndex, prefix);
+        RuntimeDictionaryState state = runtimeState;
+        return state.pinyinPrefixIndex.lookup(
+                prefix,
+                MAX_PREFIX_PYNYIN_KEYS,
+                rankingComparator(state.candidateWords));
     }
 
     public String resolveBestPinyinForDigitPrefix(String digitsPrefix) {
@@ -181,7 +174,11 @@ public class PinyinDictionary {
         if (digitsPrefix == null || digitsPrefix.isEmpty()) {
             return Collections.emptyList();
         }
-        return getPrefixMatches(runtimeState.digitPrefixIndex, digitsPrefix);
+        RuntimeDictionaryState state = runtimeState;
+        return state.digitIndex.prefix(
+                digitsPrefix,
+                MAX_PREFIX_PYNYIN_KEYS,
+                rankingComparator(state.candidateWords));
     }
 
     public String resolveBestLeadingSingleSyllableForDigits(String digits) {
@@ -198,12 +195,15 @@ public class PinyinDictionary {
         List<String> dictionaryAlignedMatches =
                 getDictionaryAlignedLeadingSingleSyllableMatches(state, digits);
 
-        List<String> exactMatches = getPinyinKeysForDigits(state.singleSyllableDigitIndex, digits);
+        List<String> exactMatches = state.singleSyllableDigitIndex.exact(digits);
         if (!exactMatches.isEmpty()) {
             return prependDistinctMatches(dictionaryAlignedMatches, exactMatches);
         }
 
-        List<String> prefixMatches = getPrefixMatches(state.singleSyllableDigitPrefixIndex, digits);
+        List<String> prefixMatches = state.singleSyllableDigitIndex.prefix(
+                digits,
+                MAX_PREFIX_PYNYIN_KEYS,
+                rankingComparator(state.singleSyllableCandidateWords));
         if (!prefixMatches.isEmpty()) {
             return prependDistinctMatches(dictionaryAlignedMatches, prefixMatches);
         }
@@ -243,7 +243,7 @@ public class PinyinDictionary {
             UserDictionaryStore.getInstance().load(appContext);
             ManualDictionaryStore.getInstance().load(appContext);
             synchronized (lock) {
-                applyDictionaryLayers(builtInCandidateWords);
+                applyDictionaryLayers(builtInCandidateWords, "reload_user_layers");
             }
             postCallback(onReloaded);
         });
@@ -255,7 +255,7 @@ public class PinyinDictionary {
             builtInCandidateWords = loadedWords.isEmpty()
                     ? createFallbackCandidateWords()
                     : loadedWords;
-            applyDictionaryLayers(builtInCandidateWords);
+            applyDictionaryLayers(builtInCandidateWords, "full_asset_load");
             loadFinished = true;
             loadingStarted = false;
             callbacks = new ArrayList<>(pendingCallbacks);
@@ -284,7 +284,7 @@ public class PinyinDictionary {
                 Map<String, String[]> fallbackWords = new HashMap<>(builtInCandidateWords);
                 fallbackWords.putAll(syllableWords);
                 builtInCandidateWords = Collections.unmodifiableMap(fallbackWords);
-                applyDictionaryLayers(builtInCandidateWords);
+                applyDictionaryLayers(builtInCandidateWords, "syllable_fallback");
             }
             syllableFallbackLoaded = true;
         }
@@ -332,23 +332,99 @@ public class PinyinDictionary {
         return Collections.unmodifiableMap(words);
     }
 
+    /**
+     * Incrementally merge one learned candidate without rebuilding every index
+     * for the full dictionary.
+     */
     private void mergeUserCandidateIntoRuntime(String pinyin, String candidate) {
         synchronized (lock) {
-            if (containsCandidate(runtimeState.candidateWords.get(pinyin), candidate)) {
+            RuntimeDictionaryState old = runtimeState;
+            if (containsCandidate(old.candidateWords.get(pinyin), candidate)) {
                 return;
             }
-            applyDictionaryLayers(builtInCandidateWords);
+
+            long startedAt = System.nanoTime();
+            long heapBefore = usedHeapBytes();
+
+            Map<String, List<String>> learnedWords =
+                    UserDictionaryStore.getInstance().snapshotOrderedEntries();
+            Map<String, List<String>> manualWords = old.manualCandidateWords;
+
+            boolean keyExisted = old.candidateWords.containsKey(pinyin);
+            String[] existing = old.candidateWords.get(pinyin);
+            String[] updated = insertCandidate(existing, candidate);
+
+            Map<String, String[]> newCandidateWords = new HashMap<>(old.candidateWords);
+            newCandidateWords.put(pinyin, updated);
+
+            RuntimeDictionaryState next;
+            if (keyExisted) {
+                Map<String, String[]> newSingleSyllable =
+                        refreshSingleSyllableEntry(
+                                old.singleSyllableCandidateWords, pinyin, updated);
+                SortedDigitIndex singleDigitIndex = old.singleSyllableDigitIndex;
+                if (newSingleSyllable != old.singleSyllableCandidateWords) {
+                    singleDigitIndex = SortedDigitIndex.fromWords(
+                            newSingleSyllable,
+                            PinyinDictionary::toDigits,
+                            rankingComparator(newSingleSyllable));
+                }
+                next = new RuntimeDictionaryState(
+                        Collections.unmodifiableMap(newCandidateWords),
+                        old.digitIndex,
+                        old.pinyinPrefixIndex,
+                        newSingleSyllable,
+                        singleDigitIndex,
+                        learnedWords,
+                        manualWords);
+            } else {
+                String digitString = toDigits(pinyin);
+                Comparator<String> ranker = rankingComparator(newCandidateWords);
+                SortedDigitIndex newDigitIndex = digitString == null
+                        ? old.digitIndex
+                        : old.digitIndex.withKey(pinyin, digitString, ranker);
+                SortedPrefixIndex newPrefixIndex = old.pinyinPrefixIndex.withKey(pinyin);
+
+                Map<String, String[]> newSingleSyllable =
+                        refreshSingleSyllableEntry(
+                                old.singleSyllableCandidateWords, pinyin, updated);
+                SortedDigitIndex singleDigitIndex = old.singleSyllableDigitIndex;
+                if (newSingleSyllable != old.singleSyllableCandidateWords
+                        && digitString != null
+                        && newSingleSyllable.containsKey(pinyin)) {
+                    singleDigitIndex = old.singleSyllableDigitIndex.withKey(
+                            pinyin, digitString, rankingComparator(newSingleSyllable));
+                } else if (newSingleSyllable != old.singleSyllableCandidateWords) {
+                    singleDigitIndex = SortedDigitIndex.fromWords(
+                            newSingleSyllable,
+                            PinyinDictionary::toDigits,
+                            rankingComparator(newSingleSyllable));
+                }
+
+                next = new RuntimeDictionaryState(
+                        Collections.unmodifiableMap(newCandidateWords),
+                        newDigitIndex,
+                        newPrefixIndex,
+                        newSingleSyllable,
+                        singleDigitIndex,
+                        learnedWords,
+                        manualWords);
+            }
+
+            runtimeState = next;
+            logRebuild(
+                    keyExisted ? "learn_existing_pinyin" : "learn_new_pinyin",
+                    startedAt,
+                    heapBefore,
+                    next.candidateWords.size(),
+                    next.pinyinPrefixIndex.size());
         }
     }
 
-    private void applyCandidateWords(Map<String, String[]> words) {
-        runtimeState = buildRuntimeDictionaryState(
-                words,
-                Collections.emptyMap(),
-                Collections.emptyMap());
-    }
+    private void applyDictionaryLayers(Map<String, String[]> builtInWords, String reason) {
+        long startedAt = System.nanoTime();
+        long heapBefore = usedHeapBytes();
 
-    private void applyDictionaryLayers(Map<String, String[]> builtInWords) {
         Map<String, List<String>> learnedWords =
                 UserDictionaryStore.getInstance().snapshotOrderedEntries();
         Map<String, List<String>> manualWords =
@@ -358,7 +434,16 @@ public class PinyinDictionary {
                 learnedWords,
                 manualWords,
                 MAX_CANDIDATES_PER_PINYIN);
-        runtimeState = buildRuntimeDictionaryState(mergedWords, learnedWords, manualWords);
+        RuntimeDictionaryState next =
+                buildRuntimeDictionaryState(mergedWords, learnedWords, manualWords);
+        runtimeState = next;
+
+        logRebuild(
+                reason,
+                startedAt,
+                heapBefore,
+                next.candidateWords.size(),
+                next.pinyinPrefixIndex.size());
     }
 
     private static RuntimeDictionaryState buildRuntimeDictionaryState(
@@ -367,14 +452,15 @@ public class PinyinDictionary {
             Map<String, List<String>> manualWords) {
         Map<String, String[]> singleSyllableWords =
                 buildSingleSyllableCandidateWords(candidateWords);
+        Comparator<String> fullRanker = rankingComparator(candidateWords);
+        Comparator<String> singleRanker = rankingComparator(singleSyllableWords);
         return new RuntimeDictionaryState(
                 candidateWords,
-                buildDigitIndex(candidateWords),
-                buildPinyinPrefixIndex(candidateWords),
-                buildDigitPrefixIndex(candidateWords),
+                SortedDigitIndex.fromWords(candidateWords, PinyinDictionary::toDigits, fullRanker),
+                SortedPrefixIndex.fromKeys(candidateWords.keySet()),
                 singleSyllableWords,
-                buildDigitIndex(singleSyllableWords),
-                buildDigitPrefixIndex(singleSyllableWords),
+                SortedDigitIndex.fromWords(
+                        singleSyllableWords, PinyinDictionary::toDigits, singleRanker),
                 learnedWords,
                 manualWords);
     }
@@ -494,84 +580,24 @@ public class PinyinDictionary {
         return Collections.unmodifiableMap(words);
     }
 
-    private static Map<String, List<String>> buildDigitIndex(Map<String, String[]> words) {
-        Map<String, List<String>> index = new HashMap<>();
-        for (String pinyin : words.keySet()) {
-            String digits = toDigits(pinyin);
-            if (digits == null) {
-                continue;
-            }
-            index.computeIfAbsent(digits, key -> new ArrayList<>()).add(pinyin);
-        }
-        sortPinyinKeyBuckets(index, words);
-        return index;
-    }
-
-    private static Map<String, List<String>> buildPinyinPrefixIndex(Map<String, String[]> words) {
-        Map<String, List<String>> index = new HashMap<>();
-        for (String pinyin : words.keySet()) {
-            for (int prefixLength = 1; prefixLength < pinyin.length(); prefixLength++) {
-                String prefix = pinyin.substring(0, prefixLength);
-                index.computeIfAbsent(prefix, key -> new ArrayList<>()).add(pinyin);
-            }
-        }
-        sortPinyinKeyBuckets(index, words);
-        return index;
-    }
-
-    private static Map<String, List<String>> buildDigitPrefixIndex(Map<String, String[]> words) {
-        Map<String, List<String>> index = new HashMap<>();
-        for (String pinyin : words.keySet()) {
-            String digits = toDigits(pinyin);
-            if (digits == null) {
-                continue;
-            }
-            for (int prefixLength = 1; prefixLength < digits.length(); prefixLength++) {
-                String prefix = digits.substring(0, prefixLength);
-                index.computeIfAbsent(prefix, key -> new ArrayList<>()).add(pinyin);
-            }
-        }
-        sortPinyinKeyBuckets(index, words);
-        return index;
-    }
-
-    private static void sortPinyinKeyBuckets(Map<String, List<String>> index, Map<String, String[]> words) {
-        for (List<String> pinyinKeys : index.values()) {
-            Collections.sort(pinyinKeys, (left, right) -> comparePinyinKeys(left, right, words));
-        }
+    private static Comparator<String> rankingComparator(Map<String, String[]> words) {
+        return (left, right) -> comparePinyinKeys(left, right, words);
     }
 
     private static int comparePinyinKeys(String left, String right, Map<String, String[]> words) {
-        // Candidate count is a reasonable proxy for how common/productive a syllable is
-        // after the manual-override signal.
         boolean leftOverride = CandidateRanker.hasManualOverride(left);
         boolean rightOverride = CandidateRanker.hasManualOverride(right);
         if (leftOverride != rightOverride) {
             return leftOverride ? -1 : 1;
         }
-        int leftCount = words.get(left).length;
-        int rightCount = words.get(right).length;
+        String[] leftCandidates = words.get(left);
+        String[] rightCandidates = words.get(right);
+        int leftCount = leftCandidates == null ? 0 : leftCandidates.length;
+        int rightCount = rightCandidates == null ? 0 : rightCandidates.length;
         if (leftCount != rightCount) {
             return Integer.compare(rightCount, leftCount);
         }
         return left.compareTo(right);
-    }
-
-    private List<String> getPrefixMatches(Map<String, List<String>> index, String prefix) {
-        List<String> matches = index.get(prefix);
-        if (matches == null || matches.isEmpty()) {
-            return Collections.emptyList();
-        }
-        int resultSize = Math.min(matches.size(), MAX_PREFIX_PYNYIN_KEYS);
-        return Collections.unmodifiableList(new ArrayList<>(matches.subList(0, resultSize)));
-    }
-
-    private static List<String> getPinyinKeysForDigits(Map<String, List<String>> index, String digits) {
-        if (digits == null || digits.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<String> matches = index.get(digits);
-        return matches == null ? Collections.emptyList() : Collections.unmodifiableList(matches);
     }
 
     private List<String> getLeadingConsumedSyllableMatches(
@@ -581,9 +607,8 @@ public class PinyinDictionary {
         Set<String> seenMatches = new LinkedHashSet<>();
         int maxPrefixLength = Math.min(6, digits.length() - 1);
         for (int prefixLength = maxPrefixLength; prefixLength >= 1; prefixLength--) {
-            List<String> prefixMatches = getPinyinKeysForDigits(
-                    state.singleSyllableDigitIndex,
-                    digits.substring(0, prefixLength));
+            List<String> prefixMatches =
+                    state.singleSyllableDigitIndex.exact(digits.substring(0, prefixLength));
             for (String match : prefixMatches) {
                 if (seenMatches.add(match)) {
                     matches.add(match);
@@ -599,7 +624,7 @@ public class PinyinDictionary {
     private List<String> getDictionaryAlignedLeadingSingleSyllableMatches(
             RuntimeDictionaryState state,
             String digits) {
-        List<String> fullPinyinMatches = getPinyinKeysForDigits(state.digitToPinyinIndex, digits);
+        List<String> fullPinyinMatches = state.digitIndex.exact(digits);
         if (fullPinyinMatches.isEmpty()) {
             return Collections.emptyList();
         }
@@ -623,11 +648,7 @@ public class PinyinDictionary {
             return Collections.emptyList();
         }
         List<String> orderedMatches = new ArrayList<>(alignedMatches);
-        Collections.sort(orderedMatches,
-                (left, right) -> comparePinyinKeys(
-                        left,
-                        right,
-                        state.singleSyllableCandidateWords));
+        orderedMatches.sort(rankingComparator(state.singleSyllableCandidateWords));
         return Collections.unmodifiableList(orderedMatches);
     }
 
@@ -666,32 +687,26 @@ public class PinyinDictionary {
 
     private static final class RuntimeDictionaryState {
         private final Map<String, String[]> candidateWords;
-        private final Map<String, List<String>> digitToPinyinIndex;
-        private final Map<String, List<String>> pinyinPrefixIndex;
-        private final Map<String, List<String>> digitPrefixIndex;
+        private final SortedDigitIndex digitIndex;
+        private final SortedPrefixIndex pinyinPrefixIndex;
         private final Map<String, String[]> singleSyllableCandidateWords;
-        private final Map<String, List<String>> singleSyllableDigitIndex;
-        private final Map<String, List<String>> singleSyllableDigitPrefixIndex;
+        private final SortedDigitIndex singleSyllableDigitIndex;
         private final Map<String, List<String>> learnedCandidateWords;
         private final Map<String, List<String>> manualCandidateWords;
 
         private RuntimeDictionaryState(
                 Map<String, String[]> candidateWords,
-                Map<String, List<String>> digitToPinyinIndex,
-                Map<String, List<String>> pinyinPrefixIndex,
-                Map<String, List<String>> digitPrefixIndex,
+                SortedDigitIndex digitIndex,
+                SortedPrefixIndex pinyinPrefixIndex,
                 Map<String, String[]> singleSyllableCandidateWords,
-                Map<String, List<String>> singleSyllableDigitIndex,
-                Map<String, List<String>> singleSyllableDigitPrefixIndex,
+                SortedDigitIndex singleSyllableDigitIndex,
                 Map<String, List<String>> learnedCandidateWords,
                 Map<String, List<String>> manualCandidateWords) {
             this.candidateWords = candidateWords;
-            this.digitToPinyinIndex = digitToPinyinIndex;
+            this.digitIndex = digitIndex;
             this.pinyinPrefixIndex = pinyinPrefixIndex;
-            this.digitPrefixIndex = digitPrefixIndex;
             this.singleSyllableCandidateWords = singleSyllableCandidateWords;
             this.singleSyllableDigitIndex = singleSyllableDigitIndex;
-            this.singleSyllableDigitPrefixIndex = singleSyllableDigitPrefixIndex;
             this.learnedCandidateWords = learnedCandidateWords;
             this.manualCandidateWords = manualCandidateWords;
         }
@@ -769,6 +784,40 @@ public class PinyinDictionary {
         return Collections.unmodifiableMap(syllableWords);
     }
 
+    private static Map<String, String[]> refreshSingleSyllableEntry(
+            Map<String, String[]> previous,
+            String pinyin,
+            String[] candidates) {
+        boolean shouldInclude = isProbableSingleSyllableKey(pinyin, candidates);
+        boolean previouslyIncluded = previous.containsKey(pinyin);
+        if (shouldInclude == previouslyIncluded
+                && (!shouldInclude || containsSameCandidates(previous.get(pinyin), candidates))) {
+            return previous;
+        }
+        Map<String, String[]> next = new HashMap<>(previous);
+        if (shouldInclude) {
+            next.put(pinyin, candidates);
+        } else {
+            next.remove(pinyin);
+        }
+        return Collections.unmodifiableMap(next);
+    }
+
+    private static boolean containsSameCandidates(String[] left, String[] right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null || left.length != right.length) {
+            return false;
+        }
+        for (int i = 0; i < left.length; i++) {
+            if (!left[i].equals(right[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean isProbableSingleSyllableKey(String pinyin, String[] candidates) {
         if (pinyin == null || candidates == null || pinyin.isEmpty() || pinyin.length() > 6) {
             return false;
@@ -799,6 +848,20 @@ public class PinyinDictionary {
         return false;
     }
 
+    private static String[] insertCandidate(String[] existing, String candidate) {
+        if (existing == null || existing.length == 0) {
+            return new String[]{candidate};
+        }
+        if (containsCandidate(existing, candidate)) {
+            return existing;
+        }
+        int nextLength = Math.min(existing.length + 1, MAX_CANDIDATES_PER_PINYIN);
+        String[] updated = new String[nextLength];
+        updated[0] = candidate;
+        System.arraycopy(existing, 0, updated, 1, nextLength - 1);
+        return updated;
+    }
+
     private static String toDigits(String pinyin) {
         StringBuilder digits = new StringBuilder(pinyin.length());
         for (int i = 0; i < pinyin.length(); i++) {
@@ -821,5 +884,28 @@ public class PinyinDictionary {
             }
         }
         return Collections.unmodifiableMap(map);
+    }
+
+    private static long usedHeapBytes() {
+        Runtime runtime = Runtime.getRuntime();
+        return runtime.totalMemory() - runtime.freeMemory();
+    }
+
+    private static void logRebuild(
+            String reason,
+            long startedAtNanos,
+            long heapBefore,
+            int keyCount,
+            int prefixIndexSize) {
+        long durationMs = (System.nanoTime() - startedAtNanos) / 1_000_000L;
+        long heapAfter = usedHeapBytes();
+        Log.i(
+                TAG,
+                "rebuild reason=" + reason
+                        + " durationMs=" + durationMs
+                        + " keys=" + keyCount
+                        + " prefixIndexSize=" + prefixIndexSize
+                        + " heapBefore=" + heapBefore
+                        + " heapAfter=" + heapAfter);
     }
 }

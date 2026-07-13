@@ -14,8 +14,8 @@ android {
         applicationId = "com.mercury.chinesepinyinime"
         minSdk = 31
         targetSdk = 36
-        versionCode = 20002
-        versionName = "0.02.0002"
+        versionCode = 20003
+        versionName = "0.02.0003"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.mercury.chinesepinyinime.DictionaryTsvCodecTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-07-13T06:17:21.792Z" hostname="MERCURYPOWER" time="0.005">
+  <properties/>
+  <testcase name="writeCombined_manualEntryWinsAndOutputCanBeParsed" classname="com.mercury.chinesepinyinime.DictionaryTsvCodecTest" time="0.004"/>
+  <testcase name="parse_keepsValidRowsAndHighestDuplicateWeight" classname="com.mercury.chinesepinyinime.DictionaryTsvCodecTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

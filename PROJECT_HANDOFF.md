@@ -12,7 +12,7 @@ Current technical choices:
 - `InputMethodService`
 - Minimum SDK: Android 12 / API 31
 - Package / namespace: `com.mercury.chinesepinyinime`
-- Current display version: `v0.02.0002` (development snapshot pushed 2026-07-13; PC LAN main path mostly verified, but stable acceptance is blocked by repeatable dictionary-index OOM crashes and incomplete clear-confirm testing)
+- Current display version: `v0.02.0003` (P0 dictionary-index OOM fix + 10-minute PC manager idle timeout + complete scrollable candidate dropdown; unit tests pass; device archive `tests/v0.02.0003_2026-07-13_141900` — full-load heap ~93MB, expand shows 激)
 
 Version-stage decision:
 
@@ -75,33 +75,27 @@ Detailed behavior and historical notes are in `docs/FEATURE_DETAILS.md`.
 
 ## 4. Current Work Node
 
-Latest development node: **v0.02.0002 — PC local-web dictionary manager**
+Latest development node: **v0.02.0003 — OOM stability + idle timeout + complete candidate dropdown**
 
 Current status:
 
-- Android settings now starts/stops a visible temporary foreground management service; it is off by default.
-- Windows helper serves its UI only on `127.0.0.1:37620`, discovers enabled phones over UDP `37622`, and sends dictionary commands to phone TCP `37621`.
-- Windows test artifact is `pc-manager/dist/ChinesePinyinIME-PC-Manager-v0.02.0002-portable.zip`. Extract the entire archive and run `ChinesePinyinIME-PC-Manager/ChinesePinyinIME-PC-Manager.exe`; never test a copied standalone EXE because its adjacent `app` and `runtime` directories are required. The package and launcher names intentionally use ASCII for Windows JVM-launcher compatibility.
-- Device selection uses phone name/model. Connection requires phone notification approval and returns a temporary random token; every command also requires an increasing sequence number.
-- PC page implements dictionary counts, TSV preview, authoritative phone import, manual-only export, combined export, and separate manual/learned clear requests.
-- Clear requests do not execute until separately confirmed from the phone notification. Service stop invalidates the active session.
-- Phone retains the v0.02.0001 file-picker workflow and reuses the same validation, atomic replacement, three-layer priority, and background index publication.
-- Android `testDebugUnitTest` and `assembleDebug` pass. The PC helper compiles, packages with a private runtime, and its localhost/origin checks pass locally.
-- OnePlus 7 Pro exposed an Android 12 compatibility crash during PC request polling: `URLDecoder.decode(String, Charset)` raised `NoSuchMethodError`. The phone parser now uses the older UTF-8 overload; rebuild/install and repeat the complete confirmation flow before accepting v0.02.0002.
+- **P0 fixed in code**: runtime prefix/digit indexes use compact sorted-array structures (`SortedPrefixIndex`, `SortedDigitIndex`). Learning an existing pinyin updates only that key’s candidate list and reuses indexes; a genuinely new pinyin key does a small delta insert. Full `applyDictionaryLayers` remains for import/reload only.
+- Per-pinyin candidate cap raised from 20 → 512 so complete single-syllable sets (e.g. `ji` including `激`) are loadable; expanded dropdown shows the full composing list with vertical scroll (192dp panel).
+- **P1**: computer dictionary management service auto-stops after **10 minutes** without a valid authenticated action or connection approval. Discovery and unauthorized traffic do not reset the timer.
+- Android `testDebugUnitTest` (including new `SortedIndexTest`) and `assembleDebug` pass for `v0.02.0003`.
+- v0.02.0002 LAN main path remains the baseline for PC management; clear reject/confirm still needs a dedicated device close-out after this stability release.
 
-Device/LAN test result (v0.02.0002) — archive: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`:
+Previous node (v0.02.0002) summary — archive: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`:
 
-- **Passed**: same-LAN discovery, device select, notification approve connect, status counts, TSV preview (`valid=3/dup=1/rejected=2`), import replace, manual export, combined export, webpage localhost-only, first-round session stop invalidation, Android 12 poll without crash.
-- **Test-report claim disputed**: missing `runtime\bin\java.exe` is not a valid `jpackage` app-image failure criterion; the packaged EXE was independently started with a clean port and served HTTP 200. Retest actual Explorer launch if needed, but do not require a standalone `java.exe` inside the private runtime.
-- **Not closed**: clear-manual / clear-learned reject+confirm notification path; IME `64→妮` / `64426→你好` smoke not re-run in this session.
-- **Blocking stability defect found during engineering review**: repeated `OutOfMemoryError` at the 402,653,184-byte heap limit while `PinyinDictionary.buildPinyinPrefixIndex` rebuilds the complete runtime state. It occurs both after dictionary reload/import and after `addUserCandidate`, matching the user's frequent apparently random typing crashes.
-- Tester used `java -cp ...PcDictionaryManager.jar` with Android Studio JBR after treating the absent `java.exe` as incomplete packaging; engineering review does not accept that criterion because the packaged launcher was independently verified to run.
+- **Passed**: same-LAN discovery, approve connect, status, preview, import, dual export, localhost-only, Android 12 poll fix.
+- **Blocked stability (addressed in v0.02.0003)**: full-index rebuild OOM on learn/import.
+- **Still open after 0003**: clear-manual/learned reject+confirm device evidence; packaged EXE Explorer retest optional.
 
 Recommended next step:
 
-1. Treat the runtime dictionary OOM as P0: eliminate full prefix/digit index reconstruction on every learned candidate and reduce peak index memory before further feature work.
-2. Add a 10-minute management idle timeout, then complete clear reject/confirm and short 9-key priority regression.
-3. Retest the actual packaged EXE launch rather than checking for `runtime\bin\java.exe`; only then mark the already-pushed v0.02.0002 snapshot as accepted/stable.
+1. Complete device stress for v0.02.0003 (learn ≥100 words, no OOM; `ji` expand → `激`; idle timeout smoke).
+2. Close clear reject/confirm + short IME regression; mark PC manager lifecycle complete.
+3. Proceed to ranking/dictionary expansion only after candidate completeness is accepted.
 
 Final v0.01 foundation node: **v0.01.0032 — atomic dictionary readiness + cold-start syllable coverage**
 
@@ -232,13 +226,13 @@ At the time of this handoff update:
 - v0.01.0029 (9-key whole-word candidates + syllable fallback) has an archived device report: Cases A/B passed; Case C remains incomplete because `726` does not expose `pan`. The user accepted this as a non-blocking follow-up for the release.
 - v0.01.0030 (dictionary-aligned leading syllables + simplified candidate bar) was device-tested and pushed with its archived report.
 - v0.01.0031 (stable keyboard position) and v0.01.0032 (atomic dictionary readiness + generated single-syllable base) have been pushed to `origin/main`; they close the v0.01 basic-function stage.
-- v0.02.0001 passed device testing and is pushed. The v0.02.0002 development snapshot was pushed on 2026-07-13 by user request; engineering review found blocking dictionary-index OOM crashes and clear-confirm remains incomplete, so push status must not be read as stable acceptance.
+- v0.02.0001 passed device testing and is pushed. v0.02.0002 was pushed as a development snapshot. **v0.02.0003** implements the P0 OOM fix, 10-minute idle shutdown, and complete candidate dropdown locally (commit before push after device archive).
 
 Recommended immediate repository action:
 
-1. Fix and stress-test the P0 runtime dictionary/index OOM before candidate UI or ranking work.
-2. Add the 10-minute inactive management shutdown, then finish clear reject/confirm + short IME regression.
-3. After the fixes, archive a new stability/device result and explicitly mark the already-pushed v0.02.0002 snapshot accepted or superseded.
+1. Device-test and archive `tests/v0.02.0003_*` (OOM stress, `ji`/`激` dropdown, idle timeout smoke, `64426` regression).
+2. Finish clear reject/confirm if not covered in that pass.
+3. Push only after the user accepts the v0.02.0003 report.
 
 ## 6. Collaboration Workflow
 
@@ -315,11 +309,11 @@ Watch-outs:
 
 This is the authoritative pickup order. Historical task sections below remain for traceability; an old `P0` label attached to a completed v0.01 feature does not make it active again.
 
-1. **P0 — Runtime Dictionary Index OOM Stability**: assign immediately to one senior Android/Java engineer. This is the only feature-code task that may change `PinyinDictionary` indexing and runtime publication until its stress acceptance passes.
-2. **P1 — PC Manager Lifecycle Completion**: after the P0 data-structure contract is settled, implement the 10-minute valid-action idle timeout and close clear reject/confirm plus packaged-EXE regression gaps.
-3. **P1 — Complete Scrollable Candidate Dropdown**: start after the P0 lookup behavior is stable. It must expose the authoritative complete result set and must not special-case `ji` or `激`.
-4. **P1 — Candidate Ranking And Dictionary Expansion**: start after candidate completeness is proven, so missing data is not confused with UI truncation or ranking.
-5. **P1 — Automated Core Tests**: may proceed in parallel when tests do not freeze or duplicate the changing P0 implementation details.
+1. **P0 — Runtime Dictionary Index OOM Stability**: **implemented in v0.02.0003** (compact indexes + incremental learn). Remaining work is device stress acceptance and archive — not a second redesign unless stress fails.
+2. **P1 — PC Manager Lifecycle Completion**: **10-minute idle timeout implemented in v0.02.0003**. Still open: clear reject/confirm device close-out and optional packaged-EXE Explorer retest.
+3. **P1 — Complete Scrollable Candidate Dropdown**: **implemented in v0.02.0003** (cap 512 + full expanded list). Remaining: device confirm `ji`→scroll→`激` and high-volume syllables.
+4. **P1 — Candidate Ranking And Dictionary Expansion**: start after candidate completeness is proven on device, so missing data is not confused with UI truncation or ranking.
+5. **P1 — Automated Core Tests**: may proceed in parallel; index unit tests added in v0.02.0003 (`SortedIndexTest`). Still expand pager/ranker/frequency coverage.
 6. **P2 backlog**: leading-syllable single-character selection, fuzzy pinyin, PC-enter remote input, manual hitbox/DEL confirmation, in-app manual dictionary row editor, loading-speed optimization, and handoff/file cleanup.
 
 Parallel-work rules:
@@ -679,7 +673,7 @@ Acceptance:
 
 ### P0 — Runtime Dictionary Index OOM Stability
 
-Status: **repeatable production crash confirmed from device logcat; highest priority before new features**
+Status: **implemented in v0.02.0003 (code + unit tests); device stress acceptance required before ranking work**
 
 Evidence and cause:
 
@@ -712,8 +706,8 @@ Acceptance:
 
 ### P1 — PC Local-Web Dictionary Manager
 
-Target version: `v0.02.0002`
-Status: **development snapshot pushed; LAN main path device-tested with gaps; not accepted as stable** — discovery/connect/import/export/localhost OK; repeated dictionary-index OOM is blocking; clear-confirm not closed. The report's `java.exe` packaging criterion is disputed. Report: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`.
+Target version: `v0.02.0002` (+ lifecycle pieces in `v0.02.0003`)
+Status: **LAN main path device-tested; OOM blocker addressed in 0003; 10-minute idle timeout in 0003; clear-confirm still not closed.** Report: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`.
 Difficulty: High
 Depth: Deep
 Recommended implementation engineer: Codex
@@ -841,7 +835,7 @@ Acceptance:
 
 ### P1 — Complete Scrollable Candidate Dropdown
 
-Status: **reported by user; record only, do not implement in v0.02.0002**
+Status: **implemented in v0.02.0003** — load cap 512, expanded panel shows full composing list with vertical scroll; device verify `ji`/`激` still required
 
 Observed problem:
 
@@ -1004,8 +998,8 @@ Minimum regression set:
 
 ## 10. Known Limitations
 
-- Frequent typing crashes are now attributed to repeatable runtime dictionary-index OOM, not an unknown random trigger. Full prefix-index reconstruction after self-learning/import can exhaust the 402MB heap; this is the P0 blocker above.
-- Single-syllable candidate display can currently omit later dictionary characters. Confirmed example: `ji` does not expose `激`, although the dictionary can produce `激动`. This is recorded for the complete scrollable candidate dropdown optimization and must not be patched as a one-word exception.
+- Typing crashes from full prefix-index rebuild on every learn were the P0 defect; v0.02.0003 replaces that path with compact indexes + incremental learn. Device stress must still prove heap stability under heavy learning.
+- Single-syllable candidate truncation (20-cap) was a root cause of missing characters such as `激` under `ji`. v0.02.0003 raises the cap and completes the expanded dropdown; confirm on device before treating the UX issue closed.
 - Dictionary cold-start loading is not ideal, but not the current priority; typing usability comes first.
 - 9-key mode currently has no English input path.
 - Prefix pinyin matching is already on `origin/main` as `v0.01.0027`; it was manually verified by the user, but no formal `tests/` archive exists for that version.
@@ -1019,9 +1013,9 @@ Minimum regression set:
 
 ## 11. Useful References
 
-- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.02.0002-2026-07-11.md`)
+- Update logs: `ChangeLog/` (new files should use `v{version}-{YYYY-MM-DD}.md`; legacy summary file is `ChangeLog/CHANGELOG.md`; current latest file is `ChangeLog/v0.02.0003-2026-07-13.md`)
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
-- Latest archived device report: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`
+- Latest archived device report: `tests/v0.02.0003_*` when archived; prior LAN report `tests/v0.02.0002_2026-07-11_181702/REPORT.md`
 - Failed dictionary-loading experiment branch: `codex-experiment-dict-load-v0.01.0023`
