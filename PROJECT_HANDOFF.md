@@ -311,6 +311,24 @@ Watch-outs:
 
 ## 8. Near-Term Development Plan
 
+### Current Engineer Assignment Queue (2026-07-13)
+
+This is the authoritative pickup order. Historical task sections below remain for traceability; an old `P0` label attached to a completed v0.01 feature does not make it active again.
+
+1. **P0 — Runtime Dictionary Index OOM Stability**: assign immediately to one senior Android/Java engineer. This is the only feature-code task that may change `PinyinDictionary` indexing and runtime publication until its stress acceptance passes.
+2. **P1 — PC Manager Lifecycle Completion**: after the P0 data-structure contract is settled, implement the 10-minute valid-action idle timeout and close clear reject/confirm plus packaged-EXE regression gaps.
+3. **P1 — Complete Scrollable Candidate Dropdown**: start after the P0 lookup behavior is stable. It must expose the authoritative complete result set and must not special-case `ji` or `激`.
+4. **P1 — Candidate Ranking And Dictionary Expansion**: start after candidate completeness is proven, so missing data is not confused with UI truncation or ranking.
+5. **P1 — Automated Core Tests**: may proceed in parallel when tests do not freeze or duplicate the changing P0 implementation details.
+6. **P2 backlog**: leading-syllable single-character selection, fuzzy pinyin, PC-enter remote input, manual hitbox/DEL confirmation, in-app manual dictionary row editor, loading-speed optimization, and handoff/file cleanup.
+
+Parallel-work rules:
+
+- Do not assign OOM repair, candidate retrieval internals, and ranking changes to separate engineers at the same time; they overlap in `PinyinDictionary`, `CandidateRanker`, and runtime-state publication.
+- PC helper UI/packaging checks and documentation-only work may run in parallel. Phone service lifecycle work should wait until the P0 runtime ownership design is fixed.
+- Every assignee must preserve generic behavior, add no word-specific patches, update `PROJECT_HANDOFF.md` plus the versioned `ChangeLog/` file, and leave a local commit for separate testing. Push only after the required test record passes unless the user explicitly directs otherwise.
+- Engineers should implement only the assigned active section. They must not revive completed historical v0.01 sections or expand a P2 item without a new assignment.
+
 ### P0 — Expandable Chinese Candidate Panel
 
 Target version: `v0.01.0026`
@@ -640,8 +658,8 @@ Recommended tester: Grok
 
 Current decision:
 
-- Implemented locally in v0.02.0001: UTF-8 TSV import/export, atomic replacement, combined manual/self-learned export, and strict manual > learned > built-in priority.
-- Pending device testing before push.
+- Implemented, device-tested, and pushed in v0.02.0001: UTF-8 TSV import/export, atomic replacement, combined manual/self-learned export, and strict manual > learned > built-in priority.
+- v0.02.0002 adds the PC local-web management path. Its stable acceptance remains blocked by the separate P0 OOM defect and incomplete clear-confirm regression.
 
 Planned scope when revisited:
 
@@ -852,6 +870,39 @@ Acceptance:
 - A candidate is not hidden merely because it falls outside the compact row or an internal first-page limit.
 - The solution is generic and requires no per-word dictionary patch.
 
+### P1 — Candidate Ranking And Dictionary Expansion
+
+Status: **engineer-ready after P0 OOM repair and complete-candidate dropdown acceptance**
+
+Problem:
+
+- The current dictionary is large, but candidate order and corpus coverage have not been evaluated with a reproducible benchmark.
+- Candidate omission, compact-row truncation, low ranking, and genuinely absent dictionary data must be measured separately before changing weights or adding entries.
+
+Frozen scope:
+
+- Keep the existing source priority: manual dictionary > self-learned dictionary > built-in dictionary. Ranking changes may reorder candidates only within the same source layer.
+- Within one layer, rank exact full-pinyin matches before prefix matches, then use explicit weight/user frequency, then a stable deterministic tie-breaker.
+- Build a checked-in benchmark containing representative single syllables, common words, multi-syllable words, 26-key prefixes, and 9-key ambiguities. Record expected presence separately from expected top-candidate order.
+- Expand the built-in corpus only through a documented source/conversion pipeline. Normalize pinyin and candidate text, reject invalid rows, deduplicate identical pinyin/candidate pairs deterministically, and regenerate `pinyin_syllable_dict.txt` whenever the base dictionary changes.
+- Produce before/after counts for source rows, accepted unique entries, rejected rows, duplicate rows, generated syllables, dictionary size, load time, and peak heap.
+- Do not add hardcoded lookup exceptions for reported examples. A word is added only through the same corpus/import path used for all entries.
+- Do not add cloud ranking, network prediction, AI prediction, tone input, or fuzzy pinyin in this task.
+
+Required tests:
+
+- Verify manual > learned > built-in priority and existing user-frequency behavior remain unchanged.
+- Verify every benchmark presence case is reachable in the complete dropdown; verify every ranking case has deterministic ordering across process restarts.
+- Recheck `ji` including `激`, `激动`, high-volume syllables `shi/yi/li`, cold-start `744824`, `64426 -> 你好`, prefix lookup, and 9-key whole-word plus per-syllable composition.
+- Run the P0 memory stress sequence after rebuilding the corpus. Dictionary expansion must not restore full-index OOM or materially remove the accepted heap headroom.
+
+Acceptance:
+
+- The team can explain whether each benchmark failure is missing data, lookup behavior, or ranking, with no UI truncation mistaken for a dictionary defect.
+- Import/conversion is reproducible from checked-in scripts and documented inputs; two runs produce identical runtime dictionaries.
+- Candidate order is deterministic, source priority is preserved, and no per-word code patches are introduced.
+- The expanded dictionary passes the established device memory and typing regression thresholds.
+
 ### P2 — PC-Enter To Phone Remote Input Bridge
 
 Difficulty: Medium-High
@@ -867,7 +918,7 @@ Problem:
 Implementation brief:
 
 - Provide a way for the IME to receive a text payload from the PC and commit it into the phone's currently focused input field via the existing commit path.
-- Build only after the v0.02.0002 PC local-web dictionary bridge is stable. Reuse its paired encrypted LAN/private-VPN transport instead of creating an ADB-specific second channel.
+- Build only after the v0.02.0002 PC local-web dictionary bridge is stable. Reuse its same-LAN plaintext temporary-session transport, phone approval, random token, and increasing sequence number instead of creating an ADB-specific second channel.
 - Trigger semantics: one Enter on the PC side sends one text payload, and the phone commits it as a single insertion at the current cursor.
 - Keep this strictly opt-in and separate from normal typing so it never interferes with on-device composing.
 - This must reuse the PC-side dictionary transport rather than creating two unrelated connection systems.
@@ -881,6 +932,31 @@ Acceptance:
 - Pressing Enter on the PC reliably inserts the composed text into the phone's focused input field through the IME.
 - The bridge does not disturb normal on-device typing when unused.
 - Transport choice is documented and consistent with the local-first / low-permission direction.
+
+### P2 — In-App Manual Dictionary Row Editor
+
+Status: **planned only; assign after OOM stability, candidate completeness, and ranking work**
+
+Frozen scope:
+
+- Add a settings-page editor for manual-dictionary rows only. Self-learned and built-in rows remain read-only in this screen.
+- Support search, add, edit, and delete for pinyin, candidate text, and weight. Show validation errors before applying changes.
+- Reuse `DictionaryTsvCodec` validation and `ManualDictionaryStore`; the editor must produce data identical to importing an equivalent valid TSV file.
+- Stage edits in the UI and apply them as one atomic batch. Do not rebuild the complete runtime dictionary after each keystroke or individual row edit.
+- Preserve PC/file import and export. The row editor is an additional maintenance path, not a replacement.
+- Require confirmation before discarding unsaved edits or deleting all visible matching rows. Do not add cloud sync or collaborative editing.
+
+Required tests:
+
+- Add, edit, delete, search, cancel, invalid-row rejection, duplicate handling, and atomic apply.
+- Export after editing, clear manual data, then re-import the export; rows and weights must round-trip exactly.
+- Verify manual > learned > built-in priority, IME responsiveness during apply, and no OOM during repeated edit/apply cycles.
+
+Acceptance:
+
+- A user can maintain individual manual entries entirely on the phone without editing a TSV file.
+- Invalid or cancelled changes never partially replace the persisted dictionary.
+- Applying a batch publishes one consistent runtime state and preserves all existing import/export behavior.
 
 ### P2 — Handoff And File Structure Standardization
 
@@ -947,5 +1023,5 @@ Minimum regression set:
 - Detailed feature behavior: `docs/FEATURE_DETAILS.md`
 - Test archive rules: `tests/README.md`
 - Environment setup: `ENVIRONMENT_SETUP.md`
-- Latest archived device report: `tests/v0.01.0030_2026-07-10_223106/REPORT.md`
+- Latest archived device report: `tests/v0.02.0002_2026-07-11_181702/REPORT.md`
 - Failed dictionary-loading experiment branch: `codex-experiment-dict-load-v0.01.0023`
